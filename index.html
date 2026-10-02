@@ -539,10 +539,17 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px))}
 @media (prefers-reduced-motion:no-preference){.rd-check path{animation:draw .6s .1s ease-out both}.rd-check circle{animation:pop2 .45s ease-out both}.rd-done{animation:spin .5s .3s ease-out both}
  @keyframes draw{from{stroke-dashoffset:90}}@keyframes pop2{from{transform:scale(.6);transform-origin:center;opacity:0}}}
 #bloom{z-index:80}
+
+/* Lettres qui tombent comme des dominos, de droite à gauche */
+.sp-c{display:inline-block;transform-origin:0% 100%}
+.sp-word .sp-c .sp-fl{display:block}
+@media (prefers-reduced-motion:no-preference){.sp-word.fall .sp-c{animation:domino .5s cubic-bezier(.55,0,.8,.3) forwards;animation-delay:var(--d)}
+ @keyframes domino{60%{opacity:1}to{transform:rotate(-90deg);opacity:0}}}
+@media (prefers-reduced-motion:reduce){.sp-word.fall{opacity:0;transition:opacity .4s}}
 </style>
 
 </head><body>
-<div id="splash" aria-hidden="true"><div class="sp-word">Luck’<svg class="sp-fl" viewBox="0 0 24 34" aria-hidden="true"><path fill="#FF9500" d="M12.5 1c.5 4.2-1.8 6.7-3.9 9C6.3 12.4 4 15 4 19.2 4 25.6 7.6 32 12.6 32c5.3 0 8.4-4.4 8.4-10.3 0-4.5-2-7.3-3.6-9.3-.3 2.3-1.1 4-2.5 5 .4-5.6-.6-11.8-2.4-16.4Z"/><path fill="#FFD60A" d="M12.4 31c-2.4 0-4.2-2-4.2-4.8 0-3 1.8-4.4 3.1-6.1.4 1.6 1.3 2.5 2.4 2.8-.1-1.4 0-2.8.6-4.1 1.5 1.9 2.7 3.7 2.7 6.5 0 3.4-2 5.7-4.6 5.7Z"/></svg>n</div></div>
+<div id="splash" aria-hidden="true"><div class="sp-word"><span class="sp-c" style="--d:660ms">L</span><span class="sp-c" style="--d:550ms">u</span><span class="sp-c" style="--d:440ms">c</span><span class="sp-c" style="--d:330ms">k</span><span class="sp-c" style="--d:220ms">’</span><span class="sp-c" style="--d:110ms"><svg class="sp-fl" viewBox="0 0 24 34" aria-hidden="true"><path fill="#FF9500" d="M12.5 1c.5 4.2-1.8 6.7-3.9 9C6.3 12.4 4 15 4 19.2 4 25.6 7.6 32 12.6 32c5.3 0 8.4-4.4 8.4-10.3 0-4.5-2-7.3-3.6-9.3-.3 2.3-1.1 4-2.5 5 .4-5.6-.6-11.8-2.4-16.4Z"/><path fill="#FFD60A" d="M12.4 31c-2.4 0-4.2-2-4.2-4.8 0-3 1.8-4.4 3.1-6.1.4 1.6 1.3 2.5 2.4 2.8-.1-1.4 0-2.8.6-4.1 1.5 1.9 2.7 3.7 2.7 6.5 0 3.4-2 5.7-4.6 5.7Z"/></svg></span><span class="sp-c" style="--d:0ms">n</span></div></div>
 <header class="navbar" id="bar"><div class="in"><div class="l" id="navL"></div><div class="ttl" id="navT"></div><div class="r" id="navR"></div></div></header>
 <main id="app"></main>
 <div class="timer" id="timer" hidden></div>
@@ -1288,7 +1295,7 @@ document.addEventListener('click',ev=>{const p=ev.target.closest('.planet');if(p
   const g=ev.target.closest('[data-act=goHome]');if(g){ev.stopPropagation();showHome(true)}},true);
 window.addEventListener('resize',placePlanets);
 render();keepAwake();showHome(false);
-setTimeout(()=>{const sp=$('#splash');if(!sp)return;sp.classList.add('out');setTimeout(()=>sp.remove(),600)},1100);
+setTimeout(()=>{const sp=$('#splash');if(!sp)return;sp.querySelector('.sp-word').classList.add('fall');setTimeout(()=>{sp.classList.add('out');setTimeout(()=>sp.remove(),500)},1160)},3000);
 })();
 </script>
 </body></html>
