@@ -282,6 +282,35 @@ svg.chart text{fill:var(--label2);font:500 11px var(--font);font-variant-numeric
 .sflame.on span{color:var(--label)}
 @media (prefers-reduced-motion:no-preference){.sflame.on svg{transform-origin:50% 90%;animation:flick 2.4s ease-in-out infinite}@keyframes flick{50%{transform:scale(1.07) rotate(-3deg)}}}
 .timer.work .in{background:var(--tint);color:#fff}.timer.work .lab,.timer.work .lab b{color:#fff}.timer.work button{background:rgba(255,255,255,.22);color:#fff}.timer.work .pb{background:#fff}
+
+/* Accueil : fond blanc cassé fixe, cercles pleins à mouvement irrégulier */
+#home{position:fixed;inset:0;z-index:40;background:#F3F1EC;color:#1D1D1F;color-scheme:light;display:flex;flex-direction:column;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 40px) 24px calc(env(safe-area-inset-bottom,0px) + 24px)}
+.h-top{display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;max-width:340px}
+.h-name{font:600 30px/1.1 var(--display);letter-spacing:-.01em}
+.h-quote{margin:0;display:flex;flex-direction:column;gap:10px}
+.h-quote p{margin:0;font:italic 400 19px/1.45 ui-serif,"New York",Georgia,"Times New Roman",serif;color:#3A3A3C;text-wrap:balance}
+.h-quote cite{font:600 11px/1 var(--font);letter-spacing:.18em;text-transform:uppercase;color:#8E8E93;font-style:normal}
+.orbit{position:relative;flex:1;width:100%;max-width:520px;min-height:300px}
+.planet{position:absolute;left:50%;top:50%;width:var(--s,110px);height:var(--s,110px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;will-change:transform;color:#fff}
+.p-ring{position:absolute;inset:0;border-radius:50%;background:var(--c);box-shadow:0 10px 24px color-mix(in srgb,var(--c) 35%,transparent);transition:transform .2s}
+.planet:active .p-ring{transform:scale(.94)}
+.p-name{position:relative;font:600 15px/1.1 var(--display);max-width:104px}
+.p-meta{position:relative;font-size:10.5px;opacity:.85;max-width:90px;line-height:1.2}
+.h-date{margin:0;font:600 11px/1 var(--font);letter-spacing:.18em;text-transform:uppercase;color:#A1A1A6}
+.life{position:absolute;left:50%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#1D1D1F;box-shadow:0 0 0 6px rgba(29,29,31,.06)}
+@media (prefers-reduced-motion:no-preference){.life{animation:beat 3.2s ease-in-out infinite}@keyframes beat{50%{box-shadow:0 0 0 12px rgba(29,29,31,0)}}}
+#bloom{position:fixed;z-index:45;border-radius:50%;pointer-events:none}
+#area{position:fixed;inset:0;z-index:35;background:var(--bg);overflow:auto;padding:calc(env(safe-area-inset-top,0px) + 8px) 16px 40px}
+.a-in{max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.a-head{display:flex;flex-direction:column;gap:4px;padding:0 4px}
+.a-dot{width:44px;height:44px;border-radius:50%;border:2px solid var(--c);background:color-mix(in srgb,var(--c) 18%,transparent);margin-bottom:8px}
+.a-bul{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.homebtn .hb{width:18px;height:18px;border-radius:50%;border:2px solid currentColor;flex:none}
+
+/* Accueil en mode sombre */
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #home{background:#0B0B0C;color:#F5F5F7;color-scheme:dark} :root:not([data-theme="light"]) #home .h-quote p{color:#C7C7CC} :root:not([data-theme="light"]) #home .h-quote cite,#home .h-date{color:#6E6E73} :root:not([data-theme="light"]) #home .life{background:#F5F5F7;box-shadow:0 0 0 6px rgba(245,245,247,.08)} :root:not([data-theme="light"]) #home .p-ring{box-shadow:0 0 28px color-mix(in srgb,var(--c) 45%,transparent)}}
+:root[data-theme="dark"] #home{background:#0B0B0C;color:#F5F5F7;color-scheme:dark} :root[data-theme="dark"] #home .h-quote p{color:#C7C7CC} :root[data-theme="dark"] #home .h-quote cite,#home .h-date{color:#6E6E73} :root[data-theme="dark"] #home .life{background:#F5F5F7;box-shadow:0 0 0 6px rgba(245,245,247,.08)} :root[data-theme="dark"] #home .p-ring{box-shadow:0 0 28px color-mix(in srgb,var(--c) 45%,transparent)}
+@media (prefers-color-scheme: dark){@keyframes beatd{50%{box-shadow:0 0 0 12px rgba(245,245,247,0)}}:root:not([data-theme="light"]) #home .life{animation-name:beatd}}
 </style>
 
 </head><body>
@@ -296,6 +325,9 @@ svg.chart text{fill:var(--label2);font:500 11px var(--font);font-variant-numeric
   <button data-view="settings"><svg viewBox="0 0 26 26"><circle cx="13" cy="13" r="3.2"/><path d="M13 3.5v2.3M13 20.2v2.3M3.5 13h2.3M20.2 13h2.3M6.3 6.3l1.6 1.6M18.1 18.1l1.6 1.6M6.3 19.7l1.6-1.6M18.1 7.9l1.6-1.6"/><circle cx="13" cy="13" r="7"/></svg>Réglages</button>
 </div></nav>
 <div id="layer"></div>
+<section id="home" aria-label="Accueil"><div class="h-top"><span class="h-name" id="hName"></span><blockquote class="h-quote"><p>« Dans la vie, rien n’est à craindre, tout est à comprendre. »</p><cite>Marie Curie</cite></blockquote></div><div class="orbit" id="orbit"></div><p class="h-date" id="hDate"></p></section>
+<section id="area" hidden></section>
+<div id="bloom" hidden></div>
 
 <script>
 (function(){
@@ -719,7 +751,7 @@ function render(o={}){
   const main=$('#app');const draft=$('#cin')?.value||'';main.innerHTML=html;main.classList.toggle('chat',S.tab==='coach');
   const cp=$('#composer');if(cp){cp.style.bottom=$('.tabs').offsetHeight+'px';const ta=$('#cin');ta.value=draft;const fit=()=>{ta.style.height='auto';ta.style.height=Math.min(140,ta.scrollHeight)+'px'};fit();ta.addEventListener('input',fit);ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&matchMedia('(hover:hover)').matches){e.preventDefault();send(ta.value)}})}
   $('#navT').textContent={today:'Aujourd’hui',workout:'Séance',stats:'Suivi',coach:'Coach',settings:'Réglages'}[S.tab];
-  $('#navL').innerHTML='';$('#navR').innerHTML='';
+  $('#navL').innerHTML=`<button class="navbtn homebtn" data-act="goHome" aria-label="Accueil"><span class="hb"></span><span>Accueil</span></button>`;$('#navR').innerHTML='';
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.view===S.tab?'page':'false'));
   const showW=workoutVisible();const wb=$('#tabs [data-view=workout]');wb.hidden=!showW;$('#tabs').style.gridTemplateColumns=`repeat(${showW?5:4},1fr)`;
   paintTimer();if(o.top)window.scrollTo(0,S.tab==='coach'?document.body.scrollHeight:0);onScroll();
@@ -737,7 +769,7 @@ function asheet(caption,items){
   $('#layer').innerHTML=`<div class="scrim" data-act="closeSheet"><div class="asheet" role="dialog" aria-modal="true">
    <div class="group">${caption?`<div class="cell cap">${esc(caption)}</div>`:''}${items.map(it=>`<button class="cell tap ${it.danger?'danger':''}" data-act="${it.act}" ${Object.entries(it.data||{}).map(([k,v])=>`data-${k}="${esc(v)}"`).join(' ')}>${esc(it.label)}</button>`).join('')}</div>
    <div class="group"><button class="cell tap cancel" data-act="closeSheet">Annuler</button></div></div></div>`}
-function closeSheet(now){const s=$('#layer .scrim');if(!s)return;if(now||matchMedia('(prefers-reduced-motion: reduce)').matches){$('#layer').innerHTML='';return}s.classList.add('out');setTimeout(()=>{if($('#layer .scrim.out'))$('#layer').innerHTML=''},220)}
+function closeSheet(now){setTimeout(()=>{const y=window.scrollY;window.scrollTo(window.scrollX,y+1);window.scrollTo(window.scrollX,y)},260);const s=$('#layer .scrim');if(!s)return;if(now||matchMedia('(prefers-reduced-motion: reduce)').matches){$('#layer').innerHTML='';return}s.classList.add('out');setTimeout(()=>{if($('#layer .scrim.out'))$('#layer').innerHTML=''},220)}
 
 function morningSheet(){const m=peekDay(TODAY()).morning||{};const s=st();
   sheet('Réveil',`<form id="sf" data-form="morning">
@@ -943,7 +975,66 @@ document.addEventListener('submit',ev=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 if('serviceWorker' in navigator&&location.protocol==='https:'&&document.querySelector('link[rel=manifest]')){navigator.serviceWorker.register('sw.js').catch(()=>{})}
-render();keepAwake();
+
+/* iOS (app installée) : après la fermeture du clavier, la barre fixée en bas peut rester bloquée au milieu de l'écran. On force iOS à recalculer la zone d'affichage. */
+(function(){let t=null;const nudge=()=>{clearTimeout(t);t=setTimeout(()=>{const y=window.scrollY;window.scrollTo(window.scrollX,y+1);window.scrollTo(window.scrollX,y);document.body.style.transform='translateZ(0)';requestAnimationFrame(()=>{document.body.style.transform=''})},80)};
+  document.addEventListener('focusout',e=>{if(e.target.matches&&e.target.matches('input,textarea,select'))nudge()});
+  if(window.visualViewport)visualViewport.addEventListener('resize',()=>{if(!document.activeElement||!document.activeElement.matches('input,textarea,select'))nudge()});
+  window.addEventListener('pageshow',nudge);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')nudge()});
+})();
+
+/* ================= accueil : cercles des aspects de vie ================= */
+const AREAS=[
+ {id:'forme',name:'Forme',sub:'Sport & nutrition',color:'#F2994A',size:128,ready:true},
+ {id:'carriere',name:'Carrière',sub:'Candidatures & entretiens',color:'#3E6FD8',size:112,ideas:['Candidatures envoyées, relances, réponses','Entretiens à préparer, avec le coach','Objectif hebdomadaire de candidatures ciblées']},
+ {id:'finances',name:'Finances',sub:'Budget & épargne',color:'#2F9E6E',size:104,ideas:['Budget du mois et dépenses par catégorie','Objectifs d’épargne','Suivi des investissements']},
+ {id:'savoir',name:'Apprentissage',sub:'Lectures & compétences',color:'#8E5CC9',size:126,ideas:['Livres en cours et notes de lecture','Formations et certifications','Temps d’étude par semaine']}];
+const H={angle:0,last:0,raf:0,open:true};
+const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+function areaMeta(a){if(a.id==='forme'){const n=sugarStreak();const a7=lastWeightAvg();return [a7!=null?fmt(a7)+' kg':null,n?n+' j sans sucre':null].filter(Boolean).join(' · ')||a.sub}return a.sub}
+function paintHome(){
+  $('#hName').textContent='Bonjour '+st().name;
+  $('#hDate').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  $('#orbit').innerHTML=AREAS.map(a=>`<button class="planet${a.ready?'':' soon'}" data-area="${a.id}" style="--c:${a.color};--s:${a.size}px" aria-label="${a.name}"><span class="p-ring"></span><span class="p-name" style="${a.name.length>10?'font-size:13px':''}">${a.name}</span><span class="p-meta">${esc(areaMeta(a))}</span></button>`).join('')+'<span class="life" aria-hidden="true"></span>';
+  placePlanets();
+}
+function placePlanets(){const o=$('#orbit');if(!o)return;const r=o.getBoundingClientRect();const t=H.angle;
+  const Rx=Math.max(60,r.width/2-70),Ry=Math.max(60,r.height/2-74);
+  [...o.querySelectorAll('.planet')].forEach((p,k)=>{
+    const ph=k*Math.PI*2/AREAS.length;
+    const a=t*(0.85+0.12*k)+ph+0.35*Math.sin(t*0.9+k*1.3)+0.15*Math.sin(t*2.1+k);
+    const rad=0.78+0.14*Math.sin(t*1.3+k*2.1)+0.06*Math.sin(t*3.1+k*.7);
+    const x=Math.cos(a)*Rx*rad+6*Math.sin(t*4.3+k),y=Math.sin(a)*Ry*rad+6*Math.cos(t*3.7+k*1.9);
+    p.style.transform=`translate(-50%,-50%) translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`})}
+function spin(ts){if(!H.open){H.raf=0;return}if(H.last&&!reduce()&&!H.hold)H.angle+=(ts-H.last)/1000*0.09;H.last=ts;placePlanets();H.raf=requestAnimationFrame(spin)}
+function showHome(animate){const from=H.cur;H.open=true;const h=$('#home');h.hidden=false;$('#area').hidden=true;paintHome();
+  H.last=0;if(!H.raf)H.raf=requestAnimationFrame(spin);
+  if(animate&&from&&!reduce()){H.hold=true;const a=AREAS.find(x=>x.id===from);const el=document.querySelector(`.planet[data-area="${from}"] .p-ring`);
+    const b=$('#bloom');const r=el.getBoundingClientRect();const cx=r.left+r.width/2,cy=r.top+r.height/2,rad=r.width/2;
+    const far=Math.hypot(Math.max(cx,innerWidth-cx),Math.max(cy,innerHeight-cy));
+    b.hidden=false;b.style.cssText=`left:${cx-rad}px;top:${cy-rad}px;width:${rad*2}px;height:${rad*2}px;background:${a.color};opacity:1;transition:none;transform:scale(${(far/rad*1.05).toFixed(2)})`;
+    void b.offsetWidth;b.style.transition='transform .55s cubic-bezier(.65,0,.35,1)';b.style.transform='scale(1)';
+    setTimeout(()=>{b.style.transition='opacity .2s ease';b.style.opacity='0';setTimeout(()=>{b.hidden=true;H.hold=false},200)},560)}
+  H.cur=null}
+function bloomFrom(el,color,done){
+  const b=$('#bloom');if(reduce()){done();return}
+  const r=el.getBoundingClientRect();const cx=r.left+r.width/2,cy=r.top+r.height/2,rad=r.width/2;
+  const far=Math.hypot(Math.max(cx,innerWidth-cx),Math.max(cy,innerHeight-cy));
+  b.hidden=false;b.style.cssText=`left:${cx-rad}px;top:${cy-rad}px;width:${rad*2}px;height:${rad*2}px;background:${color};transform:scale(1);opacity:1;transition:none`;
+  void b.offsetWidth;b.style.transition='transform .55s cubic-bezier(.65,0,.35,1)';b.style.transform=`scale(${(far/rad*1.05).toFixed(2)})`;
+  setTimeout(()=>{done();b.style.transition='opacity .35s ease';b.style.opacity='0';setTimeout(()=>{b.hidden=true},360)},560)}
+function openArea(id){const a=AREAS.find(x=>x.id===id);H.cur=id;const el=document.querySelector(`.planet[data-area="${id}"]`);H.hold=true;
+  bloomFrom(el.querySelector('.p-ring'),a.color,()=>{H.open=false;H.hold=false;$('#home').hidden=true;
+    if(a.ready){$('#area').hidden=true;render({top:true})}
+    else{const v=$('#area');v.hidden=false;v.style.setProperty('--c',a.color);
+      v.innerHTML=`<div class="a-in"><button class="navbtn" data-act="goHome">${I.back}<span>Accueil</span></button>
+      <div class="a-head"><span class="a-dot"></span><h1>${a.name}</h1><p class="l2">${a.sub}</p></div>
+      <div class="group"><div class="cell"><div class="body"><span style="font-weight:600">Section à construire</span><span class="fn">Voici des pistes. Dis-moi ce que tu veux suivre ici et on la construit ensemble.</span></div></div>
+      ${a.ideas.map(x=>`<div class="cell"><span class="a-bul"></span><span class="body">${x}</span></div>`).join('')}</div></div>`}})}
+document.addEventListener('click',ev=>{const p=ev.target.closest('.planet');if(p){unlockAudio();openArea(p.dataset.area);return}
+  const g=ev.target.closest('[data-act=goHome]');if(g){ev.stopPropagation();showHome(true)}},true);
+window.addEventListener('resize',placePlanets);
+render();keepAwake();showHome(false);
 })();
 </script>
 </body></html>
