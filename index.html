@@ -3,9 +3,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Luck’In"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Luck’In"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png">
-<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px)}[hidden]{display:none!important}img{max-width:100%}</style>
+<style>:root{color-scheme:light}[hidden]{display:none!important}img{max-width:100%}</style>
 <title>Luck’In</title>
 <style>
 /* Layout: iOS-native inset grouped lists, large titles, blurred nav + tab bars, modal sheets. Single column, max 600px. */
@@ -458,6 +458,13 @@ main>.group:first-child{margin-top:8px}
 #home{background-position:0 0}
 @media (prefers-color-scheme: light){body{background:linear-gradient(#fff 0,#fff 60px,var(--bg) 240px) fixed,var(--bg)}}
 :root[data-theme="light"] body{background:linear-gradient(#fff 0,#fff 60px,var(--bg) 240px) fixed,var(--bg)}
+
+/* Le contenu défile sous la barre d'état : rien n'est figé en haut */
+.navbar{position:absolute}
+.navbar.scrolled{background:transparent!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.navbar .ttl{visibility:hidden}
+main{padding-top:calc(44px + env(safe-area-inset-top,0px))}
+@media (prefers-color-scheme: light){body::after{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:linear-gradient(rgba(0,0,0,.22),rgba(0,0,0,0));pointer-events:none;z-index:50}}
 </style>
 
 </head><body>
