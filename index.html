@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Luck’In"><meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -429,29 +429,35 @@ main>.group:first-child{margin-top:8px}
 :root.in-area .navbar .sflame{background:var(--glass);border:1px solid var(--glass-line);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
 :root.in-area .navbar.scrolled{background:var(--glass);-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%)}
 :root.in-area .timer .in{background:var(--glass);border:1px solid var(--glass-line);-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%)}
-#area{background:radial-gradient(55% 38% at 12% 8%,color-mix(in srgb,var(--area) 38%,transparent) 0,transparent 72%),
+#area{background:radial-gradient(55% 38% at 12% 30%,color-mix(in srgb,var(--area) 38%,transparent) 0,transparent 72%),
    radial-gradient(50% 34% at 92% 46%,color-mix(in srgb,var(--area) 28%,transparent) 0,transparent 72%),
    radial-gradient(60% 30% at 40% 100%,color-mix(in srgb,var(--area) 34%,transparent) 0,transparent 72%),var(--bg)}
 #area .group{background:var(--glass);border-radius:20px;border:1px solid var(--glass-line);box-shadow:var(--glass-shadow);-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%)}
 
 /* Accueil en glassmorphism */
 #home{background:
-  radial-gradient(45% 30% at 10% 30%,rgba(242,153,74,.32) 0,transparent 70%),
+  radial-gradient(45% 30% at 10% 42%,rgba(242,153,74,.32) 0,transparent 70%),
   radial-gradient(45% 30% at 95% 55%,rgba(62,111,216,.28) 0,transparent 70%),
   radial-gradient(50% 30% at 20% 90%,rgba(47,158,110,.26) 0,transparent 70%),
-  radial-gradient(45% 28% at 85% 12%,rgba(142,92,201,.26) 0,transparent 70%),#F3F1EC}
+  radial-gradient(45% 28% at 88% 34%,rgba(142,92,201,.26) 0,transparent 70%),#F3F1EC}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #home{background:
-  radial-gradient(45% 30% at 10% 30%,rgba(242,153,74,.30) 0,transparent 70%),
+  radial-gradient(45% 30% at 10% 42%,rgba(242,153,74,.30) 0,transparent 70%),
   radial-gradient(45% 30% at 95% 55%,rgba(62,111,216,.30) 0,transparent 70%),
   radial-gradient(50% 30% at 20% 90%,rgba(47,158,110,.26) 0,transparent 70%),
-  radial-gradient(45% 28% at 85% 12%,rgba(142,92,201,.30) 0,transparent 70%),#0B0B0C}}
-:root[data-theme="dark"] #home{background:radial-gradient(45% 30% at 10% 30%,rgba(242,153,74,.30) 0,transparent 70%),radial-gradient(45% 30% at 95% 55%,rgba(62,111,216,.30) 0,transparent 70%),radial-gradient(50% 30% at 20% 90%,rgba(47,158,110,.26) 0,transparent 70%),radial-gradient(45% 28% at 85% 12%,rgba(142,92,201,.30) 0,transparent 70%),#0B0B0C}
+  radial-gradient(45% 28% at 88% 34%,rgba(142,92,201,.30) 0,transparent 70%),#0B0B0C}}
+:root[data-theme="dark"] #home{background:radial-gradient(45% 30% at 10% 42%,rgba(242,153,74,.30) 0,transparent 70%),radial-gradient(45% 30% at 95% 55%,rgba(62,111,216,.30) 0,transparent 70%),radial-gradient(50% 30% at 20% 90%,rgba(47,158,110,.26) 0,transparent 70%),radial-gradient(45% 28% at 88% 34%,rgba(142,92,201,.30) 0,transparent 70%),#0B0B0C}
 #home .h-quote{background:var(--glass);border:1px solid var(--glass-line);box-shadow:var(--glass-shadow);border-radius:22px;padding:16px 20px;-webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%)}
 #home .p-ring{background:linear-gradient(145deg,color-mix(in srgb,var(--c) 70%,rgba(255,255,255,.55)) 0%,color-mix(in srgb,var(--c) 78%,transparent) 55%,color-mix(in srgb,var(--c) 62%,transparent) 100%);
   border:1px solid rgba(255,255,255,.55);-webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%);
   box-shadow:0 14px 40px color-mix(in srgb,var(--c) 45%,transparent),inset 0 1px 1px rgba(255,255,255,.6),inset 0 -6px 14px color-mix(in srgb,var(--c) 40%,rgba(0,0,0,.15))}
 #home .p-name,#home .p-meta{text-shadow:0 1px 2px rgba(0,0,0,.18)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #home .p-ring{border-color:rgba(255,255,255,.22)}}
+
+/* Raccord invisible avec la barre d'état de l'iPhone : le haut de l'écran reste uni, les halos apparaissent plus bas */
+:root.in-area body::before{-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 220px);mask-image:linear-gradient(to bottom,transparent 0,#000 220px)}
+#home{background-position:0 0}
+@media (prefers-color-scheme: light){body{background:linear-gradient(#fff 0,#fff 60px,var(--bg) 240px) fixed,var(--bg)}}
+:root[data-theme="light"] body{background:linear-gradient(#fff 0,#fff 60px,var(--bg) 240px) fixed,var(--bg)}
 </style>
 
 </head><body>
