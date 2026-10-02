@@ -501,12 +501,53 @@ main[data-tab="workout"] .group.tiles .fn,main[data-tab="stats"] .group.tiles .f
 .kpis.tilesrow>div.ringed::after{content:"";position:absolute;inset:-1px;border-radius:50%;pointer-events:none;
   background:conic-gradient(var(--area,var(--tint)) var(--p),transparent 0);
   -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px))}
+
+/* Bouton maison cerclé de la couleur de la section */
+.homecirc{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;margin:2px 0 0 6px;border:2px solid var(--area,var(--tint));color:var(--area,var(--tint));background:var(--glass,transparent);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+.homecirc svg{width:21px;height:21px;fill:currentColor}
+.homecirc:active{transform:scale(.92)}
+#area .homecirc{margin:0 0 4px}
+#area{--area:var(--c)}
+/* Écran de démarrage Luck’In */
+#splash{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:#fff;transition:opacity .5s ease}
+#splash.out{opacity:0;pointer-events:none}
+.sp-word{display:flex;align-items:flex-end;font:700 54px/1 ui-serif,"New York",Georgia,"Times New Roman",serif;color:#111;letter-spacing:-.01em}
+.sp-fl{width:34px;height:50px;margin:0 2px 1px}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #splash{background:#000}:root:not([data-theme="light"]) .sp-word{color:#fff}}
+:root[data-theme="dark"] #splash{background:#000}:root[data-theme="dark"] .sp-word{color:#fff}
+@media (prefers-reduced-motion:no-preference){.sp-fl{transform-origin:50% 90%;animation:flick 1.6s ease-in-out infinite}.sp-word{animation:spin .6s ease-out}@keyframes spin{from{opacity:0;transform:translateY(6px)}}}
+main{padding-top:calc(58px + env(safe-area-inset-top,0px))}
+.rtimer .in{border:1px solid color-mix(in srgb,#A2845E 60%,transparent)}
+.rtimer .pb{background:#A2845E}
+
+/* Lecture de la Bible plein écran */
+#reader{position:fixed;inset:0;z-index:70;display:grid;place-items:center;background:radial-gradient(60% 45% at 50% 45%,rgba(162,132,94,.28),transparent 70%),var(--bg);color:var(--label);transition:opacity .45s ease}
+#reader.closing{opacity:0}
+.rd-in{display:flex;flex-direction:column;align-items:center;gap:22px;padding:24px}
+.rd-ring{position:relative;width:min(72vw,280px);aspect-ratio:1}
+.rd-ring svg{width:100%;height:100%}
+.rd-ring .bg{fill:none;stroke:color-mix(in srgb,#A2845E 22%,transparent);stroke-width:10}
+.rd-ring .fg{fill:none;stroke:#A2845E;stroke-width:10;stroke-linecap:round;transition:stroke-dashoffset .5s linear}
+.rd-t{position:absolute;inset:0;display:grid;place-items:center;font:800 64px/1 var(--display);letter-spacing:-.02em}
+.rd-l{font:600 17px var(--display);color:var(--label2)}
+.rd-btns{display:flex;gap:12px}
+.rd-btns button{padding:12px 20px;border-radius:999px;background:var(--glass,var(--fill));border:1px solid var(--glass-line,transparent);font-weight:600;font-size:16px;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.rd-check{width:min(46vw,180px);fill:none;stroke:#34C759;stroke-width:7;stroke-linecap:round;stroke-linejoin:round}
+.rd-check circle{stroke:color-mix(in srgb,#34C759 30%,transparent)}
+.rd-check path{stroke-dasharray:90;stroke-dashoffset:0}
+.rd-done{font:800 40px/1 var(--display);letter-spacing:-.02em}
+@media (prefers-reduced-motion:no-preference){.rd-check path{animation:draw .6s .1s ease-out both}.rd-check circle{animation:pop2 .45s ease-out both}.rd-done{animation:spin .5s .3s ease-out both}
+ @keyframes draw{from{stroke-dashoffset:90}}@keyframes pop2{from{transform:scale(.6);transform-origin:center;opacity:0}}}
+#bloom{z-index:80}
 </style>
 
 </head><body>
+<div id="splash" aria-hidden="true"><div class="sp-word">Luck’<svg class="sp-fl" viewBox="0 0 24 34" aria-hidden="true"><path fill="#FF9500" d="M12.5 1c.5 4.2-1.8 6.7-3.9 9C6.3 12.4 4 15 4 19.2 4 25.6 7.6 32 12.6 32c5.3 0 8.4-4.4 8.4-10.3 0-4.5-2-7.3-3.6-9.3-.3 2.3-1.1 4-2.5 5 .4-5.6-.6-11.8-2.4-16.4Z"/><path fill="#FFD60A" d="M12.4 31c-2.4 0-4.2-2-4.2-4.8 0-3 1.8-4.4 3.1-6.1.4 1.6 1.3 2.5 2.4 2.8-.1-1.4 0-2.8.6-4.1 1.5 1.9 2.7 3.7 2.7 6.5 0 3.4-2 5.7-4.6 5.7Z"/></svg>n</div></div>
 <header class="navbar" id="bar"><div class="in"><div class="l" id="navL"></div><div class="ttl" id="navT"></div><div class="r" id="navR"></div></div></header>
 <main id="app"></main>
 <div class="timer" id="timer" hidden></div>
+<div class="timer rtimer" id="rtimer" hidden></div>
+<section id="reader" hidden aria-label="Lecture de la Bible"></section>
 <nav class="tabs" aria-label="Sections"><div class="in" id="tabs">
   <button data-view="today" aria-label="Aujourd’hui" title="Aujourd’hui"><svg class="o" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.3"/><path d="M12 2.6v1.9M12 19.5v1.9M2.6 12h1.9M19.5 12h1.9M5.4 5.4l1.4 1.4M17.2 17.2l1.4 1.4M5.4 18.6l1.4-1.4M17.2 6.8l1.4-1.4"/></svg><svg class="f" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" class="fill"/><path d="M12 2.6v1.9M12 19.5v1.9M2.6 12h1.9M19.5 12h1.9M5.4 5.4l1.4 1.4M17.2 17.2l1.4 1.4M5.4 18.6l1.4-1.4M17.2 6.8l1.4-1.4"/></svg></button>
   <button data-view="workout" aria-label="Séance" title="Séance"><svg class="o" viewBox="0 0 24 24"><rect x="2.6" y="7.6" width="4.4" height="8.8" rx="1.8"/><rect x="17" y="7.6" width="4.4" height="8.8" rx="1.8"/><path d="M7 12h10"/></svg><svg class="f" viewBox="0 0 24 24"><rect x="2.6" y="7.6" width="4.4" height="8.8" rx="1.8" class="fill"/><rect x="17" y="7.6" width="4.4" height="8.8" rx="1.8" class="fill"/><path d="M7 12h10"/></svg></button>
@@ -548,6 +589,7 @@ const I={
   plus:'<svg viewBox="0 0 22 22" aria-hidden="true"><path d="M11 3.5v15M3.5 11h15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
   check:'<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   up:'<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 15V3.5M4 8l5-5 5 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  book:'<svg viewBox="0 0 24 24"><path d="M5 4.5h5.5a2 2 0 0 1 1.5.7 2 2 0 0 1 1.5-.7H19v14h-5.5a2 2 0 0 0-1.5.7 2 2 0 0 0-1.5-.7H5Z"/><path d="M12 5.2v14"/></svg>',
   stop:'<svg viewBox="0 0 18 18" aria-hidden="true"><rect x="5" y="5" width="8" height="8" rx="1.5" fill="currentColor"/></svg>',
   sun:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>',
   meal:'<svg viewBox="0 0 24 24"><path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 1.5-3 4-3 7h3v11"/></svg>',
@@ -635,7 +677,8 @@ function defaultMealType(){const h=new Date().getHours()+new Date().getMinutes()
 /* ================= navigation ================= */
 const S={tab:'today',openEx:null,more:false};
 try{S.tab=localStorage.getItem(K+':tab')||'today'}catch(e){}
-function setTab(t){S.tab=t;try{localStorage.setItem(K+':tab',t)}catch(e){}render({top:true})}
+const reduceM=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+function setTab(t){if(t===S.tab){if(window.scrollY>8){window.scrollTo({top:0,behavior:reduceM()?'auto':'smooth'});return}if(t==='today'){showHome(true);return}return}S.tab=t;try{localStorage.setItem(K+':tab',t)}catch(e){}render({top:true})}
 
 /* ================= components ================= */
 const isList=b=>/^\s*<(button|div|label|form)[^>]*class="cell|^\s*<form/.test(b);
@@ -799,9 +842,9 @@ function vSettings(){
    <label class="cell" for="sw2"><span class="body">Son à la fin du repos</span><input id="sw2" type="checkbox" class="switch" data-setting="sound" ${s.sound?'checked':''}></label>
    <label class="cell" for="sw3"><span class="body">+30 s si série à l’échec (RIR 0)</span><input id="sw3" type="checkbox" class="switch" data-setting="failureBonus" ${s.failureBonus?'checked':''}></label>`,
    'Chaque exercice a son propre temps de repos, défini dans le programme. L’écran reste allumé pendant la séance.')}
-  ${sec('Rappels',`<div class="cell"><div class="body" style="display:block;font-size:15px">Les rappels passent par l’app <b>Rappels</b> de l’iPhone : 7:00 (réveil), 12:30 (repas), 21:30 (soir) et dimanche 19:00 (bilan), répétés automatiquement. Touche la notification, puis ouvre Cap depuis l’écran d’accueil.</div></div>`,
-   'Une notification envoyée par Cap lui-même demande un petit serveur : c’est possible dans une version suivante.')}
-  ${sec('Données Santé',`<div class="cell"><div class="body" style="display:block;font-size:15px">Pour récupérer poids, masse grasse et pas depuis l’app Santé : crée un raccourci qui lit ces valeurs (action <b>Rechercher des échantillons de santé</b>) puis copie un texte du type <span class="num">poids=81,2; mg=18,4; pas=8450</span> dans le presse-papiers. Ouvre ensuite Cap et touche le bouton ci-dessous.</div></div>
+  ${sec('Rappels',`<div class="cell"><div class="body" style="display:block;font-size:15px">Les rappels passent par l’app <b>Rappels</b> de l’iPhone : 7:00 (réveil), 12:30 (repas), 21:30 (soir) et dimanche 19:00 (bilan), répétés automatiquement. Touche la notification, puis ouvre Luck’In depuis l’écran d’accueil.</div></div>`,
+   'Une notification envoyée par Luck’In lui-même demande un petit serveur : c’est possible dans une version suivante.')}
+  ${sec('Données Santé',`<div class="cell"><div class="body" style="display:block;font-size:15px">Pour récupérer poids, masse grasse et pas depuis l’app Santé : crée un raccourci qui lit ces valeurs (action <b>Rechercher des échantillons de santé</b>) puis copie un texte du type <span class="num">poids=81,2; mg=18,4; pas=8450</span> dans le presse-papiers. Ouvre ensuite Luck’In et touche le bouton ci-dessous.</div></div>
    <button class="cell tap link" data-act="importHealth">Importer depuis le presse-papiers</button>`,'Clés reconnues : poids, mg, muscle, visceral, sommeil, pas, eau.')}
   ${sec('Coach IA',`<label class="cell field" for="ak"><span>Clé API</span><input id="ak" data-change="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(s.apiKey||'')}"></label>
      <div class="cell block"><span>Modèle</span>${seg('model',MODELS,s.model||'claude-sonnet-5-5')}</div>`,
@@ -826,7 +869,7 @@ function dataContext(){
   for(let k=13;k>=0;k--){const d=addDays(t,-k),D=peekDay(d),m=D.morning||{},e=D.evening||{},tt=totals(d);
     if(!D.meals.length&&!D.morning&&!D.evening&&!workoutsOn(d).length)continue;
     const bl=D.meals.map(x=>x.bloat?.score||0);
-    lines.push(`${d} | poids ${m.weight??'-'} | MG ${m.fat??'-'} | sommeil ${m.sleepH??'-'}h q${m.sleepQ??'-'} | ${tt.kcal??'-'} kcal | ${tt.prot??'-'} g prot | repas ${tt.n} dont hors plan ${tt.off} | séance ${workoutsOn(d).map(w=>w.name).join('+')||'-'} | pas ${e.steps??'-'} | eau ${e.water??'-'} L | énergie/faim/stress ${e.energy??'-'}/${e.hunger??'-'}/${e.stress??'-'} | ballonnement max ${bl.length?Math.max(...bl):'-'} | compléments ${suppsTaken(d).map(x=>x.name+(x.time?' '+x.time:'')).join(', ')||'-'} | sans sucre ajouté ${eveningDone(d)?(hasSugar(d)?'non':'oui'):'?'} | alcool ${e.alcohol??'-'}${e.pains?.length?' | douleurs '+e.pains.map(p=>p.zone+' '+p.intensity+'/10').join(', '):''}`)}
+    lines.push(`${d} | poids ${m.weight??'-'} | MG ${m.fat??'-'} | sommeil ${m.sleepH??'-'}h q${m.sleepQ??'-'} | ${tt.kcal??'-'} kcal | ${tt.prot??'-'} g prot | repas ${tt.n} dont hors plan ${tt.off} | séance ${workoutsOn(d).map(w=>w.name).join('+')||'-'} | pas ${e.steps??'-'} | eau ${e.water??'-'} L | énergie/faim/stress ${e.energy??'-'}/${e.hunger??'-'}/${e.stress??'-'} | ballonnement max ${bl.length?Math.max(...bl):'-'} | compléments ${suppsTaken(d).map(x=>x.name+(x.time?' '+x.time:'')).join(', ')||'-'} | bible ${m.bible?'oui':'-'} | sans sucre ajouté ${eveningDone(d)?(hasSugar(d)?'non':'oui'):'?'} | alcool ${e.alcohol??'-'}${e.pains?.length?' | douleurs '+e.pains.map(p=>p.zone+' '+p.intensity+'/10').join(', '):''}`)}
   const meals=Object.keys(db.days).sort().slice(-5).flatMap(d=>db.days[d].meals.map(m=>`${d} ${m.type}: ${m.foods||'?'} (${m.source}, ${m.speed||'?'}${m.bloat?.score?', ballonnement '+m.bloat.score+'/3':''})`)).slice(-15);
   const wos=db.workouts.filter(w=>w.end).slice(-6).map(w=>`${w.date} ${w.name}: `+(w.kind==='muscu'?w.exercises.filter(e=>e.logged.length).map(e=>`${e.name} ${e.logged.map(x=>x.secs!=null?x.secs+'s':`${x.load??'PDC'}x${x.reps}@${x.rir}`).join(' ')}`).join('; '):`${w.cardio?.type} ${w.duration} min ${w.cardio?.distance??''} km`));
   const wk=Object.keys(db.weekly).sort().slice(-3).map(d=>{const x=db.weekly[d];return `${d}: taille ${x.waist??'-'} cm, cran ${x.belt??'-'}, victoires: ${x.wins||'-'}, difficultés: ${x.struggles||'-'}, questions: ${x.questions||'-'}`});
@@ -838,7 +881,7 @@ Derniers repas : ${meals.join(' ; ')||'(aucun)'}
 Dernières séances : ${wos.join(' ; ')||'(aucune)'}
 Bilans hebdomadaires : ${wk.join(' ; ')||'(aucun)'}`;
 }
-function rules(){return `Tu es le coach sport et nutrition intégré à Cap, l'application de ${st().name}. Nous sommes le ${TODAY()}. Réponds en français, en tutoyant, de façon concise et concrète. Au maximum 3 questions à la fois.
+function rules(){return `Tu es le coach sport et nutrition intégré à Luck’In, l'application de ${st().name}. Nous sommes le ${TODAY()}. Réponds en français, en tutoyant, de façon concise et concrète. Au maximum 3 questions à la fois.
 Objectif de l'utilisateur : recomposition corporelle (perdre du gras, silhouette plus athlétique) en conservant ou gagnant du muscle.
 Appuie-toi sur ses données ci-dessous : cite des chiffres, repère les tendances (moyenne de poids sur 7 jours, protéines, sommeil, repas hors plan, ballonnements par provenance ou vitesse de repas, progression des charges) et propose 1 à 3 actions prioritaires.
 Méthodes : surcharge progressive avec RIR 1 à 3, volume de 10 à 20 séries par groupe musculaire et par semaine selon le niveau, protéines autour de 1,6 à 2,2 g par kg, déficit modéré, perte de 0,5 à 1 % du poids par semaine, sommeil 7 à 9 h, indicateurs d'action (séances, protéines, pas) plutôt que le seul poids. Respecte ses contraintes alimentaires dans toute suggestion de repas.
@@ -930,7 +973,19 @@ function paintTimer(){
   el.querySelector('.t').textContent=prep?String(Math.ceil(rem)):over?'0:00':mmss(Math.ceil(rem));
   el.querySelector('.pb').style.width=(prep?0:over?100:clamp(1-rem/T.total)*100)+'%';
 }
-setInterval(()=>{if(db.active){paintTimer();const el=$('#elapsed');const w=db.workouts.find(x=>x.id===db.active.id);if(el&&w)el.textContent=mmss((Date.now()-w.start)/1000)}},500);
+function paintReading(){const el=$('#reader');const R=db.reading;if(!el)return;
+  if(!R){if(!el.hidden&&!el.classList.contains('closing')){el.hidden=true;el.dataset.mode=''}return}
+  el.hidden=false;const rem=(R.end-Date.now())/1000,over=rem<=0;const C=2*Math.PI*118;
+  if(over&&!R.fired){R.fired=true;const D=day(TODAY());D.morning=Object.assign(D.morning||{},{bible:true});save();beep();haptic([200,100,200]);
+    setTimeout(()=>{el.classList.add('closing');setTimeout(()=>{db.reading=null;save();el.hidden=true;el.classList.remove('closing');el.dataset.mode='';render()},500)},2400)}
+  const mode=over?'done':'run';
+  if(el.dataset.mode!==mode){el.dataset.mode=mode;
+    el.innerHTML=over?`<div class="rd-in"><svg class="rd-check" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="54"/><path d="M37 62l15 15 32-34"/></svg><div class="rd-done">Validé</div><div class="rd-l">Bonne journée</div></div>`
+    :`<div class="rd-in"><div class="rd-ring"><svg viewBox="0 0 260 260" aria-hidden="true"><circle cx="130" cy="130" r="118" class="bg"/><circle cx="130" cy="130" r="118" class="fg" stroke-dasharray="${C.toFixed(1)}" transform="rotate(-90 130 130)"/></svg><div class="rd-t num"></div></div>
+      <div class="rd-l">Lecture de la Bible</div><div class="rd-btns"><button data-act="bibleAdd">+1 min</button><button data-act="bibleStop">Arrêter</button></div></div>`}
+  if(!over){el.querySelector('.rd-t').textContent=mmss(Math.ceil(rem));el.querySelector('.fg').setAttribute('stroke-dashoffset',(C*clamp(1-rem/R.total)).toFixed(1))}
+}
+setInterval(()=>{paintReading();if(db.active){paintTimer();const el=$('#elapsed');const w=db.workouts.find(x=>x.id===db.active.id);if(el&&w)el.textContent=mmss((Date.now()-w.start)/1000)}},500);
 let wakeLock=null;
 async function keepAwake(){try{if(db.active&&document.visibilityState==='visible'&&'wakeLock' in navigator&&!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null})}}catch(e){wakeLock=null}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){keepAwake();paintTimer()}});
@@ -945,10 +1000,10 @@ function render(o={}){
   const cp=$('#composer');if(cp){cp.style.bottom=tabsGap()+'px';const ta=$('#cin');ta.value=draft;const fit=()=>{ta.style.height='auto';ta.style.height=Math.min(140,ta.scrollHeight)+'px'};fit();ta.addEventListener('input',fit);ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&matchMedia('(hover:hover)').matches){e.preventDefault();send(ta.value)}})}
   $('#navT').textContent={today:'Aujourd’hui',workout:'Séance',stats:'Suivi',coach:'Coach',settings:'Réglages'}[S.tab];
   $('#navR').dataset.k='';
-  $('#navL').innerHTML=`<button class="navbtn homebtn" data-act="goHome" aria-label="Accueil"><span class="hb"></span><span>Accueil</span></button>`;$('#navR').innerHTML=S.tab==='today'?(()=>{const n=sugarStreak();return `<button class="sflame ${n?'on':''}" data-act="sugarInfo" aria-label="Série sans sucre ajouté : ${n} jours">${FLAME}<span class="num">${n}</span></button>`})():'';
+  $('#navL').innerHTML=`<button class="homecirc" data-act="goHome" aria-label="Accueil"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 10.6 12 4.5l7.5 6.1V19a1.5 1.5 0 0 1-1.5 1.5h-3.6v-5.2a.9.9 0 0 0-.9-.9h-3a.9.9 0 0 0-.9.9v5.2H6A1.5 1.5 0 0 1 4.5 19Z"/></svg></button>`;$('#navR').innerHTML=S.tab==='today'?(()=>{const n=sugarStreak();return `<button class="sflame ${n?'on':''}" data-act="sugarInfo" aria-label="Série sans sucre ajouté : ${n} jours">${FLAME}<span class="num">${n}</span></button>`})():'';
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.view===S.tab?'page':'false'));const ini=$('#tabs .ini');if(ini)ini.textContent=(st().name||'?').trim().charAt(0).toUpperCase();
   const showW=workoutVisible();const wb=$('#tabs [data-view=workout]');wb.hidden=!showW;$('#tabs').style.gridTemplateColumns=`repeat(${showW?5:4},1fr)`;
-  paintTimer();if(o.top)window.scrollTo(0,S.tab==='coach'?document.body.scrollHeight:0);onScroll();
+  paintTimer();paintReading();if(o.top)window.scrollTo(0,S.tab==='coach'?document.body.scrollHeight:0);onScroll();
 }
 function onScroll(){$('#bar').classList.toggle('scrolled',window.scrollY>36)}
 window.addEventListener('scroll',onScroll,{passive:true});
@@ -970,6 +1025,7 @@ function morningSheet(){const m=peekDay(TODAY()).morning||{};const s=st();
    ${sec('Balance',`${fieldNum('weight','Poids',m.weight,'kg','0,0')}${fieldNum('fat','Masse grasse',m.fat,'%','0,0')}${fieldNum('muscle','Muscle squelettique',m.muscle,esc(s.muscleUnit),'0,0')}${fieldNum('visceral','Graisse viscérale',m.visceral,'indice','0')}
      <label class="cell field" for="time"><span>Heure de pesée</span><input id="time" name="time" type="time" value="${m.time||nowHM()}"></label>`,'Pèse-toi après être allé aux toilettes, avant de boire ou manger.')}
    ${sec('Sommeil',`${fieldNum('sleepH','Durée',m.sleepH,'h','7,5')}<div class="cell block"><span>Qualité</span>${scale('sleepQ',1,5,m.sleepQ)}</div>`)}
+   ${sec('Lecture de la Bible',`<button type="button" class="cell tap" data-act="bibleStart"><span class="ico" style="background:#A2845E">${I.book}</span><span class="body"><span>${m.bible?'Lecture faite · relancer':'Démarrer · 10 min'}</span></span>${m.bible?state(true):`<span class="plus" style="background:#A2845E">▶</span>`}</button>`)}
    ${sec('',`<button type="button" class="cell tap link" data-act="importHealth">Importer depuis le presse-papiers (Raccourci Santé)</button>`)}
   </form>`)}
 function mealSheet(m){const isNew=!m;const s=st();m=m||{type:defaultMealType(),foods:'',source:'maison',speed:'pose',time:nowHM()};
@@ -1064,6 +1120,9 @@ document.addEventListener('click',ev=>{
   switch(act){
    case 'sugarInfo':{const n=sugarStreak(),b=sugarBest();asheet(`Série sans sucre ajouté : ${n} jour${n>1?'s':''} · record ${b} jour${b>1?'s':''}. Une journée compte une fois la fiche du soir validée sans sucre ajouté (repas et hors repas).`,[{label:'Ouvrir la fiche du soir',act:'evening'}]);break}
    case 'morning':morningSheet();break;
+   case 'bibleStart':{unlockAudio();db.reading={end:Date.now()+600000,total:600,fired:false};save();const go=()=>{closeSheet(true);paintReading()};if(document.querySelector('#bloom'))bloomFrom(el.querySelector('.ico')||el,'#A2845E',go);else go();try{if('wakeLock' in navigator&&!wakeLock)navigator.wakeLock.request('screen').then(w=>{wakeLock=w}).catch(()=>{})}catch(e){}break}
+   case 'bibleStop':{const r=$('#reader');r.classList.add('closing');db.reading=null;save();setTimeout(()=>{r.hidden=true;r.classList.remove('closing');r.dataset.mode=''},450);break}
+   case 'bibleAdd':if(db.reading){db.reading.end+=60000;db.reading.total+=60;save();paintReading()}break;
    case 'evening':eveningSheet();break;
    case 'weekly':weeklySheet();break;
    case 'newMeal':mealSheet();break;
@@ -1108,7 +1167,7 @@ document.addEventListener('click',ev=>{
    case 'applyProg':{const m=chat[+el.dataset.i];const p=splitProg(m.content).prog;if(!p||p==='bad'||m.applied)break;
      p.templates.forEach(t=>{if(!t||!t.name)return;db.templates.push({id:uid(),name:String(t.name),exercises:(t.exercises||[]).filter(e=>e&&e.name).map(e=>({name:String(e.name),sets:clamp(+e.sets||3,1,10),reps:String(e.reps||'8-10'),rest:clamp(+e.rest||90,15,600)}))})});
      m.applied=true;saveChat();save();render();hud('Programme ajouté dans Séance');break}
-   case 'export':{try{const b=new Blob([JSON.stringify(db,null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='cap-forme-'+TODAY()+'.json';document.body.appendChild(a);a.click();a.remove();hud('Sauvegarde exportée')}catch(e){hud('Export impossible ici, utilise Copier')}break}
+   case 'export':{try{const b=new Blob([JSON.stringify(db,null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='luckin-'+TODAY()+'.json';document.body.appendChild(a);a.click();a.remove();hud('Sauvegarde exportée')}catch(e){hud('Export impossible ici, utilise Copier')}break}
    case 'copy':{const s=JSON.stringify(db);const fb=()=>{sheet('Tes données',`${sec('',`<div class="cell"><textarea id="cp" rows="8" readonly>${esc(s)}</textarea></div>`,'Sélectionne tout le texte et copie-le.')}`,{save:''});setTimeout(()=>{const t=$('#cp');t&&t.select()},50)};
      try{navigator.clipboard.writeText(s).then(()=>hud('Données copiées'),fb)}catch(e){fb()}break}
    case 'pasteSheet':sheet('Coller une sauvegarde',`<form id="sf" data-form="paste">${sec('',`<div class="cell"><textarea name="t" rows="8" required placeholder="{…}"></textarea></div>`,'Tes données actuelles seront remplacées.')}</form>`,{save:'Importer'});break;
@@ -1129,7 +1188,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.tday!=null){const k=+t.dataset.tday;const a=new Set(st().trainingDays);t.checked?a.add(k):a.delete(k);st().trainingDays=[...a].sort();save();render();return}
   if(!t.closest('form')&&t.closest('.seg')){if(t.name==='model'){st().model=t.value;save();hud('Modèle mis à jour')}if(t.name==='countMode'){st().countMode=t.value;save();hud(t.value==='mains'?'Portions de main activées':'Calories activées')}if(t.name==='muscleUnit'){st().muscleUnit=t.value;save()}return}
 });
-function importJSON(s){try{const d=JSON.parse(s);if(!d.days||!d.settings)throw 0;db=d;save();closeSheet(true);render({top:true});hud('Données importées')}catch(e){hud('Ce n’est pas une sauvegarde Cap Forme valide')}}
+function importJSON(s){try{const d=JSON.parse(s);if(!d.days||!d.settings)throw 0;db=d;save();closeSheet(true);render({top:true});hud('Données importées')}catch(e){hud('Ce n’est pas une sauvegarde Luck’In Forme valide')}}
 document.addEventListener('submit',ev=>{
   const f=ev.target;if(!f.dataset.form)return;ev.preventDefault();const fd=new FormData(f);const v=Object.fromEntries(fd);const t=TODAY();
   switch(f.dataset.form){
@@ -1218,10 +1277,10 @@ function bloomFrom(el,color,done){
   void b.offsetWidth;b.style.transition='transform .55s cubic-bezier(.65,0,.35,1)';b.style.transform=`scale(${(far/rad*1.05).toFixed(2)})`;
   setTimeout(()=>{done();b.style.transition='opacity .35s ease';b.style.opacity='0';setTimeout(()=>{b.hidden=true},360)},560)}
 function openArea(id){const a=AREAS.find(x=>x.id===id);H.cur=id;const el=document.querySelector(`.planet[data-area="${id}"]`);H.hold=true;
-  bloomFrom(el.querySelector('.p-ring'),a.color,()=>{document.documentElement.style.setProperty('--area',a.color);document.documentElement.classList.add('in-area');H.open=false;H.hold=false;$('#home').hidden=true;
+  bloomFrom(el.querySelector('.p-ring'),a.color,()=>{document.documentElement.style.setProperty('--area',a.color);document.documentElement.classList.add('in-area');H.open=false;H.hold=false;setTimeout(paintReading,50);$('#home').hidden=true;
     if(a.ready){$('#area').hidden=true;render({top:true})}
     else{const v=$('#area');v.hidden=false;v.style.setProperty('--c',a.color);
-      v.innerHTML=`<div class="a-in"><button class="navbtn" data-act="goHome">${I.back}<span>Accueil</span></button>
+      v.innerHTML=`<div class="a-in"><button class="homecirc" data-act="goHome" aria-label="Accueil"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 10.6 12 4.5l7.5 6.1V19a1.5 1.5 0 0 1-1.5 1.5h-3.6v-5.2a.9.9 0 0 0-.9-.9h-3a.9.9 0 0 0-.9.9v5.2H6A1.5 1.5 0 0 1 4.5 19Z"/></svg></button>
       <div class="a-head"><span class="a-dot"></span><h1>${a.name}</h1><p class="l2">${a.sub}</p></div>
       <div class="group"><div class="cell"><div class="body"><span style="font-weight:600">Section à construire</span><span class="fn">Voici des pistes. Dis-moi ce que tu veux suivre ici et on la construit ensemble.</span></div></div>
       ${a.ideas.map(x=>`<div class="cell"><span class="a-bul"></span><span class="body">${x}</span></div>`).join('')}</div></div>`}})}
@@ -1229,6 +1288,7 @@ document.addEventListener('click',ev=>{const p=ev.target.closest('.planet');if(p
   const g=ev.target.closest('[data-act=goHome]');if(g){ev.stopPropagation();showHome(true)}},true);
 window.addEventListener('resize',placePlanets);
 render();keepAwake();showHome(false);
+setTimeout(()=>{const sp=$('#splash');if(!sp)return;sp.classList.add('out');setTimeout(()=>sp.remove(),600)},1100);
 })();
 </script>
 </body></html>
