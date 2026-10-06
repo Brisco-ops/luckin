@@ -10,10 +10,10 @@
   <button data-view="workout" aria-label="Séance" title="Séance"><svg class="o" viewBox="0 0 24 24"><rect x="2.6" y="7.6" width="4.4" height="8.8" rx="1.8"/><rect x="17" y="7.6" width="4.4" height="8.8" rx="1.8"/><path d="M7 12h10"/></svg><svg class="f" viewBox="0 0 24 24"><rect x="2.6" y="7.6" width="4.4" height="8.8" rx="1.8" class="fill"/><rect x="17" y="7.6" width="4.4" height="8.8" rx="1.8" class="fill"/><path d="M7 12h10"/></svg></button>
   <button data-view="stats" aria-label="Suivi" title="Suivi"><svg class="o" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5.6"/><path d="M7.6 15.2l3-3.6 2.6 2.1 3.4-4.5"/></svg><svg class="f" viewBox="0 0 24 24"><mask id="mkS"><rect width="24" height="24" fill="#fff"/><path d="M7.6 15.2l3-3.6 2.6 2.1 3.4-4.5" stroke="#000" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></mask><rect x="2.4" y="2.4" width="19.2" height="19.2" rx="6" class="fill" mask="url(#mkS)" stroke="none"/></svg></button>
   <button data-view="coach" aria-label="Coach" title="Coach"><svg class="o" viewBox="0 0 24 24"><path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z"/></svg><svg class="f" viewBox="0 0 24 24"><path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z" class="fill"/></svg></button>
-  <button data-view="settings" aria-label="Réglages" title="Réglages" class="avatar-tab"><svg viewBox="0 0 24 24" class="av"><circle cx="12" cy="12" r="11" class="ring"/><circle cx="12" cy="12" r="8.6" class="disc"/><text x="12" y="12" class="ini" text-anchor="middle" dominant-baseline="central">F</text></svg></button>
+  <button data-view="settings" aria-label="Réglages Forme" title="Réglages Forme"><svg class="o" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8l1.6 2.4 2.8-.7.7 2.8 2.4 1.6-1.3 2.6 1.3 2.6-2.4 1.6-.7 2.8-2.8-.7L12 21.2l-1.6-2.4-2.8.7-.7-2.8-2.4-1.6L5.8 12 4.5 9.5l2.4-1.6.7-2.8 2.8.7Z"/></svg><svg class="f" viewBox="0 0 24 24"><path class="fill" d="M12 2.8l1.6 2.4 2.8-.7.7 2.8 2.4 1.6-1.3 2.6 1.3 2.6-2.4 1.6-.7 2.8-2.8-.7L12 21.2l-1.6-2.4-2.8.7-.7-2.8-2.4-1.6L5.8 12 4.5 9.5l2.4-1.6.7-2.8 2.8.7Z"/><circle cx="12" cy="12" r="3.2" fill="var(--pill-bg,#fff)" stroke="none"/></svg></button>
 </div></nav>
 <div id="layer"></div>
-<section id="home" aria-label="Accueil"><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote"><p>« Dans la vie, rien n’est à craindre, tout est à comprendre. »</p><cite>Marie Curie</cite></blockquote></div><div class="orbit" id="orbit"></div><div id="friends"></div></section>
+<section id="home" aria-label="Accueil"><button type="button" class="h-me" data-act="openPrefs" aria-label="Réglages" id="hMe"></button><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote"><p>« Dans la vie, rien n’est à craindre, tout est à comprendre. »</p><cite>Marie Curie</cite></blockquote></div><div class="orbit" id="orbit"></div><div id="friends"></div></section>
 <section id="area" hidden></section>
 <div id="bloom" hidden></div>
 
@@ -289,10 +289,8 @@ function vStats(){
 const DAYS=['L','M','M','J','V','S','D'];
 function vSettings(){
   const s=st();
-  return `<div class="lt"><span class="eyebrow">Luck’In · Forme</span><h1>Réglages</h1></div>
-  ${accountSec()}
+  return `<div class="lt"><span class="eyebrow">Luck’In · Forme</span><h1>Réglages Forme</h1></div>
   ${sec('Profil et objectif',`<form data-form="profile" id="pf">
-   <label class="cell field" for="nm"><span>Prénom</span><input id="nm" name="name" value="${esc(s.name)}"></label>
    ${fieldNum('height','Taille',s.height,'cm')}${fieldNum('startWeight','Poids de départ',s.startWeight,'kg')}${fieldNum('targetWeight','Poids cible',s.targetWeight,'kg','à définir')}
    <label class="cell field" for="targetDate"><span>Date cible</span><input id="targetDate" name="targetDate" type="date" value="${s.targetDate||''}"></label>
    ${fieldNum('kcalTarget','Calories / jour',s.kcalTarget,'kcal','à définir')}${fieldNum('protTarget','Protéines / jour',s.protTarget,'g','à définir')}
@@ -311,10 +309,22 @@ function vSettings(){
    <label class="cell" for="sw2"><span class="body">Son à la fin du repos</span><input id="sw2" type="checkbox" class="switch" data-setting="sound" ${s.sound?'checked':''}></label>
    <label class="cell" for="sw3"><span class="body">+30 s si série à l’échec (RIR 0)</span><input id="sw3" type="checkbox" class="switch" data-setting="failureBonus" ${s.failureBonus?'checked':''}></label>`,
    'Chaque exercice a son propre temps de repos, défini dans le programme. L’écran reste allumé pendant la séance.')}
-  ${sec('Rappels',`<div class="cell"><div class="body" style="display:block;font-size:15px">Les rappels passent par l’app <b>Rappels</b> de l’iPhone : 7:00 (réveil), 12:30 (repas), 21:30 (soir) et dimanche 19:00 (bilan), répétés automatiquement. Touche la notification, puis ouvre Luck’In depuis l’écran d’accueil.</div></div>`,
-   'Une notification envoyée par Luck’In lui-même demande un petit serveur : c’est possible dans une version suivante.')}
   ${sec('Données Santé',`<div class="cell"><div class="body" style="display:block;font-size:15px">Pour récupérer poids, masse grasse et pas depuis l’app Santé : crée un raccourci qui lit ces valeurs (action <b>Rechercher des échantillons de santé</b>) puis copie un texte du type <span class="num">poids=81,2; mg=18,4; pas=8450</span> dans le presse-papiers. Ouvre ensuite Luck’In et touche le bouton ci-dessous.</div></div>
    <button class="cell tap link" data-act="importHealth">Importer depuis le presse-papiers</button>`,'Clés reconnues : poids, mg, muscle, visceral, sommeil, pas, eau.')}
+  `;
+}
+
+/* ================= réglages généraux (ouverts depuis l'accueil) ================= */
+const PREFS_C='#8E8E93';
+const prefsOn=()=>H.cur==='reglages'&&!$('#area').hidden;
+function refreshView(){if(prefsOn())paintPrefs();else render()}
+function openPrefs(from){const go=()=>{H.cur='reglages';const r=document.documentElement;r.style.setProperty('--area',PREFS_C);r.classList.add('in-area');H.open=false;$('#home').hidden=true;
+  const v=$('#area');v.hidden=false;v.style.setProperty('--c',PREFS_C);v.scrollTop=0;paintPrefs()};
+  if(from)bloomFrom(from,PREFS_C,go);else go()}
+function paintPrefs(){const s=st();
+  $('#area').innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><p class="l2">Luck’In</p><h1>Réglages</h1></div>
+  ${sec('Profil',`<label class="cell field" for="pn"><span>Prénom</span><input id="pn" data-change="name" value="${esc(s.name||'')}" autocomplete="given-name"></label>`,'Les réglages propres à une section (objectif de poids, programmes, objectif de candidatures…) restent dans la section.')}
+  ${accountSec()}
   ${sec('Coach IA',`<label class="cell field" for="ak"><span>Clé API</span><input id="ak" data-change="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(s.apiKey||'')}"></label>
      <div class="cell block"><span>Modèle</span>${seg('model',MODELS,s.model||'claude-sonnet-5-5')}</div>`,
      C.sample?'Dans l’aperçu Claude, le coach passe par ton compte Claude : la clé n’est pas nécessaire ici.':'Clé Anthropic (console.anthropic.com › API Keys), stockée uniquement sur ce téléphone. Fixe une limite de dépense mensuelle sur la console.')}
@@ -323,15 +333,13 @@ function vSettings(){
      <label class="cell tap link" for="imp">Importer un fichier<input id="imp" type="file" accept="application/json,.json" hidden></label>
      <button class="cell tap link" data-act="pasteSheet">Coller une sauvegarde</button>
      <button class="cell tap danger" data-act="askReset">Tout effacer</button>`,A.user?'Tes données sont sauvegardées dans ton compte et sur ce téléphone.':'Les données restent sur ce téléphone. Exporte-les chaque semaine.')}
-  ${deleteSec()}`;
-}
-
+  ${deleteSec()}</div>`}
 /* ================= coach ================= */
 const CK=K+':chat';
 let chat=[];try{chat=JSON.parse(localStorage.getItem(CK)||'[]')}catch(e){}
 const saveChat=()=>{try{localStorage.setItem(CK,JSON.stringify(chat.slice(-40)))}catch(e){}};
 const C={busy:false,ctl:null,live:'',sample:null};
-try{window.claude?.use?.('sample').then(s=>{C.sample=s||null;if(S.tab==='coach'||S.tab==='settings')render()}).catch(()=>{})}catch(e){}
+try{window.claude?.use?.('sample').then(s=>{C.sample=s||null;if(S.tab==='coach'||S.tab==='settings')render();if(prefsOn())paintPrefs()}).catch(()=>{})}catch(e){}
 const MODELS=[['claude-haiku-4-5-20251001','Rapide'],['claude-sonnet-5-5','Équilibré'],['claude-opus-5-5','Expert']];
 const backend=()=>C.sample?'claude':st().apiKey?'api':null;
 function dataContext(){
@@ -468,7 +476,7 @@ function render(o={}){
   const html=({today:vToday,workout:vWorkout,stats:vStats,coach:vCoach,settings:vSettings}[S.tab]||vToday)();
   const main=$('#app');const draft=$('#cin')?.value||'';main.innerHTML=html;main.dataset.tab=S.tab;if(o.anim){main.classList.remove('sw-l','sw-r');void main.offsetWidth;main.classList.add(o.anim)}main.classList.toggle('chat',S.tab==='coach');
   const cp=$('#composer');if(cp){cp.style.bottom=tabsGap()+'px';const ta=$('#cin');ta.value=draft;const fit=()=>{ta.style.height='auto';ta.style.height=Math.min(140,ta.scrollHeight)+'px'};fit();ta.addEventListener('input',fit);ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&matchMedia('(hover:hover)').matches){e.preventDefault();send(ta.value)}})}
-  $('#navT').textContent={today:'Aujourd’hui',workout:'Séance',stats:'Suivi',coach:'Coach',settings:'Réglages'}[S.tab];
+  $('#navT').textContent={today:'Aujourd’hui',workout:'Séance',stats:'Suivi',coach:'Coach',settings:'Réglages Forme'}[S.tab];
   $('#navR').dataset.k='';
   $('#navL').innerHTML=`<button class="homecirc" data-act="goHome" aria-label="Accueil"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 10.6 12 4.5l7.5 6.1V19a1.5 1.5 0 0 1-1.5 1.5h-3.6v-5.2a.9.9 0 0 0-.9-.9h-3a.9.9 0 0 0-.9.9v5.2H6A1.5 1.5 0 0 1 4.5 19Z"/></svg></button>`;$('#navR').innerHTML=S.tab==='today'?(()=>{const n=sugarStreak();return `<button class="sflame ${n?'on':''}" data-act="sugarInfo" aria-label="Série sans sucre ajouté : ${n} jours">${FLAME}<span class="num">${n}</span></button>`})():'';
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.view===S.tab?'page':'false'));const ini=$('#tabs .ini');if(ini)ini.textContent=(st().name||'?').trim().charAt(0).toUpperCase();
@@ -629,7 +637,8 @@ document.addEventListener('click',ev=>{
    case 'delTpl':db.templates=db.templates.filter(t=>t.id!==id);save();render();break;
    case 'addPain':$('#pains').insertAdjacentHTML('beforeend',painRow());break;
    case 'importHealth':importHealth();break;
-   case 'goKey':S.tab='settings';render({top:true});setTimeout(()=>$('#ak')?.focus(),60);break;
+   case 'goKey':openPrefs();setTimeout(()=>{const k=$('#ak');if(k){k.scrollIntoView({block:'center'});k.focus()}},80);break;
+   case 'openPrefs':openPrefs(el);break;
    case 'starter':send(el.textContent);break;
    case 'send':send($('#cin').value);break;
    case 'stop':C.ctl?.abort();break;
@@ -643,7 +652,7 @@ document.addEventListener('click',ev=>{
      try{navigator.clipboard.writeText(s).then(()=>hud('Données copiées'),fb)}catch(e){fb()}break}
    case 'pasteSheet':sheet('Coller une sauvegarde',`<form id="sf" data-form="paste">${sec('',`<div class="cell"><textarea name="t" rows="8" required placeholder="{…}"></textarea></div>`,'Tes données actuelles seront remplacées.')}</form>`,{save:'Importer'});break;
    case 'askReset':asheet('Effacer tout ton journal ? Exporte d’abord une sauvegarde si besoin.',[{label:'Tout effacer',act:'reset',danger:true}]);break;
-   case 'reset':{const k=st().apiKey,mo=st().model;db=seed();db.settings.apiKey=k;db.settings.model=mo;save();render({top:true});hud('Journal effacé');break}
+   case 'reset':{const k=st().apiKey,mo=st().model;db=seed();db.settings.apiKey=k;db.settings.model=mo;save();refreshView();hud('Journal effacé');break}
   }
 });
 document.addEventListener('input',ev=>{const t=ev.target;
@@ -654,6 +663,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.change==='jobImport'){jobImport(t.files[0]);t.value='';return}
   if(t.id==='tdcs'){const w=$('#tdcnw');w.hidden=t.value!=='__new';if(!w.hidden)$('#tdcn').focus();return}
   if(t.id==='imp'){const f=t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importJSON(r.result);r.readAsText(f);return}
+  if(t.dataset.change==='name'){st().name=t.value.trim()||'toi';save();hud('Prénom enregistré');return}
   if(t.dataset.change==='apikey'){st().apiKey=t.value.trim();save();hud(t.value.trim()?'Clé enregistrée':'Clé retirée');return}
   if(t.name==='type'&&t.closest('[data-form=meal]')){t.closest('form').querySelectorAll('#msupps [data-types]').forEach(l=>{const on=l.dataset.types.split(' ').includes(t.value);l.hidden=!on;if(!on)l.querySelector('input').checked=false});return}
   if(t.dataset.change==='exsel'){S.ex=t.value;render();return}
@@ -698,7 +708,7 @@ document.addEventListener('submit',ev=>{
    case 'tpl':{const rows=[...f.querySelectorAll('[data-exrow]')].map(r=>({name:r.querySelector('[name=en]').value.trim(),sets:+r.querySelector('[name=es]').value||3,reps:r.querySelector('[name=er]').value.trim(),rest:+r.querySelector('[name=et]').value||40})).filter(e=>e.name);
      if(!rows.length){hud('Ajoute au moins un exercice');break}
      if(f.dataset.id){const tp=db.templates.find(x=>x.id===f.dataset.id);tp.name=v.name.trim();tp.exercises=rows;delete tp.example}else db.templates.push({id:uid(),name:v.name.trim(),exercises:rows});save();closeSheet();render();hud('Programme enregistré');break}
-   case 'profile':{const s=st();s.name=v.name.trim()||'toi';['height','startWeight','targetWeight','kcalTarget','protTarget'].forEach(k=>s[k]=num(v[k]));s.targetDate=v.targetDate;s.diet=v.diet.trim();save();render();hud('Profil enregistré');break}
+   case 'profile':{const s=st();['height','startWeight','targetWeight','kcalTarget','protTarget'].forEach(k=>s[k]=num(v[k]));s.targetDate=v.targetDate;s.diet=v.diet.trim();save();render();hud('Profil enregistré');break}
    case 'healthPaste':{const n=applyHealth(parseHealth(v.t));closeSheet();render();hud(n?`${n} valeur${n>1?'s':''} importée${n>1?'s':''}`:'Aucune valeur reconnue');break}
    case 'paste':importJSON(v.t);break;
   }
@@ -980,7 +990,7 @@ const AREA_ICONS={"taches": "<rect x=\"3.5\" y=\"3.5\" width=\"17\" height=\"17\
 const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 function areaMeta(a){if(a.id==='taches'){const t=TODAY(),o=todos().filter(x=>!x.done),late=o.filter(x=>x.due&&x.due<t).length,today=o.filter(x=>x.due===t).length;return late||today?[late?late+' en retard':null,today?today+' aujourd’hui':null].filter(Boolean).join(' · '):o.length?o.length+' à faire':'Rien à faire'}if(a.id==='carriere'){const d=jobs().filter(relanceDue).length;return `${weekApps()}/${car().goal} cette semaine`+(d?` · ${d} à relancer`:'')}if(a.id==='forme'){const n=sugarStreak();const a7=lastWeightAvg();return [a7!=null?fmt(a7)+' kg':null,n?n+' j sans sucre':null].filter(Boolean).join(' · ')||a.sub}return a.sub}
 function paintHome(){
-  $('#hName').textContent='Bonjour '+st().name;
+  $('#hName').textContent='Bonjour '+st().name;$('#hMe').textContent=(st().name||'?').trim().charAt(0).toUpperCase();
   $('#hDate').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
   $('#orbit').innerHTML=AREAS.map(a=>`<button class="planet${a.ready||a.paint?'':' soon'}" data-area="${a.id}" style="--c:${a.color};--s:${a.size}px" aria-label="${a.name}"><span class="p-ring"><svg viewBox="0 0 24 24" aria-hidden="true">${AREA_ICONS[a.id]}</svg></span><span class="p-txt"><span class="p-name">${a.name}</span><span class="p-meta">${esc(areaMeta(a))}</span></span>${I.chev}</button>`).join('');
   placePlanets();paintFriends();loadGroup();
@@ -989,7 +999,7 @@ function placePlanets(){}
 function spin(ts){H.raf=0;return;if(!H.open){H.raf=0;return}if(H.last&&!reduce()&&!H.hold)H.angle+=(ts-H.last)/1000*0.09;H.last=ts;placePlanets();H.raf=requestAnimationFrame(spin)}
 function showHome(animate){const from=H.cur;document.documentElement.classList.remove('tinted','in-area');H.open=true;const h=$('#home');h.hidden=false;$('#area').hidden=true;paintHome();
   H.last=0;if(!H.raf)H.raf=requestAnimationFrame(spin);
-  if(animate&&from&&!reduce()){H.hold=true;const a=AREAS.find(x=>x.id===from);const el=document.querySelector(`.planet[data-area="${from}"] .p-ring`);
+  if(animate&&from&&!reduce()&&document.querySelector(`.planet[data-area="${from}"]`)){H.hold=true;const a=AREAS.find(x=>x.id===from);const el=document.querySelector(`.planet[data-area="${from}"] .p-ring`);
     const b=$('#bloom');const r=el.getBoundingClientRect();const cx=r.left+r.width/2,cy=r.top+r.height/2,rad=r.width/2;
     const far=Math.hypot(Math.max(cx,innerWidth-cx),Math.max(cy,innerHeight-cy));
     b.hidden=false;b.style.cssText=`left:${cx-rad}px;top:${cy-rad}px;width:${rad*2}px;height:${rad*2}px;background:${a.color};opacity:1;transition:none;transform:scale(${(far/rad*1.05).toFixed(2)})`;
@@ -1074,7 +1084,7 @@ async function cloudPull(onlyIfNewer){
   if(onlyIfNewer)return false;
   if(!mine){db=seed()}
   db.owner=A.user.id;writeLocal();return true}
-function refreshAll(){const pa=!$('#area').hidden&&AREAS.find(x=>x.id===H.cur)?.paint;if(!$('#home').hidden)paintHome();else if(pa)pa();else if($('#area').hidden)render();const ini=$('#tabs .ini');if(ini)ini.textContent=(st().name||'?').trim().charAt(0).toUpperCase()}
+function refreshAll(){const pa=!$('#area').hidden&&(AREAS.find(x=>x.id===H.cur)?.paint||(H.cur==='reglages'&&paintPrefs));if(!$('#home').hidden)paintHome();else if(pa)pa();else if($('#area').hidden)render();const ini=$('#tabs .ini');if(ini)ini.textContent=(st().name||'?').trim().charAt(0).toUpperCase()}
 async function cloudStart(user){
   A.user=user;A.sentName=null;try{localStorage.removeItem(AK)}catch(e){}
   const mine=!db.owner||db.owner===user.id;
@@ -1161,7 +1171,7 @@ async function loadGroup(force){
       }}
   }catch(e){}
   paintFriends();
-  if(S.tab==='settings'&&$('#home').hidden&&$('#area').hidden&&!$('#layer').innerHTML&&!document.activeElement?.matches?.('input,textarea'))render()}
+  if(((S.tab==='settings'&&$('#home').hidden&&$('#area').hidden)||prefsOn())&&!$('#layer').innerHTML&&!document.activeElement?.matches?.('input,textarea'))refreshView()}
 function memberStats(id){
   const days=Array.from({length:7},(_,k)=>addDays(TODAY(),k-6));
   const rows=id===A.user.id?days.map(d=>shareRow(d)):days.map(d=>A.shares.find(x=>x.user_id===id&&x.day===d)||{day:d});
@@ -1226,8 +1236,8 @@ function notifSec(){
 document.addEventListener('change',ev=>{const t=ev.target;const k=t.dataset?.notif;if(!k)return;
   if(k==='on'){
     if(t.checked){const permP=Notification.requestPermission(); /* demandé tout de suite : iOS l'exige pendant le geste */
-      t.disabled=true;notifEnable(permP).then(ok=>{if(ok)hud('Notifications activées')}).catch(e=>hud('Erreur : '+(e?.message||e))).finally(()=>{render()})}
-    else{t.disabled=true;notifDisable().finally(()=>{render();hud('Notifications désactivées')})}
+      t.disabled=true;notifEnable(permP).then(ok=>{if(ok)hud('Notifications activées')}).catch(e=>hud('Erreur : '+(e?.message||e))).finally(()=>{refreshView()})}
+    else{t.disabled=true;notifDisable().finally(()=>{refreshView();hud('Notifications désactivées')})}
     return}
   if(k==='iv'||k==='td'){st().notif={...notif(),[k]:t.checked};save();if(A.user)sb.from('push_subs').update({prefs:notif()}).eq('user_id',A.user.id).then(()=>hud(t.checked?'Rappels activés':'Rappels coupés'));return}
   const v=t.value;if(!/^\d{2}:\d{2}$/.test(v))return;st().notif={...notif(),[k]:v};save();
@@ -1266,7 +1276,7 @@ document.addEventListener('click',async ev=>{const el=ev.target.closest('[data-a
      const r=await sb.from('group_members').delete().eq('group_id',g.id).eq('user_id',A.user.id);
      if(r.error){hud('Erreur : '+r.error.message);break}
      if(g.owner===A.user.id&&A.members.length<=1)await sb.from('groups').delete().eq('id',g.id);
-     A.group=null;A.members=[];A.shares=[];paintFriends();render();hud('Groupe quitté');break}
+     A.group=null;A.members=[];A.shares=[];paintFriends();refreshView();hud('Groupe quitté');break}
    case 'logout':asheet('Se déconnecter ? Les données quittent ce téléphone mais restent dans ton compte.',[{label:'Se déconnecter',act:'logoutGo',danger:true}]);break;
    case 'logoutGo':{if(A.dirty||A.flushing){const ok=await cloudFlush();if(!ok){hud('Hors ligne : connecte-toi au réseau d’abord');break}}
      try{await sb.auth.signOut()}catch(e){}
@@ -1277,7 +1287,7 @@ document.addEventListener('click',async ev=>{const el=ev.target.closest('[data-a
    case 'deleteMeGo':{if(needNet())break;const r=await sb.rpc('delete_me');if(r.error){hud('Erreur : '+r.error.message);break}
      try{await sb.auth.signOut()}catch(e){}
      A.user=null;A.group=null;A.members=[];A.shares=[];A.dirty=false;clearTimeout(A.t);delete db.owner;writeLocal();try{localStorage.setItem(AK,'local')}catch(e){}
-     render();paintFriends();hud('Compte supprimé');break}
+     refreshView();paintFriends();hud('Compte supprimé');break}
   }});
 document.addEventListener('change',ev=>{const t=ev.target;if(t.dataset?.rd==null)return;const s=st();s.reading=s.reading||{on:false,label:'Lecture',min:10};const k=t.dataset.rd;
   if(k==='on')s.reading.on=t.checked;else if(k==='min'){s.reading.min=Math.max(1,Math.round(num(t.value)||10));t.value=s.reading.min}else s.reading.label=t.value.trim()||'Lecture';save()});
@@ -1286,9 +1296,9 @@ document.addEventListener('submit',async ev=>{const f=ev.target;const k=f.datase
   if(k==='onboard')return doOnboard(f);
   if(needNet())return;const btn=document.querySelector('.sheet-h .strong');if(btn)btn.disabled=true;
   try{
-    if(k==='gcreate'){await groupCreate(String(new FormData(f).get('name')||'').trim());closeSheet();await loadGroup(true);render();hud('Groupe créé · code '+A.group?.code)}
+    if(k==='gcreate'){await groupCreate(String(new FormData(f).get('name')||'').trim());closeSheet();await loadGroup(true);refreshView();hud('Groupe créé · code '+A.group?.code)}
     if(k==='gjoin'){const code=String(new FormData(f).get('code')||'').trim().toUpperCase();if(code.length!==6){hud('Le code fait 6 caractères');if(btn)btn.disabled=false;return}
-      const r=await sb.rpc('join_group',{invite:code});if(r.error)throw r.error;closeSheet();await loadGroup(true);render();hud('Bienvenue dans « '+(A.group?.name||'le groupe')+' »')}
+      const r=await sb.rpc('join_group',{invite:code});if(r.error)throw r.error;closeSheet();await loadGroup(true);refreshView();hud('Bienvenue dans « '+(A.group?.name||'le groupe')+' »')}
   }catch(e){if(btn)btn.disabled=false;hud(/invalide/i.test(e?.message||'')?'Code invalide':'Erreur : '+(e?.message||e))}});
 render();keepAwake();showHome(false);cloudBoot();
 (function(){const first=$('#splash');if(!first)return;const HTML=first.outerHTML;let hiddenAt=0;

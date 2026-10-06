@@ -49,6 +49,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 
 ## Repères dans src/body.html
 
+- Réglages généraux (prénom, compte et amis, notifications, coach IA, données, suppression du compte) : page ouverte depuis le rond à l’initiale en haut à droite de l’accueil (`#hMe`, action `openPrefs`, `paintPrefs`, `H.cur==='reglages'`). Après une action de compte, appeler `refreshView()` (repeint cette page si elle est ouverte, sinon `render()`). Chaque section garde ses propres réglages (Forme : onglet engrenage « Réglages Forme » = `vSettings`).
 - Vues : `vToday`, `vWorkout`/`vActive`, `vStats`, `vCoach`, `vSettings` ; `render(o)` ; `sec(head, body, foot, cls)` pour les sections.
 - Fiches : `morningSheet`, `mealSheet`, `eveningSheet`, `weeklySheet`, `cardioSheet`, `tplSheet` ; actions via `data-act` (gestionnaire de clics) et formulaires via `data-form` (gestionnaire submit).
 - Accueil (épuré : fond uni, date + « Bonjour » à gauche, citation en texte simple, sections en liste blanche avec pastille de couleur `.p-ring`, d’où part l’animation) : `AREAS`, `paintHome`, `showHome`, `openArea`, `bloomFrom` ; carte du groupe `paintFriends`.
