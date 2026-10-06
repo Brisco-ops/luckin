@@ -729,7 +729,7 @@ function paintCareer(){const v=$('#area'),a=AREAS.find(x=>x.id==='carriere'),c=c
     ...due.map(j=>`<button class="cell tap" data-act="jobMenu" data-id="${j.id}"><span class="body"><span>Relancer ${esc(j.company)}</span><span class="fn">Sans nouvelles depuis ${diff(lastContact(j),t)} jours${(j.relances||[]).length?' · déjà relancée '+j.relances.length+' fois':''}</span></span><span class="pill late">À relancer</span></button>`)];
   const cell=j=>`<button class="cell tap" data-act="jobEdit" data-id="${j.id}"><span class="body"><span>${esc(j.company)}</span><span class="fn">${[j.role&&esc(j.role),'envoyée le '+fdate(j.date),(j.relances||[]).length?'relancée '+j.relances.length+' fois':null].filter(Boolean).join(' · ')}</span></span>${jobPill(j.status)}${I.chev}</button>`;
   v.innerHTML=`<div class="a-in car">${HOMEBTN}
-   <div class="a-head"><span class="a-dot"></span><h1>${a.name}</h1><p class="l2">${a.sub}</p></div>
+   <div class="a-head"><h1>${a.name}</h1><p class="l2">${a.sub}</p></div>
    <div class="kpis tilesrow"><div class="ringed" data-act="jobGoal" style="--p:${clamp(n/c.goal)*100}%"><span class="v">${n}/${c.goal}</span><span class="k">semaine</span></div><div><span class="v">${open.length}</span><span class="k">en cours</span></div><div><span class="v">${ivs.length}</span><span class="k">entretiens</span></div><div><span class="v">${due.length}</span><span class="k">à relancer</span></div></div>
    ${todo.length?sec('À faire',todo.join('')):''}
    ${sec('Candidatures en cours',open.sort(recent).map(cell).join('')+addCell('Nouvelle candidature','jobNew'))}
@@ -821,7 +821,7 @@ function openArea(id){const a=AREAS.find(x=>x.id===id);H.cur=id;const el=documen
     if(a.ready){$('#area').hidden=true;render({top:true})}
     else{const v=$('#area');v.hidden=false;v.style.setProperty('--c',a.color);v.scrollTop=0;if(a.paint){a.paint();return}
       v.innerHTML=`<div class="a-in">${HOMEBTN}
-      <div class="a-head"><span class="a-dot"></span><h1>${a.name}</h1><p class="l2">${a.sub}</p></div>
+      <div class="a-head"><h1>${a.name}</h1><p class="l2">${a.sub}</p></div>
       <div class="group"><div class="cell"><div class="body"><span style="font-weight:600">Section à construire</span><span class="fn">Voici des pistes. Dis-moi ce que tu veux suivre ici et on la construit ensemble.</span></div></div>
       ${a.ideas.map(x=>`<div class="cell"><span class="a-bul"></span><span class="body">${x}</span></div>`).join('')}</div></div>`}})}
 document.addEventListener('click',ev=>{const p=ev.target.closest('.planet');if(p){unlockAudio();openArea(p.dataset.area);return}
@@ -1007,7 +1007,7 @@ function accountSec0(){
 const deleteSec=()=>A.user?sec('',`<button type="button" class="cell tap danger" data-act="askDeleteMe">Supprimer mon compte</button>`,'Efface ton compte et tes données en ligne. La copie de ce téléphone est conservée.'):'';
 /* ---------- notifications (rappels et encouragements) ---------- */
 const VAPID_PUB='BHiCNrpHAqdUC4dkmVxKgetHHfH0k7cMmhv-8YMIATT6aQ55pihzGzeR_GuW-9EVtlSKU2FCn_hHb5CG_4UkEuE';
-const NOTIF_DEF={on:false,morning:'07:00',evening:'21:30',weekly:'19:00'};
+const NOTIF_DEF={on:false,morning:'07:00',evening:'21:30',weekly:'19:00',iv:true};
 const notif=()=>Object.assign({},NOTIF_DEF,st().notif||{});
 const isIOS=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
@@ -1034,7 +1034,7 @@ function notifSec(){
   const on=n.on&&Notification.permission==='granted';
   const tm=(k,l)=>`<label class="cell field" for="nt-${k}"><span>${l}</span><input id="nt-${k}" type="time" data-notif="${k}" value="${esc(n[k]||'')}"></label>`;
   return sec('Notifications',`<label class="cell" for="nt-on"><span class="body"><span>Rappels et encouragements</span><span class="fn">${on?'Activés sur ce téléphone':'Désactivés'}</span></span><input id="nt-on" type="checkbox" class="switch" data-notif="on" ${on?'checked':''}></label>
-    ${on?tm('morning','Réveil')+tm('evening','Soir')+tm('weekly','Bilan du dimanche')+`<button type="button" class="cell tap link" data-act="notifTest">Envoyer une notification test</button>`:''}`,
+    ${on?tm('morning','Réveil')+tm('evening','Soir')+tm('weekly','Bilan du dimanche')+`<label class="cell" for="nt-iv"><span class="body"><span>Rappels d’entretien</span><span class="fn">2 jours avant et la veille à 19:00, le matin même à 08:00</span></span><input id="nt-iv" type="checkbox" class="switch" data-notif="iv" ${n.iv!==false?'checked':''}></label><button type="button" class="cell tap link" data-act="notifTest">Envoyer une notification test</button>`:''}`,
     'Un rappel n’arrive que si le rituel n’est pas encore fait. Les encouragements de tes amis arrivent aussi en notification.')}
 document.addEventListener('change',ev=>{const t=ev.target;const k=t.dataset?.notif;if(!k)return;
   if(k==='on'){
@@ -1042,6 +1042,7 @@ document.addEventListener('change',ev=>{const t=ev.target;const k=t.dataset?.not
       t.disabled=true;notifEnable(permP).then(ok=>{if(ok)hud('Notifications activées')}).catch(e=>hud('Erreur : '+(e?.message||e))).finally(()=>{render()})}
     else{t.disabled=true;notifDisable().finally(()=>{render();hud('Notifications désactivées')})}
     return}
+  if(k==='iv'){st().notif={...notif(),iv:t.checked};save();if(A.user)sb.from('push_subs').update({prefs:notif()}).eq('user_id',A.user.id).then(()=>hud(t.checked?'Rappels d’entretien activés':'Rappels d’entretien coupés'));return}
   const v=t.value;if(!/^\d{2}:\d{2}$/.test(v))return;st().notif={...notif(),[k]:v};save();
   if(A.user)sb.from('push_subs').update({prefs:notif(),tz:userTz()}).eq('user_id',A.user.id).then(()=>hud('Heure enregistrée'))});
 async function fnCall(body){const r=await sb.functions.invoke('push',{body});

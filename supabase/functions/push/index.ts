@@ -1,6 +1,7 @@
 // Luck'In : fonction « push » (Supabase › Edge Functions)
 // - kind "cron"  : appelée toutes les 15 min par la base. Envoie les rappels (réveil, soir, bilan du dimanche)
-//                  à l'heure choisie par chacun, seulement si le rituel n'est pas encore fait.
+//                  à l'heure choisie par chacun, seulement si le rituel n'est pas encore fait,
+//                  et les rappels d'entretien (Carrière) : 2 jours avant et la veille à 19:00, le matin même à 08:00.
 // - kind "test"  : l'utilisateur connecté s'envoie une notification de test.
 // - kind "cheer" : encourager un ami du même groupe (une fois par jour et par ami).
 // Secrets à définir dans Edge Functions › Secrets : VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, CRON_SECRET.
@@ -56,7 +57,43 @@ const MSG: Record<string, { title: string; body: string }> = {
   weekly: { title: "Bilan du dimanche", body: "Mensurations et bilan de ta semaine." },
 };
 
+// Rappels d'entretien : lus dans le journal synchronisé (user_data.data.jobs)
+const IV_EVE = 19 * 60, IV_MORN = 8 * 60;
+const IV_KIND: Record<string, string> = { tel: "téléphone", visio: "visio", place: "sur place" };
+const shiftDay = (d: string, n: number) => { const x = new Date(d + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+const longDay = (d: string) => new Date(d + "T12:00:00Z").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+const inWin = (min: number, t: number) => min >= t && min < t + 20;
+type Iv = { date?: string; time?: string; kind?: string };
+type Job = { id: string; company?: string; role?: string; status?: string; interviews?: Iv[] };
+const jobsCache = new Map<string, Job[]>();
+async function jobsOf(userId: string) {
+  if (!jobsCache.has(userId)) {
+    const { data } = await sb.from("user_data").select("data").eq("user_id", userId).maybeSingle();
+    const jobs = ((data?.data as { jobs?: Job[] } | null)?.jobs || []).filter((j) => j.status === "envoyee" || j.status === "entretien");
+    jobsCache.set(userId, jobs);
+  }
+  return jobsCache.get(userId)!;
+}
+function ivMessages(jobs: Job[], now: { day: string; min: number }) {
+  const out: { key: string; title: string; body: string }[] = [];
+  for (const j of jobs) for (const iv of j.interviews || []) {
+    if (!iv.date) continue;
+    const who = [j.company, j.role].filter(Boolean).join(" · ") || "Entretien";
+    const how = [iv.time ? "à " + iv.time : "", iv.kind && IV_KIND[iv.kind] ? "(" + IV_KIND[iv.kind] + ")" : ""].filter(Boolean).join(" ");
+    const key = `iv:${j.id}:${iv.date}:${iv.time || ""}`;
+    if (inWin(now.min, IV_EVE) && shiftDay(now.day, 2) === iv.date)
+      out.push({ key: key + ":j2", title: "Entretien dans 2 jours", body: `${who}, ${longDay(iv.date)} ${how}. Prends le temps de te préparer.`.replace(" .", ".") });
+    if (inWin(now.min, IV_EVE) && shiftDay(now.day, 1) === iv.date)
+      out.push({ key: key + ":j1", title: "Entretien demain", body: `${who}, ${how}.`.replace(", .", ".") });
+    const ivMin = toMin(iv.time);
+    if (inWin(now.min, IV_MORN) && now.day === iv.date && (ivMin == null || ivMin >= IV_MORN + 60))
+      out.push({ key: key + ":j0", title: "Entretien aujourd’hui", body: `${who}, ${how}. Bonne chance !`.replace(", .", ".") });
+  }
+  return out;
+}
+
 async function runCron() {
+  jobsCache.clear(); // l'instance peut rester chaude entre deux appels : on relit toujours le journal
   const { data: subs } = await sb.from("push_subs").select("*");
   let sent = 0;
   for (const s of (subs || []) as Sub[]) {
@@ -76,6 +113,15 @@ async function runCron() {
         if (sh && (sh as Record<string, boolean>)[kind]) continue; // déjà fait : pas de rappel
       }
       if (await sendTo(s, { ...MSG[kind], tag: kind, url: "./" }).catch(() => false)) sent++;
+    }
+    if (p.iv !== false && (inWin(now.min, IV_EVE) || inWin(now.min, IV_MORN))) {
+      for (const m of ivMessages(await jobsOf(s.user_id), now)) {
+        if (last[m.key]) continue;
+        last[m.key] = now.day; changed = true;
+        if (await sendTo(s, { title: m.title, body: m.body, tag: m.key, url: "./" }).catch(() => false)) sent++;
+      }
+      const old = shiftDay(now.day, -7); // on oublie les rappels d'entretien de plus d'une semaine
+      for (const k of Object.keys(last)) if (k.startsWith("iv:") && last[k] < old) { delete last[k]; changed = true; }
     }
     if (changed) await sb.from("push_subs").update({ last_sent: last }).eq("endpoint", s.endpoint);
   }
