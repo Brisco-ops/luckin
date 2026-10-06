@@ -52,7 +52,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 - Accueil : `AREAS`, `paintHome`, `showHome`, `openArea`, `bloomFrom` ; carte du groupe `paintFriends`.
 - Comptes et groupe : `cloudBoot`, `cloudStart`, `cloudPull`, `cloudFlush`, `showGate`, `showOnboard`, `loadGroup`, `accountSec`.
 - Notifications : `notifSec`, `notifEnable`, `notifRefresh`, `fnCall`.
-- Ouverture : `#splash` (logo « lean in » animé en SVG/CSS, 7,5 s, rejoué à chaque retour dans l’app sauf pendant une séance ou une lecture ; un toucher le passe).
+- Ouverture : `#splash` (logo « lean in » animé en SVG/CSS, 6 s, rejoué à chaque retour dans l’app sauf pendant une séance ou une lecture ; un toucher le passe).
 
 ## Identité visuelle
 
