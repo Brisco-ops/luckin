@@ -4,7 +4,7 @@
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Luck’In"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <style>:root{color-scheme:light}[hidden]{display:none!important}img{max-width:100%}</style>
 <title>Luck’In</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
@@ -608,10 +608,42 @@ html,body{overscroll-behavior-x:none}
 .fr-legend span{display:inline-flex;align-items:center;gap:5px}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .fr-plus{background:#F5F5F7;color:#000}}
 :root[data-theme="dark"] .fr-plus{background:#F5F5F7;color:#000}
+/* ===== identité Luck'In : logo « lean in » et ouverture ===== */
+:root{--lk-bg:#FFFFFF;--lk-ink:#14161C;--lk-blue:#2B3FC4;--lk-arrow:#2B3FC4;--lk-ghost:#D3D6DD}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--lk-bg:#14161C;--lk-ink:#FFFFFF;--lk-arrow:#8E9BF0;--lk-ghost:#4A4F5C}}
+:root[data-theme="dark"]{--lk-bg:#14161C;--lk-ink:#FFFFFF;--lk-arrow:#8E9BF0;--lk-ghost:#4A4F5C}
+:root #splash.lk-sp.lk-sp{background:var(--lk-bg);transition:opacity .25s ease}
+#splash.out{opacity:0;pointer-events:none}
+.lk{display:block;width:min(74vw,320px);height:auto;overflow:visible}
+.lk-ghost{fill:var(--lk-ghost)}
+.lk-chair{fill:none;stroke:var(--lk-blue);stroke-width:10;stroke-linecap:round}
+.lk-torso{fill:none;stroke:var(--lk-ink);stroke-width:10;stroke-linecap:round}
+.lk-head{fill:var(--lk-ink)}
+.lk-w1,.lk-w2{fill:var(--lk-ink)}
+.lk-arrow path{fill:none;stroke:var(--lk-arrow);stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
+/* 0 → 0,3 s : la chaise se dessine, buste penché en arrière */
+#splash .lk-chair{stroke-dasharray:1 1;stroke-dashoffset:1;animation:lkDraw .3s ease-out forwards}
+#splash .lk-body{transform-origin:0 0;transform:rotate(-44deg);animation:lkLean .5s cubic-bezier(.55,0,.25,1.12) .3s forwards}
+#splash .lk-ghost{opacity:0;animation:lkFade .25s ease-out .38s forwards}
+#splash .lk-torso,#splash .lk-head{opacity:0;animation:lkFade .15s ease-out .05s forwards}
+/* 0,8 → 1,2 s : « luck » et « in » en fondu, puis la flèche se trace */
+#splash .lk-w1,#splash .lk-w2{opacity:0;transform:translateY(8px);animation:lkIn .28s ease-out .8s forwards}
+#splash .lk-w2{animation-delay:.88s}
+#splash .lk-a1,#splash .lk-a2{stroke-dasharray:1 1;stroke-dashoffset:1;animation:lkDraw .16s ease-out 1s forwards}
+#splash .lk-a2{animation-delay:1.12s;animation-duration:.08s}
+:is(#splash.short,.lk-static) :is(.lk-ghost,.lk-chair,.lk-body,.lk-torso,.lk-head,.lk-w1,.lk-w2,.lk-a1,.lk-a2){animation:none!important;opacity:1!important;transform:none!important;stroke-dashoffset:0!important}
+@keyframes lkDraw{to{stroke-dashoffset:0}}
+@keyframes lkLean{to{transform:rotate(0)}}
+@keyframes lkFade{to{opacity:1}}
+@keyframes lkIn{to{opacity:1;transform:none}}
+#gate{--tint:#2B3FC4}
+.g-logo .lk{width:min(64vw,250px);height:auto;margin:0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #gate{--tint:#8E9BF0}}
+:root[data-theme="dark"] #gate{--tint:#8E9BF0}
 </style>
 
 </head><body>
-<div id="splash" aria-hidden="true"><div class="sp-word"><span class="sp-c" style="--d:660ms">L</span><span class="sp-c" style="--d:550ms">u</span><span class="sp-c" style="--d:440ms">c</span><span class="sp-c" style="--d:330ms">k</span><span class="sp-c" style="--d:220ms">’</span><span class="sp-c" style="--d:110ms"><svg class="sp-fl" viewBox="0 0 24 34" aria-hidden="true"><path fill="#FF9500" d="M12.5 1c.5 4.2-1.8 6.7-3.9 9C6.3 12.4 4 15 4 19.2 4 25.6 7.6 32 12.6 32c5.3 0 8.4-4.4 8.4-10.3 0-4.5-2-7.3-3.6-9.3-.3 2.3-1.1 4-2.5 5 .4-5.6-.6-11.8-2.4-16.4Z"/><path fill="#FFD60A" d="M12.4 31c-2.4 0-4.2-2-4.2-4.8 0-3 1.8-4.4 3.1-6.1.4 1.6 1.3 2.5 2.4 2.8-.1-1.4 0-2.8.6-4.1 1.5 1.9 2.7 3.7 2.7 6.5 0 3.4-2 5.7-4.6 5.7Z"/></svg></span><span class="sp-c" style="--d:0ms">n</span></div></div>
+<div id="splash" class="lk-sp" aria-hidden="true"><svg class="lk" viewBox="0 0 571 200" role="img" aria-label="Luck’In"><g transform="translate(0 5) scale(1.583)"><circle class="lk-ghost" cx="42" cy="28" r="10"/><path class="lk-chair" pathLength="1" d="M28 40 C24 70 32 90 58 94 L86 94"/><g transform="translate(54 84)"><g class="lk-body"><path class="lk-torso" d="M0 0 L20 -32"/><circle class="lk-head" cx="30" cy="-48" r="10"/></g></g></g><path class="lk-w1" d="M234.256 132.0V71.904H227.728V61.92H247.6V132.0Z M277.744 133.632Q268.72 133.632 263.776 127.68Q258.832 121.728 258.832 110.01599999999999V79.776H272.176V111.168Q272.176 115.968 274.86400000000003 118.80000000000001Q277.552 121.632 282.16 121.632Q286.76800000000003 121.632 289.696 118.656Q292.624 115.68 292.624 110.592V79.776H305.968V132.0H295.408V119.904Q295.024 121.536 294.448 122.976Q292.432 128.256 288.4 130.94400000000002Q284.368 133.632 278.32 133.632Z M341.58400000000006 133.824Q334.76800000000003 133.824 329.82400000000007 131.52Q324.88000000000005 129.216 321.56800000000004 125.376Q318.25600000000003 121.536 316.624 116.736Q314.992 111.936 314.992 106.944V105.12Q314.992 99.84 316.672 94.992Q318.35200000000003 90.144 321.71200000000005 86.352Q325.07200000000006 82.56 330.0160000000001 80.304Q334.96000000000004 78.048 341.48800000000006 78.048Q348.30400000000003 78.048 353.68000000000006 80.688Q359.05600000000004 83.328 362.27200000000005 88.032Q365.48800000000006 92.73599999999999 365.872 98.976H352.91200000000003Q352.432 94.944 349.504 92.256Q346.576 89.568 341.48800000000006 89.568Q337.07200000000006 89.568 334.144 91.68Q331.216 93.792 329.776 97.488Q328.336 101.184 328.336 105.984Q328.336 110.592 329.728 114.336Q331.12 118.08 334.048 120.19200000000001Q336.97600000000006 122.304 341.58400000000006 122.304Q345.04 122.304 347.53600000000006 121.056Q350.03200000000004 119.80799999999999 351.52000000000004 117.6Q353.00800000000004 115.392 353.39200000000005 112.608H366.35200000000003Q365.968 118.944 362.65600000000006 123.696Q359.34400000000005 128.448 353.9200000000001 131.13600000000002Q348.49600000000004 133.824 341.58400000000006 133.824Z M410.60800000000006 132.0 393.136 107.616H387.47200000000004V132.0H374.12800000000004V61.92H387.47200000000004V104.928L407.53600000000006 79.872H421.456L403.696 102.048L425.68000000000006 132.0Z"/><path class="lk-w2" d="M483.37600000000003 132.0V89.856H476.08000000000004V79.872H496.72V132.0ZM488.27200000000005 73.632Q484.33600000000007 73.632 482.46400000000006 71.568Q480.59200000000004 69.50399999999999 480.59200000000004 66.33599999999998Q480.59200000000004 63.16799999999999 482.46400000000006 61.151999999999994Q484.33600000000007 59.135999999999996 488.27200000000005 59.135999999999996Q492.208 59.135999999999996 494.03200000000004 61.151999999999994Q495.85600000000005 63.16799999999999 495.85600000000005 66.33599999999998Q495.85600000000005 69.50399999999999 494.03200000000004 71.568Q492.208 73.632 488.27200000000005 73.632Z M509.20000000000005 132.0V79.872H519.76V92.73599999999999Q520.24 90.72 520.912 88.896Q523.024 83.616 527.2 80.928Q531.3760000000001 78.24000000000001 537.616 78.24000000000001H538.192Q547.504 78.24000000000001 552.3040000000001 84.24000000000001Q557.104 90.24000000000001 557.104 102.144V132.0H543.76V100.992Q543.76 96.19200000000001 541.024 93.21600000000001Q538.288 90.24000000000001 533.488 90.24000000000001Q528.5920000000001 90.24000000000001 525.5680000000001 93.26400000000001Q522.5440000000001 96.288 522.5440000000001 101.376V132.0Z"/><g class="lk-arrow" transform="translate(424.82 56.16) scale(1.9000)"><path class="lk-a1" pathLength="1" d="M3 15 Q11 3 21 9"/><path class="lk-a2" pathLength="1" d="M21 3 L22 10 L15 11"/></g></svg></div>
 <header class="navbar" id="bar"><div class="in"><div class="l" id="navL"></div><div class="ttl" id="navT"></div><div class="r" id="navR"></div></div></header>
 <main id="app"></main>
 <div class="timer" id="timer" hidden></div>
@@ -1382,7 +1414,7 @@ const SB_URL='https://uuekwjieeswcipzkucjb.supabase.co',SB_KEY='sb_publishable_f
 const AK=K+':acct',APP_URL='https://brisco-ops.github.io/cap/';
 let sb=null;try{if(window.supabase?.createClient)sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'luckin-auth'}})}catch(e){sb=null}
 const A={user:null,group:null,members:[],shares:[],dirty:false,t:0,flushing:false,lastFetch:0,sentName:null};
-const LOGO=(()=>{const f=document.querySelector('#splash .sp-fl');return `Luck’${f?f.outerHTML:'I'}n`})();
+const LOGO=(()=>{const g=document.querySelector('#splash svg');return g?g.outerHTML.replace('class="lk"','class="lk lk-static"'):'Luck’In'})();
 
 function cloudQueue(){if(!sb||!A.user)return;A.dirty=true;clearTimeout(A.t);A.t=setTimeout(cloudFlush,1500)}
 const cloudCopy=()=>{const c=JSON.parse(JSON.stringify(db));if(c.settings)c.settings.apiKey='';return c};
@@ -1586,7 +1618,9 @@ document.addEventListener('submit',async ev=>{const f=ev.target;const k=f.datase
       const r=await sb.rpc('join_group',{invite:code});if(r.error)throw r.error;closeSheet();await loadGroup(true);render();hud('Bienvenue dans « '+(A.group?.name||'le groupe')+' »')}
   }catch(e){if(btn)btn.disabled=false;hud(/invalide/i.test(e?.message||'')?'Code invalide':'Erreur : '+(e?.message||e))}});
 render();keepAwake();showHome(false);cloudBoot();
-setTimeout(()=>{const sp=$('#splash');if(!sp)return;sp.querySelector('.sp-word').classList.add('fall');setTimeout(()=>{sp.classList.add('out');setTimeout(()=>sp.remove(),500)},1160)},3000);
+(function(){const sp=$('#splash');if(!sp)return;let seen=null;try{seen=localStorage.getItem('luckin:intro')}catch(e){}
+  const short=!!seen||reduce();if(short)sp.classList.add('short');try{localStorage.setItem('luckin:intro','1')}catch(e){}
+  setTimeout(()=>{sp.classList.add('out');setTimeout(()=>sp.remove(),260)},short?350:1240)})();
 })();
 </script>
 </body></html>
