@@ -456,3 +456,6 @@ a.cell{text-decoration:none}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .h-me{background:#4A5BD8}}
 :root[data-theme="dark"] .h-me{background:#4A5BD8}
 #home>.h-me{width:40px;max-width:40px;margin:0;padding:0}
+/* iPhone : les champs date et heure ont leur propre alignement interne ; on les cale à droite comme les autres valeurs */
+.cell.field input[type=date],.cell.field input[type=time]{-webkit-appearance:none;appearance:none;display:block;min-width:0;text-align:right;background:transparent}
+.cell.field input[type=date]::-webkit-date-and-time-value,.cell.field input[type=time]::-webkit-date-and-time-value{text-align:right;margin:0}
