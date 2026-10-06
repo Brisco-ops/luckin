@@ -1,6 +1,6 @@
 # Luck’In
 
-PWA personnelle de Fabrice pour piloter sa vie par sections (Forme, Carrière, Finances, Apprentissage), utilisable avec des amis (comptes, groupe, encouragements). Sections construites : **Forme** (sport et nutrition) et **Carrière** (candidatures, v1) ; Finances et Apprentissage affichent des pistes.
+PWA personnelle de Fabrice pour piloter sa vie par sections (Forme, Carrière, Finances, Apprentissage), utilisable avec des amis (comptes, groupe, encouragements). Sections construites : **Forme** (sport et nutrition), **Carrière** (candidatures, événements, contacts) et **Tâches** (to-do avec échéances et priorités) ; Finances et Apprentissage affichent des pistes.
 
 - En ligne : https://brisco-ops.github.io/luckin/ (GitHub Pages, dépôt `Brisco-ops/luckin`, branche `main`, racine du dépôt).
 - Installée sur iPhone depuis Safari (« Sur l’écran d’accueil »). Toutes les décisions UI visent iOS en mode app installée.
@@ -31,7 +31,9 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 
 ## Données
 
-- Tout le journal vit dans `localStorage` sous la clé `cap-fit-v1` (objet `db` : `settings`, `days`, `workouts`, `templates`, `weekly`, `active`, `foods`, `jobs`, `events`, `contacts`, `reading`, `mod`, `owner`). Chat du coach : `cap-fit-v1:chat`. Ne jamais renommer ces clés : les données existantes des utilisateurs en dépendent.
+- Le dépôt est public : aucun fichier de données personnelles (Excel, CSV…) dans git (`.gitignore` les exclut).
+
+- Tout le journal vit dans `localStorage` sous la clé `cap-fit-v1` (objet `db` : `settings`, `days`, `workouts`, `templates`, `weekly`, `active`, `foods`, `jobs`, `events`, `contacts`, `todos`, `reading`, `mod`, `owner`). Chat du coach : `cap-fit-v1:chat`. Ne jamais renommer ces clés : les données existantes des utilisateurs en dépendent.
 - `save()` met `db.mod` à jour, écrit en local puis appelle `cloudQueue()` (synchro différée de 1,5 s). `writeLocal()` écrit sans déclencher de synchro.
 - Toute nouvelle option dans `settings` doit avoir une valeur par défaut dans `seed()` **et** une migration pour les installations existantes (voir le bloc `onboarded==null` après `db=load()`).
 
@@ -52,7 +54,9 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 - Accueil (épuré : fond uni, date + « Bonjour » à gauche, citation en texte simple, sections en liste blanche avec pastille de couleur `.p-ring`, d’où part l’animation) : `AREAS`, `paintHome`, `showHome`, `openArea`, `bloomFrom` ; carte du groupe `paintFriends`.
 - Comptes et groupe : `cloudBoot`, `cloudStart`, `cloudPull`, `cloudFlush`, `showGate`, `showOnboard`, `loadGroup`, `accountSec`.
 - Notifications : `notifSec`, `notifEnable`, `notifRefresh`, `fnCall`.
-- Carrière (page dans `#area`, sa propre barre d’onglets `.ctabs` : Candidatures / Événements / Contacts, onglet dans `S.car` et `cap-fit-v1:car`) : `paintCareer` → `carJobs` / `carEvents` / `carContacts`, `jobSheet`, `jobGoalSheet`, `jobAct` (actions `job*`), `jobSubmit`. Données `db.jobs` (entreprise, poste, lien, date, statut `envoyee|entretien|offre|refus|silence`, `relances[]`, `interviews[]`) et `settings.career` `{goal, relance}`. Événements (salons, masterclass…) : `db.events` (titre, type, date, heure, lieu, lien, `questions` une par ligne, `notes`), `evSheet`, `evSubmit`, actions `ev*`. Contacts : `db.contacts` (nom, entreprise, poste, email, linkedin, phone, `met`, `next` = à recontacter le, `last`, notes), `ctSheet`, `ctSubmit`, actions `ct*`. Toutes les actions Carrière passent par `jobAct` (renvoie false si l’action n’est pas à elle). Une section avec `paint` dans `AREAS` s’affiche comme page.
+- Carrière (page dans `#area`, sa propre barre d’onglets `.ctabs` : Candidatures / Événements / Contacts, onglet dans `S.car` et `cap-fit-v1:car`) : `paintCareer` → `carJobs` / `carEvents` / `carContacts`, `jobSheet`, `jobGoalSheet`, `jobAct` (actions `job*`), `jobSubmit`. Données `db.jobs` (entreprise, poste, lien, date, statut `envoyee|entretien|offre|refus|silence`, `relances[]`, `interviews[]`) et `settings.career` `{goal, relance}`. Événements (salons, masterclass…) : `db.events` (titre, type, date, heure, lieu, lien, `questions` une par ligne, `notes`), `evSheet`, `evSubmit`, actions `ev*`. Contacts : `db.contacts` (nom, entreprise, poste, email, linkedin, phone, `met`, `next` = à recontacter le, `last`, notes), `ctSheet`, `ctSubmit`, actions `ct*`. Toutes les actions Carrière passent par `jobAct` (renvoie false si l’action n’est pas à elle). Champs d’une candidature en plus : `contract`, `location`, `contact`, `stage` (étape atteinte), `reason`. Import Excel/CSV : `jobImport` (SheetJS chargé à la demande depuis jsdelivr ; colonnes Structure/Entreprise, Poste, Date, Contrat, Statut, Étape, Raison, Contact, Localisation, Lien ; doublons ignorés ; crée aussi les contacts).
+- Tâches (page dans `#area`, sans barre) : `paintTodos`, `tdSheet`, `todoSubmit`, `todoAct` (actions `td*`). `db.todos` : `title`, `due`, `time`, `prio` (`haute|moyenne|basse`), `cat`, `note`, `done`, `doneAt`. Rangement : par échéance (en retard, aujourd’hui, demain, 7 jours, plus tard, sans échéance) puis priorité ; le cercle à cocher prend la couleur de la priorité.
+- **Règle des barres d’onglets (toutes les sections)** : retoucher l’onglet déjà ouvert remonte en haut de la page ; s’il est déjà en haut et que c’est le premier onglet, retour à l’accueil (Forme : `setTab` ; Carrière : action `carTab`). À reproduire pour toute nouvelle section avec barre. Une section avec `paint` dans `AREAS` s’affiche comme page.
 - Ouverture : `#splash` (logo « lean in » animé en SVG/CSS, 5 s, rejoué à chaque retour dans l’app sauf pendant une séance ou une lecture ; un toucher le passe).
 
 ## Identité visuelle

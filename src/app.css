@@ -430,3 +430,12 @@ a.cell{text-decoration:none}
 .p-ring{width:40px;height:40px}.p-ring svg{width:20px;height:20px}
 .p-name{font-size:18px}.p-meta{font-size:14px}
 #friends{margin-top:auto!important;padding-top:16px}
+/* Tâches : cercle à cocher coloré selon la priorité */
+.td{gap:12px}
+.td-check{width:26px;height:26px;flex:none;border-radius:50%;border:2px solid var(--pc);background:transparent;color:#fff;display:grid;place-items:center;padding:0;cursor:pointer}
+.td-check svg{width:13px;height:13px}
+.td.done .td-check{background:var(--pc)}
+.td-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:left;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer}
+.td.done .td-t{text-decoration:line-through;color:var(--label2)}
+.td-legend{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.td-legend i{width:10px;height:10px;border-radius:50%;border:2px solid var(--pc);display:inline-block;margin-left:4px}

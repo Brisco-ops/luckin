@@ -3,3 +3,8 @@
 .env
 *secret*
 SECRETS*
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+~$*
