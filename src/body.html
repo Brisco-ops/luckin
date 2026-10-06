@@ -1306,12 +1306,12 @@ render();keepAwake();showHome(false);cloudBoot();
     const end=()=>{if(done)return;done=true;sp.classList.add('out');setTimeout(()=>sp.remove(),420)};
     sp.addEventListener('click',end);setTimeout(end,short?500:4600)}
   play(first);
-  /* À chaque retour dans l'app (après l'avoir quittée), l'animation se rejoue. Pas pendant une séance ni une lecture chronométrée. */
-  document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='hidden'){hiddenAt=Date.now();return}
-    if(!hiddenAt||Date.now()-hiddenAt<1500||db.active||db.reading||$('#splash'))return;
-    document.body.insertAdjacentHTML('afterbegin',HTML);play($('#splash'))});
-  window.addEventListener('pageshow',e=>{if(e.persisted&&!$('#splash')&&!db.active&&!db.reading){document.body.insertAdjacentHTML('afterbegin',HTML);play($('#splash'))}});
+  /* L'animation se joue à l'ouverture de l'app. Après un simple passage dans une autre app, elle ne se rejoue que si l'absence a duré au moins 30 min.
+     Jamais pendant une séance ni une lecture chronométrée. */
+  const AWAY=30*60e3;
+  const replay=()=>{if(!hiddenAt||Date.now()-hiddenAt<AWAY||db.active||db.reading||$('#splash'))return;document.body.insertAdjacentHTML('afterbegin',HTML);play($('#splash'))};
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){hiddenAt=Date.now();return}replay()});
+  window.addEventListener('pageshow',e=>{if(e.persisted)replay()});
 })();
 })();
 </script>

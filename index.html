@@ -433,7 +433,9 @@ main>.group:first-child{margin-top:8px}
 .navbar.scrolled{background:transparent!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 .navbar .ttl{visibility:hidden}
 main{padding-top:calc(44px + env(safe-area-inset-top,0px))}
-@media (prefers-color-scheme: light){body::after{content:"";position:fixed;left:0;right:0;top:0;height:env(safe-area-inset-top,0px);background:linear-gradient(rgba(0,0,0,.22),rgba(0,0,0,0));pointer-events:none;z-index:50}}
+/* Mode clair : l'heure de l'iPhone est écrite en blanc (barre d'état translucide). Voile très progressif pour la garder lisible, sans bord visible. */
+@media (prefers-color-scheme: light){body::after{content:"";position:fixed;left:0;right:0;top:0;height:calc(env(safe-area-inset-top,0px) + 64px);pointer-events:none;z-index:50;
+  background:linear-gradient(to bottom,rgba(0,0,0,.16) 0,rgba(0,0,0,.13) calc(env(safe-area-inset-top,0px)*.5),rgba(0,0,0,.08) env(safe-area-inset-top,0px),rgba(0,0,0,.03) calc(env(safe-area-inset-top,0px) + 32px),rgba(0,0,0,0) 100%)}}
 
 /* Interface allégée : blocs détachés, sans sous-titres sous les rituels */
 .rituals .fn{display:none}
@@ -1978,12 +1980,12 @@ render();keepAwake();showHome(false);cloudBoot();
     const end=()=>{if(done)return;done=true;sp.classList.add('out');setTimeout(()=>sp.remove(),420)};
     sp.addEventListener('click',end);setTimeout(end,short?500:4600)}
   play(first);
-  /* À chaque retour dans l'app (après l'avoir quittée), l'animation se rejoue. Pas pendant une séance ni une lecture chronométrée. */
-  document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='hidden'){hiddenAt=Date.now();return}
-    if(!hiddenAt||Date.now()-hiddenAt<1500||db.active||db.reading||$('#splash'))return;
-    document.body.insertAdjacentHTML('afterbegin',HTML);play($('#splash'))});
-  window.addEventListener('pageshow',e=>{if(e.persisted&&!$('#splash')&&!db.active&&!db.reading){document.body.insertAdjacentHTML('afterbegin',HTML);play($('#splash'))}});
+  /* L'animation se joue à l'ouverture de l'app. Après un simple passage dans une autre app, elle ne se rejoue que si l'absence a duré au moins 30 min.
+     Jamais pendant une séance ni une lecture chronométrée. */
+  const AWAY=30*60e3;
+  const replay=()=>{if(!hiddenAt||Date.now()-hiddenAt<AWAY||db.active||db.reading||$('#splash'))return;document.body.insertAdjacentHTML('afterbegin',HTML);play($('#splash'))};
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){hiddenAt=Date.now();return}replay()});
+  window.addEventListener('pageshow',e=>{if(e.persisted)replay()});
 })();
 })();
 </script>
