@@ -1411,7 +1411,7 @@ window.addEventListener('resize',placePlanets);
 /* ================= comptes, synchronisation et groupe d’amis (Supabase) ================= */
 /* Clé publique (publishable) : elle peut être dans le code. La sécurité repose sur les règles RLS de la base. */
 const SB_URL='https://uuekwjieeswcipzkucjb.supabase.co',SB_KEY='sb_publishable_f8pBWkJT7N1jF7Sk6MEHtA_muuheuqS';
-const AK=K+':acct',APP_URL='https://brisco-ops.github.io/cap/';
+const AK=K+':acct',APP_URL='https://brisco-ops.github.io/luckin/';
 let sb=null;try{if(window.supabase?.createClient)sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'luckin-auth'}})}catch(e){sb=null}
 const A={user:null,group:null,members:[],shares:[],dirty:false,t:0,flushing:false,lastFetch:0,sentName:null};
 const LOGO=(()=>{const g=document.querySelector('#splash svg');return g?g.outerHTML.replace('class="lk"','class="lk lk-static"'):'Luck’In'})();
