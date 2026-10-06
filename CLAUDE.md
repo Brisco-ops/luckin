@@ -41,7 +41,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 
 - Projet `https://uuekwjieeswcipzkucjb.supabase.co`, clé publique `sb_publishable_…` dans le code (normal : la sécurité repose sur RLS).
 - **Ne jamais** mettre dans le code ni dans git : clés `sb_secret_…` / `service_role`, mot de passe de la base, clés VAPID privées, `CRON_SECRET`. Le dépôt est public.
-- Auth : e-mail + mot de passe, « Confirm email » désactivé (l’e-mail Supabase gratuit n’envoie qu’aux membres de l’équipe). Pas de code OTP ni de lien magique (l’app iOS installée ne partage pas la session avec Safari). Mot de passe oublié : code à 6 chiffres reçu par e-mail et saisi dans l’app (`showReset`, `doForgot` → `resetPasswordForEmail`, `doReset` → `verifyOtp` type `recovery` puis `updateUser`). Modèle d’e-mail : `supabase/email-mot-de-passe.html` (contient `{{ .Token }}`). Nécessite un SMTP branché dans Supabase pour écrire à tout le monde.
+- Auth : e-mail + mot de passe, « Confirm email » désactivé (l’e-mail Supabase gratuit n’envoie qu’aux membres de l’équipe). Pas de code OTP ni de lien magique (l’app iOS installée ne partage pas la session avec Safari).
 - Tables (RLS sur toutes) : `profiles`, `user_data` (journal complet, propriétaire seul), `groups` (code d’invitation 6 caractères), `group_members`, `daily_share`, `push_subs`, `cheers`. Fonctions SQL : `is_groupmate`, `join_group(invite)`, `delete_me()`.
 - **Confidentialité, règle produit** : les amis ne voient que la régularité (réveil, soir, séance faits oui/non) et la progression en % vers l’objectif. Jamais le poids, les repas, les mesures, les douleurs. `apiKey` (clé Anthropic du coach) n’est jamais envoyée au cloud.
 - Synchro : dernier écrit gagne sur le document entier (`db.mod`). `db.owner` empêche de mélanger les données de deux comptes sur un même téléphone.
@@ -76,5 +76,5 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 
 1. Retours de la première semaine avec les amis.
 2. Carrière v2 : retours de Fabrice, préparation d’entretien avec le coach.
-3. Brancher le SMTP pour « Mot de passe oublié » (l’écran est fait).
+3. « Mot de passe oublié » : abandonné à la demande de Fabrice (pas de SMTP). Un écran à code a existé (commit 4b9d00d, retiré) si on y revient.
 4. Sections Finances et Apprentissage ; système d’objectifs (3 max, urgence 30 % / impact 50 % / effort 20 %).

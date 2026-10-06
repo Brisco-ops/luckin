@@ -1100,8 +1100,7 @@ async function cloudBoot(){
   if(skip==='local'){if(!st().onboarded)showOnboard()}else showGate('signup')}
 
 /* ---------- écran de connexion ---------- */
-function showGate(mode='signup',msg='',email=''){const g=$('#gate');g.hidden=false;g.dataset.mode=mode;const up=mode==='signup';
-  if(mode==='forgot'||mode==='reset')return showReset(mode,msg,email);
+function showGate(mode='signup',msg=''){const g=$('#gate');g.hidden=false;g.dataset.mode=mode;const up=mode==='signup';
   g.innerHTML=`<div class="g-in"><div class="g-logo" aria-label="Luck’In">${LOGO}</div>
    <p class="g-sub">${up?'Crée ton compte : tes données sont sauvegardées et tu avances avec tes amis.':'Content de te revoir.'}</p>
    <form data-form="auth" novalidate>
@@ -1110,45 +1109,15 @@ function showGate(mode='signup',msg='',email=''){const g=$('#gate');g.hidden=fal
     <p class="g-msg" role="alert">${esc(msg)}</p>
     <button class="btn-fill g-go">${up?'Créer mon compte':'Se connecter'}</button>
    </form>
-   ${up?'':`<button type="button" class="g-link g-skip" data-act="gateMode" data-m="forgot">Mot de passe oublié ?</button>`}
    <button type="button" class="g-link" data-act="gateMode" data-m="${up?'login':'signup'}">${up?'J’ai déjà un compte':'Nouveau ? Créer un compte'}</button>
    <button type="button" class="g-link g-skip" data-act="gateSkip">Continuer sans compte</button></div>`}
-/* mot de passe oublié : code reçu par e-mail, saisi dans l'app (un lien ouvrirait Safari, qui ne partage pas la session de l'app installée) */
-function showReset(mode,msg,email){const g=$('#gate');g.dataset.email=email||g.dataset.email||'';const em=g.dataset.email;const ask=mode==='forgot';
-  g.innerHTML=`<div class="g-in"><div class="g-logo" aria-label="Luck’In">${LOGO}</div>
-   <p class="g-sub">${ask?'Indique ton e-mail : tu vas recevoir un code pour choisir un nouveau mot de passe.':`Code envoyé à <b>${esc(em)}</b>. Pense à regarder dans les indésirables.`}</p>
-   <form data-form="${ask?'forgot':'reset'}" novalidate>
-    <div class="group">${ask?`<label class="cell field" for="fe"><span>E-mail</span><input id="fe" name="email" type="email" inputmode="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="toi@exemple.com" value="${esc(em)}"></label>`
-     :`<label class="cell field" for="fc"><span>Code</span><input id="fc" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456"></label>
-       <label class="cell field" for="fp"><span>Nouveau mot de passe</span><input id="fp" name="pw" type="password" autocomplete="new-password" placeholder="6 caractères minimum"></label>`}</div>
-    <p class="g-msg" role="alert">${esc(msg)}</p>
-    <button class="btn-fill g-go">${ask?'Recevoir un code':'Changer le mot de passe'}</button>
-   </form>
-   ${ask?'':`<button type="button" class="g-link g-skip" data-act="gateMode" data-m="forgot">Renvoyer un code</button>`}
-   <button type="button" class="g-link" data-act="gateMode" data-m="login">Retour à la connexion</button></div>`}
-async function doForgot(f){const email=String(new FormData(f).get('email')||'').trim().toLowerCase();const msg=t=>{f.querySelector('.g-msg').textContent=t};
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return msg('Adresse e-mail invalide.');
-  if(!sb)return msg('Connexion impossible : vérifie ton réseau puis relance l’app.');
-  const b=f.querySelector('.g-go');b.disabled=true;msg('Envoi du code…');
-  try{const r=await sb.auth.resetPasswordForEmail(email,{redirectTo:APP_URL});if(r.error)throw r.error;showGate('reset','',email)}
-  catch(e){b.disabled=false;msg(authErr(e))}}
-async function doReset(f){const v=Object.fromEntries(new FormData(f));const code=String(v.code||'').replace(/\D/g,''),pw=String(v.pw||''),email=$('#gate').dataset.email;const msg=t=>{f.querySelector('.g-msg').textContent=t};
-  if(code.length<6)return msg('Le code reçu par e-mail fait 6 chiffres ou plus.');
-  if(pw.length<6)return msg('Mot de passe : 6 caractères minimum.');
-  const b=f.querySelector('.g-go');b.disabled=true;msg('Vérification…');
-  try{const r=await sb.auth.verifyOtp({email,token:code,type:'recovery'});if(r.error)throw r.error;
-    const u=await sb.auth.updateUser({password:pw});if(u.error)throw u.error;
-    await cloudStart(r.data.user);hud('Mot de passe changé')}
-  catch(e){b.disabled=false;msg(/expired|invalid|token/i.test(String(e?.message||e))?'Code incorrect ou expiré. Demande un nouveau code.':authErr(e))}}
 function hideGate(){const g=$('#gate');g.hidden=true;g.innerHTML='';g.dataset.mode=''}
 const authErr=e=>{const m=String(e?.message||e||'');
   if(/invalid login/i.test(m))return 'E-mail ou mot de passe incorrect.';
   if(/already registered|already exists/i.test(m))return 'Ce compte existe déjà : touche « J’ai déjà un compte ».';
   if(/not confirmed/i.test(m))return 'Adresse pas encore confirmée : ouvre l’e-mail reçu.';
   if(/rate limit|too many/i.test(m))return 'Trop de tentatives. Réessaie dans quelques minutes.';
-  if(/same.*password|different from the old/i.test(m))return 'Choisis un mot de passe différent de l’ancien.';
   if(/password/i.test(m))return 'Mot de passe trop faible : 6 caractères minimum.';
-  if(/smtp|sending.*email|email.*send/i.test(m))return 'L’e-mail n’a pas pu partir. Réessaie plus tard.';
   if(/fetch|network|load failed/i.test(m))return 'Pas de connexion. Vérifie ton réseau.';
   return m||'Erreur inconnue.'};
 async function doAuth(f){const v=Object.fromEntries(new FormData(f));const email=String(v.email||'').trim().toLowerCase(),pw=String(v.pw||'');const up=$('#gate').dataset.mode==='signup';
@@ -1322,10 +1291,8 @@ document.addEventListener('click',async ev=>{const el=ev.target.closest('[data-a
   }});
 document.addEventListener('change',ev=>{const t=ev.target;if(t.dataset?.rd==null)return;const s=st();s.reading=s.reading||{on:false,label:'Lecture',min:10};const k=t.dataset.rd;
   if(k==='on')s.reading.on=t.checked;else if(k==='min'){s.reading.min=Math.max(1,Math.round(num(t.value)||10));t.value=s.reading.min}else s.reading.label=t.value.trim()||'Lecture';save()});
-document.addEventListener('submit',async ev=>{const f=ev.target;const k=f.dataset?.form;if(!['auth','forgot','reset','onboard','gcreate','gjoin'].includes(k))return;ev.preventDefault();
+document.addEventListener('submit',async ev=>{const f=ev.target;const k=f.dataset?.form;if(!['auth','onboard','gcreate','gjoin'].includes(k))return;ev.preventDefault();
   if(k==='auth')return doAuth(f);
-  if(k==='forgot')return doForgot(f);
-  if(k==='reset')return doReset(f);
   if(k==='onboard')return doOnboard(f);
   if(needNet())return;const btn=document.querySelector('.sheet-h .strong');if(btn)btn.disabled=true;
   try{
