@@ -420,7 +420,7 @@ a.cell{text-decoration:none}
 #home .fr-card{margin:16px auto 0;background:var(--h-card);border:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:20px}
 .cell>textarea{flex:1;width:100%}
 /* Carrière : barre d'onglets propre à la section */
-.ctabs{z-index:36}.ctabs .in{grid-template-columns:repeat(3,1fr)}
+.ctabs{z-index:36}.ctabs .in{grid-template-columns:repeat(4,1fr)}
 #area{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 110px)}
 #area .a-head .l2{font-weight:600;font-size:14px}
 .ct-av{width:34px;height:34px;flex:none;border-radius:50%;display:grid;place-items:center;font:700 14px var(--font);color:#fff;background:hsl(var(--h) 52% 50%)}
@@ -439,3 +439,10 @@ a.cell{text-decoration:none}
 .td.done .td-t{text-decoration:line-through;color:var(--label2)}
 .td-legend{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .td-legend i{width:10px;height:10px;border-radius:50%;border:2px solid var(--pc);display:inline-block;margin-left:4px}
+/* Carrière › Bilan : barres horizontales */
+.st-row{display:grid!important;grid-template-columns:minmax(0,42%) 1fr 30px;gap:10px;align-items:center}
+.st-l{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-bar{height:10px;display:block}
+.st-bar i{display:block;height:100%;border-radius:0 4px 4px 0;background:var(--area,var(--tint))}
+.st-v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+#area .sec-f{display:block}
