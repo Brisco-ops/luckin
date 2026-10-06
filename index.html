@@ -640,6 +640,12 @@ html,body{overscroll-behavior-x:none}
 .g-logo .lk{width:min(64vw,250px);height:auto;margin:0}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #gate{--tint:#8E9BF0}}
 :root[data-theme="dark"] #gate{--tint:#8E9BF0}
+.fr-row{grid-template-columns:30px minmax(0,1fr) auto 40px 34px;gap:8px}
+.fr-dots{gap:3px}
+.fr-cheer{width:34px;height:34px;border-radius:50%;border:0;cursor:pointer;font-size:16px;line-height:1;background:rgba(127,127,127,.14);filter:grayscale(1);opacity:.75;transition:transform .15s ease,filter .2s ease,opacity .2s ease}
+.fr-cheer:active{transform:scale(.88)}
+.fr-cheer.done{filter:none;opacity:1;background:rgba(242,153,74,.2)}
+.fr-got{font:700 12px var(--font);text-align:center;white-space:nowrap}
 </style>
 
 </head><body>
@@ -1413,7 +1419,7 @@ window.addEventListener('resize',placePlanets);
 const SB_URL='https://uuekwjieeswcipzkucjb.supabase.co',SB_KEY='sb_publishable_f8pBWkJT7N1jF7Sk6MEHtA_muuheuqS';
 const AK=K+':acct',APP_URL='https://brisco-ops.github.io/luckin/';
 let sb=null;try{if(window.supabase?.createClient)sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'luckin-auth'}})}catch(e){sb=null}
-const A={user:null,group:null,members:[],shares:[],dirty:false,t:0,flushing:false,lastFetch:0,sentName:null};
+const A={user:null,group:null,members:[],shares:[],cheers:[],dirty:false,t:0,flushing:false,lastFetch:0,sentName:null};
 const LOGO=(()=>{const g=document.querySelector('#splash svg');return g?g.outerHTML.replace('class="lk"','class="lk lk-static"'):'Luck’In'})();
 
 function cloudQueue(){if(!sb||!A.user)return;A.dirty=true;clearTimeout(A.t);A.t=setTimeout(cloudFlush,1500)}
@@ -1459,7 +1465,7 @@ async function cloudStart(user){
   const mine=!db.owner||db.owner===user.id;
   const changed=await cloudPull(false);
   if(!mine&&!changed){db=seed();db.owner=user.id;writeLocal()}
-  hideGate();refreshAll();cloudQueue();loadGroup(true);
+  hideGate();refreshAll();cloudQueue();loadGroup(true);notifRefresh();
   if(!st().onboarded)showOnboard()}
 async function cloudBoot(){
   if(!sb){if(!st().onboarded)showOnboard();return}
@@ -1536,6 +1542,7 @@ async function loadGroup(force){
         const [p,sh]=await Promise.all([sb.from('profiles').select('id,name').in('id',ids),
           sb.from('daily_share').select('user_id,day,morning,evening,session,progress').in('user_id',ids).gte('day',addDays(TODAY(),-6))]);
         A.members=ids.map(id=>({id,name:(p.data||[]).find(x=>x.id===id)?.name||'Ami'}));A.shares=sh.data||[];
+        const ch=await sb.from('cheers').select('from_id,to_id,day').gte('day',addDays(TODAY(),-6));A.cheers=ch.data||[];
       }}
   }catch(e){}
   paintFriends();
@@ -1553,11 +1560,14 @@ function paintFriends(){const el=$('#friends');if(!el)return;
   el.innerHTML=`<div class="fr-card"><div class="fr-h"><span>${esc(A.group.name)}</span><button type="button" class="fr-code" data-act="groupMenu" aria-label="Options du groupe">${esc(A.group.code)}</button></div>
    ${list.map(m=>{const me=m.id===A.user.id;const nm=me?(st().name||'Moi'):m.name;const x=memberStats(m.id);
      return `<div class="fr-row"><span class="fr-av" style="--h:${hueOf(m.id)}">${esc(nm.trim().charAt(0).toUpperCase()||'?')}</span>
-      <span class="fr-n">${esc(nm)}${me?' <small>moi</small>':''}</span>
+      <span class="fr-n">${esc(nm)}</span>
       <span class="fr-dots" aria-label="${x.reg} jours complets sur 7, ${x.sess} séances">${x.rows.map(r=>`<i class="d${(r.morning?1:0)+(r.evening?1:0)}${r.session?' s':''}"></i>`).join('')}</span>
-      <span class="fr-p" style="--p:${x.prog??0}%">${x.prog!=null?x.prog+' %':'–'}</span></div>`}).join('')}
+      <span class="fr-p" style="--p:${x.prog??0}%">${x.prog!=null?x.prog+' %':'–'}</span>
+      ${me?(()=>{const n=A.cheers.filter(c=>c.to_id===A.user.id).length;return `<span class="fr-got" aria-label="${n} encouragements reçus cette semaine">${n?'🔥'+n:''}</span>`})()
+        :(()=>{const done=A.cheers.some(c=>c.from_id===A.user.id&&c.to_id===m.id&&c.day===TODAY());return `<button type="button" class="fr-cheer${done?' done':''}" data-act="cheer" data-id="${m.id}" aria-label="Encourager ${esc(nm)}">🔥</button>`})()}</div>`}).join('')}
    <div class="fr-legend"><span><i class="d2"></i>réveil + soir</span><span><i class="d0 s"></i>séance</span><span>% vers l’objectif</span></div></div>`}
-function accountSec(){
+function accountSec(){return accountSec0()+notifSec()}
+function accountSec0(){
   if(!A.user)return sec('Compte et amis',`<button type="button" class="cell tap link" data-act="gateOpen">Se connecter ou créer un compte</button>`,'Un compte sauvegarde tes données en ligne et te permet de rejoindre tes amis.');
   const g=A.group;
   return sec('Compte',`<div class="cell"><span class="body"><span>${esc(A.user.email||'')}</span><span class="fn">Données sauvegardées en ligne</span></span>${state(true)}</div>
@@ -1567,6 +1577,47 @@ function accountSec(){
      :`<button type="button" class="cell tap link" data-act="groupCreate">Créer un groupe</button><button type="button" class="cell tap link" data-act="groupJoin">Rejoindre avec un code</button>`,
     'Tes amis voient seulement si tu as fait ton réveil, ton soir et ta séance, et ta progression en % vers ton objectif. Jamais ton poids, tes repas ni tes mesures.')}
 const deleteSec=()=>A.user?sec('',`<button type="button" class="cell tap danger" data-act="askDeleteMe">Supprimer mon compte</button>`,'Efface ton compte et tes données en ligne. La copie de ce téléphone est conservée.'):'';
+/* ---------- notifications (rappels et encouragements) ---------- */
+const VAPID_PUB='BHiCNrpHAqdUC4dkmVxKgetHHfH0k7cMmhv-8YMIATT6aQ55pihzGzeR_GuW-9EVtlSKU2FCn_hHb5CG_4UkEuE';
+const NOTIF_DEF={on:false,morning:'07:00',evening:'21:30',weekly:'19:00'};
+const notif=()=>Object.assign({},NOTIF_DEF,st().notif||{});
+const isIOS=()=>/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const pushOK=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window&&location.protocol==='https:';
+const userTz=()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'Europe/Paris'}catch(e){return 'Europe/Paris'}};
+const b64u=x=>{const b=atob((x+'='.repeat((4-x.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(b,c=>c.charCodeAt(0))};
+async function notifSave(sub){const j=sub.toJSON();
+  const r=await sb.from('push_subs').upsert({endpoint:j.endpoint,user_id:A.user.id,p256dh:j.keys.p256dh,auth:j.keys.auth,tz:userTz(),prefs:notif()});if(r.error)throw r.error}
+async function notifEnable(permP){
+  const perm=await permP;if(perm!=='granted'){hud('Autorise les notifications : Réglages iPhone › Notifications › Luck’In');return false}
+  const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID_PUB)});
+  st().notif={...notif(),on:true};save();await notifSave(sub);return true}
+async function notifDisable(){try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();
+  if(sub){await sb.from('push_subs').delete().eq('endpoint',sub.endpoint);await sub.unsubscribe()}}catch(e){}
+  st().notif={...notif(),on:false};save()}
+/* au lancement : l'adresse d'abonnement peut changer, on la remet à jour sans rien demander */
+async function notifRefresh(){try{if(!A.user||!pushOK()||!notif().on||Notification.permission!=='granted')return;
+  const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub)await notifSave(sub)}catch(e){}}
+function notifSec(){
+  if(!A.user)return '';
+  const n=notif();
+  if(!pushOK()||(isIOS()&&!standalone()))return sec('Notifications',`<div class="cell"><span class="body fn">Ouvre Luck’In depuis son icône sur l’écran d’accueil pour activer les rappels et les encouragements (iPhone avec iOS 16.4 ou plus).</span></div>`);
+  const on=n.on&&Notification.permission==='granted';
+  const tm=(k,l)=>`<label class="cell field" for="nt-${k}"><span>${l}</span><input id="nt-${k}" type="time" data-notif="${k}" value="${esc(n[k]||'')}"></label>`;
+  return sec('Notifications',`<label class="cell" for="nt-on"><span class="body"><span>Rappels et encouragements</span><span class="fn">${on?'Activés sur ce téléphone':'Désactivés'}</span></span><input id="nt-on" type="checkbox" class="switch" data-notif="on" ${on?'checked':''}></label>
+    ${on?tm('morning','Réveil')+tm('evening','Soir')+tm('weekly','Bilan du dimanche')+`<button type="button" class="cell tap link" data-act="notifTest">Envoyer une notification test</button>`:''}`,
+    'Un rappel n’arrive que si le rituel n’est pas encore fait. Les encouragements de tes amis arrivent aussi en notification.')}
+document.addEventListener('change',ev=>{const t=ev.target;const k=t.dataset?.notif;if(!k)return;
+  if(k==='on'){
+    if(t.checked){const permP=Notification.requestPermission(); /* demandé tout de suite : iOS l'exige pendant le geste */
+      t.disabled=true;notifEnable(permP).then(ok=>{if(ok)hud('Notifications activées')}).catch(e=>hud('Erreur : '+(e?.message||e))).finally(()=>{render()})}
+    else{t.disabled=true;notifDisable().finally(()=>{render();hud('Notifications désactivées')})}
+    return}
+  const v=t.value;if(!/^\d{2}:\d{2}$/.test(v))return;st().notif={...notif(),[k]:v};save();
+  if(A.user)sb.from('push_subs').update({prefs:notif(),tz:userTz()}).eq('user_id',A.user.id).then(()=>hud('Heure enregistrée'))});
+async function fnCall(body){const r=await sb.functions.invoke('push',{body});
+  if(r.error){let msg=r.error.message;try{const j=await r.error.context.json();msg=j.error||msg;if(j.already)return {already:true}}catch(e){}throw new Error(msg)}return r.data||{}}
 const newCode=()=>{const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',r=new Uint8Array(6);crypto.getRandomValues(r);return Array.from(r,x=>a[x%32]).join('')};
 async function groupCreate(name){
   for(let i=0;i<3;i++){const g=await sb.from('groups').insert({code:newCode(),name:name||'Mon groupe',owner:A.user.id}).select('id,code,name,owner').single();
@@ -1581,6 +1632,12 @@ const needNet=()=>{if(!navigator.onLine){hud('Pas de connexion');return true}ret
 document.addEventListener('click',async ev=>{const el=ev.target.closest('[data-act]');if(!el)return;const act=el.dataset.act;
   switch(act){
    case 'gateMode':showGate(el.dataset.m);break;
+   case 'notifTest':{if(needNet())break;try{const r=await fnCall({kind:'test'});hud(r.sent?'Notification envoyée':'Aucun appareil abonné')}catch(e){hud('Erreur : '+e.message)}break}
+   case 'cheer':{if(needNet())break;const id=el.dataset.id;const nm=A.members.find(m=>m.id===id)?.name||'ton ami';if(el.classList.contains('done')){hud('Déjà encouragé aujourd’hui');break}
+     el.classList.add('done');haptic(10);
+     try{const r=await fnCall({kind:'cheer',to:id});if(r.already){hud('Déjà encouragé aujourd’hui');break}
+       A.cheers.push({from_id:A.user.id,to_id:id,day:TODAY()});hud(r.sent?'🔥 Encouragement envoyé à '+nm:nm+' verra ton encouragement dans l’app')}
+     catch(e){el.classList.remove('done');hud('Erreur : '+e.message)}break}
    case 'gateSkip':try{localStorage.setItem(AK,'local')}catch(e){}hideGate();if(!st().onboarded)showOnboard();break;
    case 'gateOpen':showGate('login');break;
    case 'groupMenu':if(!A.group)asheet('Groupe d’amis',[{label:'Créer un groupe',act:'groupCreate'},{label:'Rejoindre avec un code',act:'groupJoin'}]);
