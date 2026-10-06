@@ -1,6 +1,6 @@
 # Luck’In
 
-PWA personnelle de Fabrice pour piloter sa vie par sections (Forme, Carrière, Finances, Apprentissage), utilisable avec des amis (comptes, groupe, encouragements). Seule la section **Forme** (sport et nutrition) est construite ; les autres affichent des pistes.
+PWA personnelle de Fabrice pour piloter sa vie par sections (Forme, Carrière, Finances, Apprentissage), utilisable avec des amis (comptes, groupe, encouragements). Sections construites : **Forme** (sport et nutrition) et **Carrière** (candidatures, v1) ; Finances et Apprentissage affichent des pistes.
 
 - En ligne : https://brisco-ops.github.io/luckin/ (GitHub Pages, dépôt `Brisco-ops/luckin`, branche `main`, racine du dépôt).
 - Installée sur iPhone depuis Safari (« Sur l’écran d’accueil »). Toutes les décisions UI visent iOS en mode app installée.
@@ -31,7 +31,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 
 ## Données
 
-- Tout le journal vit dans `localStorage` sous la clé `cap-fit-v1` (objet `db` : `settings`, `days`, `workouts`, `templates`, `weekly`, `active`, `foods`, `reading`, `mod`, `owner`). Chat du coach : `cap-fit-v1:chat`. Ne jamais renommer ces clés : les données existantes des utilisateurs en dépendent.
+- Tout le journal vit dans `localStorage` sous la clé `cap-fit-v1` (objet `db` : `settings`, `days`, `workouts`, `templates`, `weekly`, `active`, `foods`, `jobs`, `reading`, `mod`, `owner`). Chat du coach : `cap-fit-v1:chat`. Ne jamais renommer ces clés : les données existantes des utilisateurs en dépendent.
 - `save()` met `db.mod` à jour, écrit en local puis appelle `cloudQueue()` (synchro différée de 1,5 s). `writeLocal()` écrit sans déclencher de synchro.
 - Toute nouvelle option dans `settings` doit avoir une valeur par défaut dans `seed()` **et** une migration pour les installations existantes (voir le bloc `onboarded==null` après `db=load()`).
 
@@ -52,6 +52,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 - Accueil : `AREAS`, `paintHome`, `showHome`, `openArea`, `bloomFrom` ; carte du groupe `paintFriends`.
 - Comptes et groupe : `cloudBoot`, `cloudStart`, `cloudPull`, `cloudFlush`, `showGate`, `showOnboard`, `loadGroup`, `accountSec`.
 - Notifications : `notifSec`, `notifEnable`, `notifRefresh`, `fnCall`.
+- Carrière (page dans `#area`, pas d’onglets) : `paintCareer`, `jobSheet`, `jobGoalSheet`, `jobAct` (actions `job*`), `jobSubmit`. Données `db.jobs` (entreprise, poste, lien, date, statut `envoyee|entretien|offre|refus|silence`, `relances[]`, `interviews[]`) et `settings.career` `{goal, relance}`. Une section avec `paint` dans `AREAS` s’affiche comme page.
 - Ouverture : `#splash` (logo « lean in » animé en SVG/CSS, 6 s, rejoué à chaque retour dans l’app sauf pendant une séance ou une lecture ; un toucher le passe).
 
 ## Identité visuelle
@@ -69,6 +70,6 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 ## Prochaines étapes envisagées
 
 1. Retours de la première semaine avec les amis.
-2. Section Carrière : candidatures, relances, entretiens, objectif hebdomadaire.
+2. Carrière v2 : retours de Fabrice, préparation d’entretien avec le coach.
 3. « Mot de passe oublié » (brancher un SMTP, ex. Resend).
 4. Sections Finances et Apprentissage ; système d’objectifs (3 max, urgence 30 % / impact 50 % / effort 20 %).

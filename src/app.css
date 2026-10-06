@@ -433,3 +433,7 @@ html,body{overscroll-behavior-x:none}
 .fr-cheer:active{transform:scale(.88)}
 .fr-cheer.done{filter:none;opacity:1;background:rgba(242,153,74,.2)}
 .fr-got{font:700 12px var(--font);text-align:center;white-space:nowrap}
+
+/* Carrière */
+a.cell{text-decoration:none}
+#area .kpis .ringed{cursor:pointer}
