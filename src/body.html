@@ -13,7 +13,7 @@
   <button data-view="settings" aria-label="Réglages" title="Réglages" class="avatar-tab"><svg viewBox="0 0 24 24" class="av"><circle cx="12" cy="12" r="11" class="ring"/><circle cx="12" cy="12" r="8.6" class="disc"/><text x="12" y="12" class="ini" text-anchor="middle" dominant-baseline="central">F</text></svg></button>
 </div></nav>
 <div id="layer"></div>
-<section id="home" aria-label="Accueil"><div class="h-top"><span class="h-name" id="hName"></span><blockquote class="h-quote"><p>« Dans la vie, rien n’est à craindre, tout est à comprendre. »</p><cite>Marie Curie</cite></blockquote></div><div class="orbit" id="orbit"></div><div id="friends"></div><p class="h-date" id="hDate"></p></section>
+<section id="home" aria-label="Accueil"><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote"><p>« Dans la vie, rien n’est à craindre, tout est à comprendre. »</p><cite>Marie Curie</cite></blockquote></div><div class="orbit" id="orbit"></div><div id="friends"></div></section>
 <section id="area" hidden></section>
 <div id="bloom" hidden></div>
 
@@ -794,8 +794,8 @@ const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 function areaMeta(a){if(a.id==='carriere'){const d=jobs().filter(relanceDue).length;return `${weekApps()}/${car().goal} cette semaine`+(d?` · ${d} à relancer`:'')}if(a.id==='forme'){const n=sugarStreak();const a7=lastWeightAvg();return [a7!=null?fmt(a7)+' kg':null,n?n+' j sans sucre':null].filter(Boolean).join(' · ')||a.sub}return a.sub}
 function paintHome(){
   $('#hName').textContent='Bonjour '+st().name;
-  $('#hDate').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  $('#orbit').innerHTML=AREAS.map(a=>`<button class="planet${a.ready||a.paint?'':' soon'}" data-area="${a.id}" style="--c:${a.color};--s:${a.size}px" aria-label="${a.name}"><span class="p-ring"></span><span class="p-ico"><svg viewBox="0 0 24 24" aria-hidden="true">${AREA_ICONS[a.id]}</svg></span><span class="p-txt"><span class="p-name">${a.name}</span><span class="p-meta">${esc(areaMeta(a))}</span></span></button>`).join('');
+  $('#hDate').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  $('#orbit').innerHTML=AREAS.map(a=>`<button class="planet${a.ready||a.paint?'':' soon'}" data-area="${a.id}" style="--c:${a.color};--s:${a.size}px" aria-label="${a.name}"><span class="p-ring"><svg viewBox="0 0 24 24" aria-hidden="true">${AREA_ICONS[a.id]}</svg></span><span class="p-txt"><span class="p-name">${a.name}</span><span class="p-meta">${esc(areaMeta(a))}</span></span>${I.chev}</button>`).join('');
   placePlanets();paintFriends();loadGroup();
 }
 function placePlanets(){}

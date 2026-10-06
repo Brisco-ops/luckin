@@ -49,7 +49,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 
 - Vues : `vToday`, `vWorkout`/`vActive`, `vStats`, `vCoach`, `vSettings` ; `render(o)` ; `sec(head, body, foot, cls)` pour les sections.
 - Fiches : `morningSheet`, `mealSheet`, `eveningSheet`, `weeklySheet`, `cardioSheet`, `tplSheet` ; actions via `data-act` (gestionnaire de clics) et formulaires via `data-form` (gestionnaire submit).
-- Accueil : `AREAS`, `paintHome`, `showHome`, `openArea`, `bloomFrom` ; carte du groupe `paintFriends`.
+- Accueil (épuré : fond uni, date + « Bonjour » à gauche, citation en texte simple, sections en liste blanche avec pastille de couleur `.p-ring`, d’où part l’animation) : `AREAS`, `paintHome`, `showHome`, `openArea`, `bloomFrom` ; carte du groupe `paintFriends`.
 - Comptes et groupe : `cloudBoot`, `cloudStart`, `cloudPull`, `cloudFlush`, `showGate`, `showOnboard`, `loadGroup`, `accountSec`.
 - Notifications : `notifSec`, `notifEnable`, `notifRefresh`, `fnCall`.
 - Carrière (page dans `#area`, pas d’onglets) : `paintCareer`, `jobSheet`, `jobGoalSheet`, `jobAct` (actions `job*`), `jobSubmit`. Données `db.jobs` (entreprise, poste, lien, date, statut `envoyee|entretien|offre|refus|silence`, `relances[]`, `interviews[]`) et `settings.career` `{goal, relance}`. Une section avec `paint` dans `AREAS` s’affiche comme page.
