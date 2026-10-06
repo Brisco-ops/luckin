@@ -1231,7 +1231,7 @@ function notifSec(){
   const on=n.on&&Notification.permission==='granted';
   const tm=(k,l)=>`<label class="cell field" for="nt-${k}"><span>${l}</span><input id="nt-${k}" type="time" data-notif="${k}" value="${esc(n[k]||'')}"></label>`;
   return sec('Notifications',`<label class="cell" for="nt-on"><span class="body"><span>Rappels et encouragements</span><span class="fn">${on?'Activés sur ce téléphone':'Désactivés'}</span></span><input id="nt-on" type="checkbox" class="switch" data-notif="on" ${on?'checked':''}></label>
-    ${on?tm('morning','Réveil')+tm('evening','Soir')+tm('weekly','Bilan du dimanche')+`<label class="cell" for="nt-iv"><span class="body"><span>Rappels d’entretien et d’événement</span><span class="fn">2 jours avant et la veille à 19:00, le matin même à 08:00</span></span><input id="nt-iv" type="checkbox" class="switch" data-notif="iv" ${n.iv!==false?'checked':''}></label><label class="cell" for="nt-td"><span class="body"><span>Rappels de tâches</span><span class="fn">Résumé à 08:00, et 15 min avant une tâche qui a une heure</span></span><input id="nt-td" type="checkbox" class="switch" data-notif="td" ${n.td!==false?'checked':''}></label><button type="button" class="cell tap link" data-act="notifTest">Envoyer une notification test</button>`:''}`,
+    ${on?tm('morning','Réveil')+tm('evening','Soir')+tm('weekly','Bilan du dimanche')+`<label class="cell" for="nt-iv"><span class="body"><span>Rappels d’entretien et d’événement</span><span class="fn">2 jours avant et la veille à 19:00, le matin même à 08:00</span></span><input id="nt-iv" type="checkbox" class="switch" data-notif="iv" ${n.iv!==false?'checked':''}></label><label class="cell" for="nt-td"><span class="body"><span>Rappels de tâches</span><span class="fn">Résumé à 08:00, et 15 min avant une tâche qui a une heure</span></span><input id="nt-td" type="checkbox" class="switch" data-notif="td" ${n.td!==false?'checked':''}></label>`:''}`,
     'Un rappel n’arrive que si le rituel n’est pas encore fait. Les encouragements de tes amis arrivent aussi en notification.')}
 document.addEventListener('change',ev=>{const t=ev.target;const k=t.dataset?.notif;if(!k)return;
   if(k==='on'){
@@ -1258,7 +1258,6 @@ const needNet=()=>{if(!navigator.onLine){hud('Pas de connexion');return true}ret
 document.addEventListener('click',async ev=>{const el=ev.target.closest('[data-act]');if(!el)return;const act=el.dataset.act;
   switch(act){
    case 'gateMode':showGate(el.dataset.m);break;
-   case 'notifTest':{if(needNet())break;try{const r=await fnCall({kind:'test'});hud(r.sent?'Notification envoyée':'Aucun appareil abonné')}catch(e){hud('Erreur : '+e.message)}break}
    case 'cheer':{if(needNet())break;const id=el.dataset.id;const nm=A.members.find(m=>m.id===id)?.name||'ton ami';if(el.classList.contains('done')){hud('Déjà encouragé aujourd’hui');break}
      el.classList.add('done');haptic(10);
      try{const r=await fnCall({kind:'cheer',to:id});if(r.already){hud('Déjà encouragé aujourd’hui');break}
