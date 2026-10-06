@@ -84,7 +84,7 @@ function seed(){
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
     countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,sound:true,failureBonus:true,
     apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',career:{goal:5,relance:7}},
-    days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[]};
+    days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[]};
 }
 let db;
 function load(){try{const s=localStorage.getItem(K);if(s)return JSON.parse(s)}catch(e){}return seed()}
@@ -95,7 +95,7 @@ if(!db.settings.restFix){db.templates.forEach(t=>t.exercises.forEach(e=>e.rest=4
 /* installations existantes : on garde le rituel et les compléments déjà en place */
 if(db.settings.onboarded==null){db.settings.onboarded=1;if(db.settings.reading==null)db.settings.reading={on:true,label:'Lecture de la Bible',min:10};if(db.settings.supps==null)db.settings.supps=true;writeLocal()}
 /* section Carrière : objectif hebdomadaire et liste des candidatures */
-if(db.settings.career==null||!db.jobs||!db.events){if(db.settings.career==null)db.settings.career={goal:5,relance:7};if(!db.jobs)db.jobs=[];if(!db.events)db.events=[];writeLocal()}
+if(db.settings.career==null||!db.jobs||!db.events||!db.contacts){if(db.settings.career==null)db.settings.career={goal:5,relance:7};if(!db.jobs)db.jobs=[];if(!db.events)db.events=[];if(!db.contacts)db.contacts=[];writeLocal()}
 if(!db.settings.muscleFix){db.settings.muscleUnit='kg';db.settings.muscleFix=1;save()}
 const st=()=>db.settings;
 const day=d=>db.days[d]||(db.days[d]={meals:[]});
@@ -586,7 +586,7 @@ document.addEventListener('click',ev=>{
   const el=ev.target.closest('[data-act]');if(!el)return;const act=el.dataset.act,id=el.dataset.id;
   if(act==='closeSheet'){if(el.classList.contains('scrim')&&ev.target!==el)return;closeSheet();return}
   if(el.closest('.asheet'))closeSheet(true);
-  if(act.startsWith('job')||act.startsWith('ev')||act==='addIv'||act==='rmIv'||act==='askDelJob'||act==='delJob'){jobAct(act,id,el);return}
+  if(jobAct(act,id,el))return; /* actions de la section Carrière */
   switch(act){
    case 'sugarInfo':{const n=sugarStreak(),b=sugarBest();asheet(`Série sans sucre ajouté : ${n} jour${n>1?'s':''} · record ${b} jour${b>1?'s':''}. Une journée compte une fois la fiche du soir validée sans sucre ajouté (repas et hors repas).`,[{label:'Ouvrir la fiche du soir',act:'evening'}]);break}
    case 'morning':morningSheet();break;
@@ -663,6 +663,7 @@ document.addEventListener('submit',ev=>{
   const f=ev.target;if(!f.dataset.form)return;ev.preventDefault();const fd=new FormData(f);const v=Object.fromEntries(fd);const t=TODAY();
   if(f.dataset.form==='job'||f.dataset.form==='jobGoal'){jobSubmit(f,v);return}
   if(f.dataset.form==='ev'){evSubmit(f,v);return}
+  if(f.dataset.form==='ct'){ctSubmit(f,v);return}
   switch(f.dataset.form){
    case 'morning':{const D=day(t);D.morning=Object.assign(D.morning||{},{weight:num(v.weight),fat:num(v.fat),muscle:num(v.muscle),visceral:num(v.visceral),time:v.time||nowHM(),sleepH:num(v.sleepH),sleepQ:v.sleepQ?+v.sleepQ:null});save();closeSheet();render();haptic();hud('Réveil enregistré');break}
    case 'meal':{const D=day(t);const o={type:v.type,time:v.time,foods:(v.foods||'').trim(),source:v.source,speed:v.speed,comment:(v.comment||'').trim(),supps:fd.getAll('msupp'),sugar:!!v.sugar};
@@ -726,25 +727,59 @@ const EVKIND=[['salon','Salon'],['masterclass','Masterclass'],['conf','Conféren
 const events=()=>db.events||(db.events=[]);
 const evWhen=e=>e.date+(e.time||'');
 const nQ=e=>(e.questions||'').split('\n').filter(x=>x.trim()).length;
+const contacts=()=>db.contacts||(db.contacts=[]);
 const careerOn=()=>H.cur==='carriere'&&!$('#area').hidden;
-function paintCareer(){const v=$('#area'),a=AREAS.find(x=>x.id==='carriere'),c=car(),t=TODAY();
+const CTABS=[['jobs','Candidatures','<rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7M3 12.5h18"/>'],
+ ['events','Événements','<rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'],
+ ['contacts','Contacts','<circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20c.8-3.8 3.8-6 7.5-6s6.7 2.2 7.5 6"/>']];
+try{S.car=localStorage.getItem(K+':car')||'jobs'}catch(e){S.car='jobs'}
+function paintCareer(o={}){const v=$('#area'),tab=CTABS.find(x=>x[0]===S.car)||CTABS[0];
+  const body={jobs:carJobs,events:carEvents,contacts:carContacts}[tab[0]]();
+  v.innerHTML=`<div class="a-in car">${HOMEBTN}<div class="a-head"><p class="l2">Carrière</p><h1>${tab[1]}</h1></div>${body}</div>
+  <nav class="tabs ctabs" aria-label="Carrière"><div class="in">${CTABS.map(([k,l,ic])=>`<button data-act="carTab" data-v="${k}" aria-label="${l}" title="${l}" aria-current="${k===tab[0]?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg></button>`).join('')}</div></nav>`;
+  if(o.top)v.scrollTop=0}
+function carJobs(){const c=car(),t=TODAY();
   const n=weekApps(),due=jobs().filter(relanceDue),ivs=ivUpcoming(),open=jobs().filter(jobOpen),done=jobs().filter(j=>!jobOpen(j));
   const recent=(x,y)=>lastContact(y).localeCompare(lastContact(x));
-  const evUp=events().filter(e=>e.date>=t).sort((x,y)=>evWhen(x).localeCompare(evWhen(y))),evPast=events().filter(e=>e.date<t).sort((x,y)=>evWhen(y).localeCompare(evWhen(x)));
-  const evCell=e=>`<button class="cell tap" data-act="evEdit" data-id="${e.id}"><span class="body"><span>${esc(e.title)}</span><span class="fn">${[whenDay(e.date)+(e.time?' à '+esc(e.time):''),(EVKIND.find(k=>k[0]===e.kind)||[])[1],e.place&&esc(e.place),nQ(e)?nQ(e)+' question'+(nQ(e)>1?'s':''):null].filter(Boolean).join(' · ')}</span></span>${e.date===t?'<span class="pill tint">Aujourd’hui</span>':''}${I.chev}</button>`;
   const todo=[...ivs.map(({j,i})=>`<button class="cell tap" data-act="jobEdit" data-id="${j.id}"><span class="body"><span>Entretien · ${esc(j.company)}</span><span class="fn">${[whenDay(i.date)+(i.time?' à '+esc(i.time):''),(IVKIND.find(k=>k[0]===i.kind)||[])[1],j.role&&esc(j.role)].filter(Boolean).join(' · ')}</span></span>${i.date===t?'<span class="pill tint">Aujourd’hui</span>':''}${I.chev}</button>`),
     ...due.map(j=>`<button class="cell tap" data-act="jobMenu" data-id="${j.id}"><span class="body"><span>Relancer ${esc(j.company)}</span><span class="fn">Sans nouvelles depuis ${diff(lastContact(j),t)} jours${(j.relances||[]).length?' · déjà relancée '+j.relances.length+' fois':''}</span></span><span class="pill late">À relancer</span></button>`)];
   const cell=j=>`<button class="cell tap" data-act="jobEdit" data-id="${j.id}"><span class="body"><span>${esc(j.company)}</span><span class="fn">${[j.role&&esc(j.role),'envoyée le '+fdate(j.date),(j.relances||[]).length?'relancée '+j.relances.length+' fois':null].filter(Boolean).join(' · ')}</span></span>${jobPill(j.status)}${I.chev}</button>`;
-  v.innerHTML=`<div class="a-in car">${HOMEBTN}
-   <div class="a-head"><h1>${a.name}</h1><p class="l2">${a.sub}</p></div>
-   <div class="kpis tilesrow"><div class="ringed" data-act="jobGoal" style="--p:${clamp(n/c.goal)*100}%"><span class="v">${n}/${c.goal}</span><span class="k">semaine</span></div><div><span class="v">${open.length}</span><span class="k">en cours</span></div><div><span class="v">${ivs.length}</span><span class="k">entretiens</span></div><div><span class="v">${due.length}</span><span class="k">à relancer</span></div></div>
+  return `<div class="kpis tilesrow"><div class="ringed" data-act="jobGoal" style="--p:${clamp(n/c.goal)*100}%"><span class="v">${n}/${c.goal}</span><span class="k">semaine</span></div><div><span class="v">${open.length}</span><span class="k">en cours</span></div><div><span class="v">${ivs.length}</span><span class="k">entretiens</span></div><div><span class="v">${due.length}</span><span class="k">à relancer</span></div></div>
    ${todo.length?sec('À faire',todo.join('')):''}
-   ${sec('Événements à venir',evUp.map(evCell).join('')+addCell('Nouvel événement','evNew'))}
-   ${sec('Candidatures en cours',open.sort(recent).map(cell).join('')+addCell('Nouvelle candidature','jobNew'))}
-   ${evPast.length?sec('Événements passés',S.evOld?evPast.map(evCell).join(''):`<button class="cell tap link" data-act="evOld"><span>Voir les ${evPast.length} événement${evPast.length>1?'s':''} passé${evPast.length>1?'s':''}</span></button>`):''}
+   ${sec('En cours',open.sort(recent).map(cell).join('')+addCell('Nouvelle candidature','jobNew'))}
    ${done.length?sec('Terminées',S.carOld?done.sort(recent).map(cell).join(''):`<button class="cell tap link" data-act="jobOld"><span>Voir les ${done.length} candidature${done.length>1?'s':''} terminée${done.length>1?'s':''}</span></button>`):''}
-   ${sec('',`<button class="cell tap" data-act="jobGoal"><span class="body"><span>Objectif</span><span class="fn">${c.goal} candidature${c.goal>1?'s':''} par semaine · relance après ${c.relance} jours</span></span>${I.chev}</button>`)}
-  </div>`}
+   ${sec('',`<button class="cell tap" data-act="jobGoal"><span class="body"><span>Objectif</span><span class="fn">${c.goal} candidature${c.goal>1?'s':''} par semaine · relance après ${c.relance} jours</span></span>${I.chev}</button>`)}`}
+function carEvents(){const t=TODAY();
+  const up=events().filter(e=>e.date>=t).sort((x,y)=>evWhen(x).localeCompare(evWhen(y))),past=events().filter(e=>e.date<t).sort((x,y)=>evWhen(y).localeCompare(evWhen(x)));
+  const cell=e=>`<button class="cell tap" data-act="evEdit" data-id="${e.id}"><span class="body"><span>${esc(e.title)}</span><span class="fn">${[whenDay(e.date)+(e.time?' à '+esc(e.time):''),(EVKIND.find(k=>k[0]===e.kind)||[])[1],e.place&&esc(e.place),nQ(e)?nQ(e)+' question'+(nQ(e)>1?'s':''):null].filter(Boolean).join(' · ')}</span></span>${e.date===t?'<span class="pill tint">Aujourd’hui</span>':''}${I.chev}</button>`;
+  return `${sec('À venir',up.map(cell).join('')+addCell('Nouvel événement','evNew'),'Salons, masterclass, conférences… Rappels 2 jours avant et la veille à 19:00, le matin même à 08:00.')}
+   ${past.length?sec('Passés',S.evOld?past.map(cell).join(''):`<button class="cell tap link" data-act="evOld"><span>Voir les ${past.length} événement${past.length>1?'s':''} passé${past.length>1?'s':''}</span></button>`):''}`}
+function carContacts(){const t=TODAY();
+  const due=contacts().filter(x=>x.next).sort((a,b)=>a.next.localeCompare(b.next));
+  const rest=contacts().filter(x=>!x.next).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
+  const cell=x=>`<button class="cell tap" data-act="ctEdit" data-id="${x.id}"><span class="ct-av" style="--h:${hueOf(x.id)}">${esc(x.name.trim().charAt(0).toUpperCase()||'?')}</span><span class="body"><span>${esc(x.name)}</span><span class="fn">${[x.role&&esc(x.role),x.company&&esc(x.company)].filter(Boolean).join(' · ')||esc(x.met||'')}</span></span>${x.next?`<span class="pill ${x.next<=t?'late':''}">${x.next<t?'En retard':x.next===t?'Aujourd’hui':fdate(x.next)}</span>`:''}${I.chev}</button>`;
+  return `${due.length?sec('À contacter',due.map(cell).join('')):''}
+   ${sec(due.length?'Autres contacts':'',rest.map(cell).join('')+addCell('Nouveau contact','ctNew'),'Recruteurs, personnes rencontrées, anciens collègues… Donne une date « À recontacter » pour qu’ils apparaissent en haut.')}`}
+const ctAction=(href,label)=>`<a class="cell tap link" href="${esc(href)}" ${/^https/.test(href)?'target="_blank" rel="noopener"':''}>${label}</a>`;
+function ctSheet(x){const isNew=!x;x=x||{name:'',company:'',role:'',email:'',linkedin:'',phone:'',met:'',next:'',notes:''};
+  const acts=[x.email&&ctAction('mailto:'+x.email,'Écrire un e-mail'),x.linkedin&&ctAction(safeUrl(x.linkedin),'Ouvrir LinkedIn'),x.phone&&ctAction('tel:'+x.phone.replace(/[^\d+]/g,''),'Appeler')].filter(Boolean);
+  sheet(isNew?'Nouveau contact':'Contact',`<form id="sf" data-form="ct" data-id="${x.id||''}">
+   ${acts.length?sec('',acts.join('')):''}
+   ${sec('',`<label class="cell field" for="cn"><span>Nom</span><input id="cn" name="name" value="${esc(x.name)}" required placeholder="Prénom Nom" autocomplete="off"></label>
+     <label class="cell field" for="cco"><span>Entreprise</span><input id="cco" name="company" value="${esc(x.company)}" placeholder="Facultatif" autocomplete="off"></label>
+     <label class="cell field" for="cro"><span>Poste</span><input id="cro" name="role" value="${esc(x.role)}" placeholder="Recruteuse, manager…" autocomplete="off"></label>`)}
+   ${sec('Coordonnées',`<label class="cell field" for="cem"><span>E-mail</span><input id="cem" name="email" type="email" inputmode="email" autocapitalize="off" value="${esc(x.email)}" placeholder="nom@exemple.fr" autocomplete="off"></label>
+     <label class="cell field" for="cli"><span>LinkedIn</span><input id="cli" name="linkedin" inputmode="url" autocapitalize="off" value="${esc(x.linkedin)}" placeholder="Lien du profil" autocomplete="off"></label>
+     <label class="cell field" for="cph"><span>Téléphone</span><input id="cph" name="phone" type="tel" value="${esc(x.phone)}" placeholder="06…" autocomplete="off"></label>`)}
+   ${sec('Suivi',`<label class="cell field" for="cmet"><span>Rencontré</span><input id="cmet" name="met" value="${esc(x.met)}" placeholder="Salon, via un ami…" autocomplete="off"></label>
+     <label class="cell field" for="cnx"><span>À recontacter le</span><input id="cnx" name="next" type="date" value="${x.next||''}"></label>
+     ${isNew?'':`<div class="cell"><span class="body" id="clast">${x.last?'Dernier contact le '+fdate(x.last):'Pas encore de contact noté'}</span></div><button type="button" class="cell tap link" data-act="ctDone" data-id="${x.id}">Contact fait aujourd’hui</button>`}`,isNew?'':'« Contact fait » note la date et retire le contact de « À contacter ».')}
+   ${sec('Notes',`<div class="cell"><textarea name="notes" rows="4" placeholder="De quoi vous avez parlé, ce que tu veux lui demander…">${esc(x.notes||'')}</textarea></div>`)}
+   ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="ctAskDel" data-id="${x.id}">Supprimer le contact</button>`)}
+  </form>`)}
+function ctSubmit(f,v){let x=contacts().find(c=>c.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid()};contacts().push(x)}
+  Object.assign(x,{name:v.name.trim(),company:(v.company||'').trim(),role:(v.role||'').trim(),email:(v.email||'').trim(),linkedin:(v.linkedin||'').trim(),phone:(v.phone||'').trim(),met:(v.met||'').trim(),next:v.next||'',notes:(v.notes||'').trim()});
+  save();closeSheet();paintCareer();haptic();hud(isNew?'Contact ajouté':'Contact enregistré')}
 function ivRow(i={date:'',time:'',kind:'visio',note:''}){return `<div class="cell block" data-ivrow><div class="mini three"><label>Date<input type="date" name="ivd" value="${i.date}"></label><label>Heure<input type="time" name="ivt" value="${i.time||''}"></label><label>Type<select name="ivk" style="font:16px var(--font);color:var(--label);background:var(--card);border:0;border-radius:8px;padding:7px 9px">${IVKIND.map(([k,l])=>`<option value="${k}" ${k===i.kind?'selected':''}>${l}</option>`).join('')}</select></label></div>
   <div class="mini" style="grid-template-columns:1fr auto"><label>Note<input name="ivn" value="${esc(i.note||'')}" placeholder="Avec qui, points à préparer…"></label><button type="button" class="danger" data-act="rmIv" aria-label="Retirer" style="align-self:end;padding:8px">✕</button></div></div>`}
 const relTxt=j=>{const r=j.relances||[];return r.length?`${r.length} relance${r.length>1?'s':''} · dernière le ${fdate(r[r.length-1])}`:'Aucune relance'};
@@ -788,6 +823,12 @@ function jobAct(act,id,el){const j=jobs().find(x=>x.id===id);
    case 'jobEdit':if(j)jobSheet(j);break;
    case 'jobGoal':jobGoalSheet();break;
    case 'jobOld':S.carOld=!S.carOld;paintCareer();break;
+   case 'carTab':if(S.car===el.dataset.v){$('#area').scrollTo({top:0,behavior:reduce()?'auto':'smooth'});break}S.car=el.dataset.v;try{localStorage.setItem(K+':car',S.car)}catch(e){}haptic(6);paintCareer({top:true});break;
+   case 'ctNew':ctSheet();break;
+   case 'ctEdit':{const x=contacts().find(c=>c.id===id);if(x)ctSheet(x);break}
+   case 'ctDone':{const x=contacts().find(c=>c.id===id);x.last=TODAY();x.next='';const n=$('#cnx');if(n)n.value='';save();haptic();hud('Contact noté');const l=$('#clast');if(l)l.textContent='Dernier contact le '+fdate(x.last);paintCareer();break}
+   case 'ctAskDel':asheet('Supprimer ce contact et ses notes ?',[{label:'Supprimer le contact',act:'ctDel',data:{id},danger:true}]);break;
+   case 'ctDel':db.contacts=contacts().filter(c=>c.id!==id);save();paintCareer();hud('Contact supprimé');break;
    case 'evNew':evSheet();break;
    case 'evEdit':{const e=events().find(x=>x.id===id);if(e)evSheet(e);break}
    case 'evOld':S.evOld=!S.evOld;paintCareer();break;

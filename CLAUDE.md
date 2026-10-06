@@ -31,7 +31,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 
 ## Données
 
-- Tout le journal vit dans `localStorage` sous la clé `cap-fit-v1` (objet `db` : `settings`, `days`, `workouts`, `templates`, `weekly`, `active`, `foods`, `jobs`, `events`, `reading`, `mod`, `owner`). Chat du coach : `cap-fit-v1:chat`. Ne jamais renommer ces clés : les données existantes des utilisateurs en dépendent.
+- Tout le journal vit dans `localStorage` sous la clé `cap-fit-v1` (objet `db` : `settings`, `days`, `workouts`, `templates`, `weekly`, `active`, `foods`, `jobs`, `events`, `contacts`, `reading`, `mod`, `owner`). Chat du coach : `cap-fit-v1:chat`. Ne jamais renommer ces clés : les données existantes des utilisateurs en dépendent.
 - `save()` met `db.mod` à jour, écrit en local puis appelle `cloudQueue()` (synchro différée de 1,5 s). `writeLocal()` écrit sans déclencher de synchro.
 - Toute nouvelle option dans `settings` doit avoir une valeur par défaut dans `seed()` **et** une migration pour les installations existantes (voir le bloc `onboarded==null` après `db=load()`).
 
@@ -52,7 +52,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 - Accueil (épuré : fond uni, date + « Bonjour » à gauche, citation en texte simple, sections en liste blanche avec pastille de couleur `.p-ring`, d’où part l’animation) : `AREAS`, `paintHome`, `showHome`, `openArea`, `bloomFrom` ; carte du groupe `paintFriends`.
 - Comptes et groupe : `cloudBoot`, `cloudStart`, `cloudPull`, `cloudFlush`, `showGate`, `showOnboard`, `loadGroup`, `accountSec`.
 - Notifications : `notifSec`, `notifEnable`, `notifRefresh`, `fnCall`.
-- Carrière (page dans `#area`, pas d’onglets) : `paintCareer`, `jobSheet`, `jobGoalSheet`, `jobAct` (actions `job*`), `jobSubmit`. Données `db.jobs` (entreprise, poste, lien, date, statut `envoyee|entretien|offre|refus|silence`, `relances[]`, `interviews[]`) et `settings.career` `{goal, relance}`. Événements (salons, masterclass…) : `db.events` (titre, type, date, heure, lieu, lien, `questions` une par ligne, `notes`), `evSheet`, `evSubmit`, actions `ev*`. Une section avec `paint` dans `AREAS` s’affiche comme page.
+- Carrière (page dans `#area`, sa propre barre d’onglets `.ctabs` : Candidatures / Événements / Contacts, onglet dans `S.car` et `cap-fit-v1:car`) : `paintCareer` → `carJobs` / `carEvents` / `carContacts`, `jobSheet`, `jobGoalSheet`, `jobAct` (actions `job*`), `jobSubmit`. Données `db.jobs` (entreprise, poste, lien, date, statut `envoyee|entretien|offre|refus|silence`, `relances[]`, `interviews[]`) et `settings.career` `{goal, relance}`. Événements (salons, masterclass…) : `db.events` (titre, type, date, heure, lieu, lien, `questions` une par ligne, `notes`), `evSheet`, `evSubmit`, actions `ev*`. Contacts : `db.contacts` (nom, entreprise, poste, email, linkedin, phone, `met`, `next` = à recontacter le, `last`, notes), `ctSheet`, `ctSubmit`, actions `ct*`. Toutes les actions Carrière passent par `jobAct` (renvoie false si l’action n’est pas à elle). Une section avec `paint` dans `AREAS` s’affiche comme page.
 - Ouverture : `#splash` (logo « lean in » animé en SVG/CSS, 6 s, rejoué à chaque retour dans l’app sauf pendant une séance ou une lecture ; un toucher le passe).
 
 ## Identité visuelle
