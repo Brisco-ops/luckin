@@ -424,3 +424,9 @@ a.cell{text-decoration:none}
 #area{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 110px)}
 #area .a-head .l2{font-weight:600;font-size:14px}
 .ct-av{width:34px;height:34px;flex:none;border-radius:50%;display:grid;place-items:center;font:700 14px var(--font);color:#fff;background:hsl(var(--h) 52% 50%)}
+/* Accueil : la liste des sections occupe l'espace libre, le groupe se pose en bas */
+.orbit{flex:1 1 auto;max-height:480px;min-height:280px;margin-top:clamp(24px,4vh,44px)}
+.planet{flex:1 1 0;min-height:64px}
+.p-ring{width:40px;height:40px}.p-ring svg{width:20px;height:20px}
+.p-name{font-size:18px}.p-meta{font-size:14px}
+#friends{margin-top:auto!important;padding-top:16px}
