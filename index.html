@@ -1316,6 +1316,7 @@ document.addEventListener('input',ev=>{const t=ev.target;
 });
 document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.change==='jobImport'){jobImport(t.files[0]);t.value='';return}
+  if(t.id==='tdcs'){const w=$('#tdcnw');w.hidden=t.value!=='__new';if(!w.hidden)$('#tdcn').focus();return}
   if(t.id==='imp'){const f=t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importJSON(r.result);r.readAsText(f);return}
   if(t.dataset.change==='apikey'){st().apiKey=t.value.trim();save();hud(t.value.trim()?'Clé enregistrée':'Clé retirée');return}
   if(t.name==='type'&&t.closest('[data-form=meal]')){t.closest('form').querySelectorAll('#msupps [data-types]').forEach(l=>{const on=l.dataset.types.split(' ').includes(t.value);l.hidden=!on;if(!on)l.querySelector('input').checked=false});return}
@@ -1572,6 +1573,7 @@ function jobSubmit(f,v){
   hud(isNew&&before<car().goal&&weekApps()>=car().goal?'Objectif de la semaine atteint !':isNew?'Candidature ajoutée':'Candidature enregistrée')}
 /* ================= section Tâches : to-do avec échéances et priorités ================= */
 const PRIO=[['haute','Haute'],['moyenne','Moyenne'],['basse','Basse']];
+const TD_CATS=['Perso','Travail','Carrière','Admin','Maison','Santé','Finances','Courses'];
 const PRIO_C={haute:'var(--red)',moyenne:'var(--orange)',basse:'var(--label3)'};
 const todos=()=>db.todos||(db.todos=[]);
 const prioRank=p=>({haute:0,moyenne:1,basse:2}[p]??1);
@@ -1591,19 +1593,20 @@ function paintTodos(){const v=$('#area'),t=TODAY();
    ${open.length?`<p class="sec-f td-legend"><i style="--pc:var(--red)"></i>haute <i style="--pc:var(--orange)"></i>moyenne <i style="--pc:var(--label3)"></i>basse · rangées par échéance, puis priorité</p>`:''}
   </div>`}
 function tdSheet(x){const isNew=!x;x=x||{title:'',due:'',time:'',prio:'moyenne',cat:'',note:''};
-  const cats=[...new Set(todos().map(y=>y.cat).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  const cats=[...new Set([...TD_CATS,...todos().map(y=>y.cat).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,'fr'));
   sheet(isNew?'Nouvelle tâche':'Tâche',`<form id="sf" data-form="todo" data-id="${x.id||''}">
    ${sec('',`<div class="cell"><textarea name="title" rows="2" required placeholder="Que dois-tu faire ?">${esc(x.title)}</textarea></div>`)}
    ${sec('',`<div class="cell block"><span>Priorité</span>${seg('prio',PRIO,x.prio||'moyenne')}</div>
      <label class="cell field" for="tdd"><span>Échéance</span><input id="tdd" name="due" type="date" value="${x.due||''}"></label>
      <div class="cell"><div class="foods">${[[0,'Aujourd’hui'],[1,'Demain'],[7,'Dans 1 semaine'],['','Aucune']].map(([d,l])=>`<button type="button" data-act="tdQuick" data-d="${d}">${l}</button>`).join('')}</div></div>
      <label class="cell field" for="tdh"><span>Heure</span><input id="tdh" name="time" type="time" value="${x.time||''}"></label>
-     <label class="cell field" for="tdc"><span>Catégorie</span><input id="tdc" name="cat" list="tdcats" value="${esc(x.cat||'')}" placeholder="Perso, admin, maison…" autocomplete="off"></label><datalist id="tdcats">${cats.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>`,'Rappel le jour de l’échéance dans le résumé de 08:00, et 15 min avant si tu indiques une heure.')}
+     <label class="cell field" for="tdcs"><span>Catégorie</span><select id="tdcs" name="catSel"><option value="">Aucune</option>${cats.map(c=>`<option ${c===x.cat?'selected':''}>${esc(c)}</option>`).join('')}<option value="__new">Nouvelle catégorie</option></select></label>
+     <label class="cell field" for="tdcn" id="tdcnw" hidden><span>Nom</span><input id="tdcn" name="catNew" placeholder="Ex. Voyage" autocomplete="off"></label>`,'Rappel le jour de l’échéance dans le résumé de 08:00, et 15 min avant si tu indiques une heure.')}
    ${sec('Note',`<div class="cell"><textarea name="note" rows="3" placeholder="Détails, liens…">${esc(x.note||'')}</textarea></div>`)}
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="tdAskDel" data-id="${x.id}">Supprimer la tâche</button>`)}
   </form>`)}
 function todoSubmit(f,v){let x=todos().find(y=>y.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid(),created:Date.now(),done:false};todos().push(x)}
-  Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),due:v.due||'',time:v.time||'',prio:v.prio||'moyenne',cat:(v.cat||'').trim(),note:(v.note||'').trim()});
+  Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),due:v.due||'',time:v.time||'',prio:v.prio||'moyenne',cat:(v.catSel==='__new'?v.catNew||'':v.catSel||'').trim(),note:(v.note||'').trim()});
   save();closeSheet();paintTodos();haptic();hud(isNew?'Tâche ajoutée':'Tâche enregistrée')}
 function todoAct(act,id,el){const x=todos().find(y=>y.id===id);
   switch(act){
