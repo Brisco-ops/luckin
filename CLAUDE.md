@@ -53,7 +53,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 - Comptes et groupe : `cloudBoot`, `cloudStart`, `cloudPull`, `cloudFlush`, `showGate`, `showOnboard`, `loadGroup`, `accountSec`.
 - Notifications : `notifSec`, `notifEnable`, `notifRefresh`, `fnCall`.
 - Carrière (page dans `#area`, sa propre barre d’onglets `.ctabs` : Candidatures / Événements / Contacts, onglet dans `S.car` et `cap-fit-v1:car`) : `paintCareer` → `carJobs` / `carEvents` / `carContacts`, `jobSheet`, `jobGoalSheet`, `jobAct` (actions `job*`), `jobSubmit`. Données `db.jobs` (entreprise, poste, lien, date, statut `envoyee|entretien|offre|refus|silence`, `relances[]`, `interviews[]`) et `settings.career` `{goal, relance}`. Événements (salons, masterclass…) : `db.events` (titre, type, date, heure, lieu, lien, `questions` une par ligne, `notes`), `evSheet`, `evSubmit`, actions `ev*`. Contacts : `db.contacts` (nom, entreprise, poste, email, linkedin, phone, `met`, `next` = à recontacter le, `last`, notes), `ctSheet`, `ctSubmit`, actions `ct*`. Toutes les actions Carrière passent par `jobAct` (renvoie false si l’action n’est pas à elle). Une section avec `paint` dans `AREAS` s’affiche comme page.
-- Ouverture : `#splash` (logo « lean in » animé en SVG/CSS, 6 s, rejoué à chaque retour dans l’app sauf pendant une séance ou une lecture ; un toucher le passe).
+- Ouverture : `#splash` (logo « lean in » animé en SVG/CSS, 5 s, rejoué à chaque retour dans l’app sauf pendant une séance ou une lecture ; un toucher le passe).
 
 ## Identité visuelle
 
