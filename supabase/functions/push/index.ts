@@ -1,7 +1,8 @@
 // Luck'In : fonction « push » (Supabase › Edge Functions)
 // - kind "cron"  : appelée toutes les 15 min par la base. Envoie les rappels (réveil, soir, bilan du dimanche)
 //                  à l'heure choisie par chacun, seulement si le rituel n'est pas encore fait,
-//                  et les rappels d'entretien et d'événement (Carrière) : 2 jours avant et la veille à 19:00, le matin même à 08:00.
+//                  et les rappels d'entretien et d'événement (Carrière) : 2 jours avant et la veille à 19:00, le matin même à 08:00,
+//                  et les rappels de tâches : résumé à 08:00, puis ~15 min avant une tâche qui a une heure.
 // - kind "test"  : l'utilisateur connecté s'envoie une notification de test.
 // - kind "cheer" : encourager un ami du même groupe (une fois par jour et par ami).
 // Secrets à définir dans Edge Functions › Secrets : VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, CRON_SECRET.
@@ -68,34 +69,60 @@ type Iv = { date?: string; time?: string; kind?: string };
 type Job = { id: string; company?: string; role?: string; status?: string; interviews?: Iv[] };
 type Ev = { id: string; title?: string; kind?: string; date?: string; time?: string; place?: string; questions?: string };
 type Rem = { key: string; date: string; time?: string; what: string; who: string; how: string; prep: string; luck: string };
-const careerCache = new Map<string, Rem[]>();
-async function remindersOf(userId: string) {
-  if (!careerCache.has(userId)) {
+type Todo = { id: string; title?: string; due?: string; time?: string; prio?: string; done?: boolean };
+type Journal = { jobs?: Job[]; events?: Ev[]; todos?: Todo[] };
+const dataCache = new Map<string, Journal>();
+async function dataOf(userId: string) {
+  if (!dataCache.has(userId)) {
     const { data } = await sb.from("user_data").select("data").eq("user_id", userId).maybeSingle();
-    const d = (data?.data || {}) as { jobs?: Job[]; events?: Ev[] };
-    const out: Rem[] = [];
-    for (const j of d.jobs || []) {
-      if (j.status !== "envoyee" && j.status !== "entretien") continue; // refus, offre, sans réponse : plus de rappel
-      for (const iv of j.interviews || []) if (iv.date) out.push({
-        key: `iv:${j.id}:${iv.date}:${iv.time || ""}`, date: iv.date, time: iv.time, what: "Entretien",
-        who: [j.company, j.role].filter(Boolean).join(" · ") || "Entretien",
-        how: [iv.time ? "à " + iv.time : "", iv.kind && IV_KIND[iv.kind] ? "(" + IV_KIND[iv.kind] + ")" : ""].filter(Boolean).join(" "),
-        prep: "Prends le temps de te préparer.", luck: "Bonne chance !",
-      });
-    }
-    for (const e of d.events || []) {
-      if (!e.date) continue;
-      const q = String(e.questions || "").split("\n").filter((x) => x.trim()).length;
-      out.push({
-        key: `ev:${e.id}:${e.date}:${e.time || ""}`, date: e.date, time: e.time, what: (e.kind && EV_KIND[e.kind]) || "Événement",
-        who: e.title || "Événement", how: [e.time ? "à " + e.time : "", e.place || ""].filter(Boolean).join(" · "),
-        prep: q ? `${q} question${q > 1 ? "s" : ""} préparée${q > 1 ? "s" : ""} dans l’app.` : "Note tes questions dans l’app.",
-        luck: q ? "Relis tes questions avant d’y aller." : "Profites-en bien !",
-      });
-    }
-    careerCache.set(userId, out);
+    dataCache.set(userId, (data?.data || {}) as Journal);
   }
-  return careerCache.get(userId)!;
+  return dataCache.get(userId)!;
+}
+async function remindersOf(userId: string) {
+  const d = await dataOf(userId);
+  const out: Rem[] = [];
+  for (const j of d.jobs || []) {
+    if (j.status !== "envoyee" && j.status !== "entretien") continue; // refus, offre, sans réponse : plus de rappel
+    for (const iv of j.interviews || []) if (iv.date) out.push({
+      key: `iv:${j.id}:${iv.date}:${iv.time || ""}`, date: iv.date, time: iv.time, what: "Entretien",
+      who: [j.company, j.role].filter(Boolean).join(" · ") || "Entretien",
+      how: [iv.time ? "à " + iv.time : "", iv.kind && IV_KIND[iv.kind] ? "(" + IV_KIND[iv.kind] + ")" : ""].filter(Boolean).join(" "),
+      prep: "Prends le temps de te préparer.", luck: "Bonne chance !",
+    });
+  }
+  for (const e of d.events || []) {
+    if (!e.date) continue;
+    const q = String(e.questions || "").split("\n").filter((x) => x.trim()).length;
+    out.push({
+      key: `ev:${e.id}:${e.date}:${e.time || ""}`, date: e.date, time: e.time, what: (e.kind && EV_KIND[e.kind]) || "Événement",
+      who: e.title || "Événement", how: [e.time ? "à " + e.time : "", e.place || ""].filter(Boolean).join(" · "),
+      prep: q ? `${q} question${q > 1 ? "s" : ""} préparée${q > 1 ? "s" : ""} dans l’app.` : "Note tes questions dans l’app.",
+      luck: q ? "Relis tes questions avant d’y aller." : "Profites-en bien !",
+    });
+  }
+  return out;
+}
+// Rappels de tâches : résumé à 08:00 (tâches du jour et en retard), et ~15 min avant une tâche qui a une heure
+const PRIO_RANK: Record<string, number> = { haute: 0, moyenne: 1, basse: 2 };
+function todoMessages(todos: Todo[], now: { day: string; min: number }) {
+  const out: { key: string; title: string; body: string }[] = [];
+  const open = todos.filter((x) => !x.done && x.due && x.title);
+  if (inWin(now.min, IV_MORN)) {
+    const due = open.filter((x) => x.due! <= now.day).sort((a, b) => (PRIO_RANK[a.prio || "moyenne"] ?? 1) - (PRIO_RANK[b.prio || "moyenne"] ?? 1) || a.due!.localeCompare(b.due!));
+    const late = due.filter((x) => x.due! < now.day).length;
+    if (due.length) {
+      const names = due.slice(0, 3).map((x) => x.title).join(", ") + (due.length > 3 ? "…" : "");
+      out.push({ key: `td:sum:${now.day}`, title: due.length === 1 ? "Une tâche pour aujourd’hui" : `${due.length} tâches pour aujourd’hui`,
+        body: (late ? `Dont ${late} en retard. ` : "") + names });
+    }
+  }
+  for (const x of open) {
+    const at = toMin(x.time);
+    if (at == null || x.due !== now.day || now.min < at - 15 || now.min >= at + 5) continue;
+    out.push({ key: `td:${x.id}:${x.due}:${x.time}`, title: `À ${x.time}`, body: x.title! });
+  }
+  return out;
 }
 function remMessages(rems: Rem[], now: { day: string; min: number }) {
   const out: { key: string; title: string; body: string }[] = [];
@@ -113,7 +140,7 @@ function remMessages(rems: Rem[], now: { day: string; min: number }) {
 }
 
 async function runCron() {
-  careerCache.clear(); // l'instance peut rester chaude entre deux appels : on relit toujours le journal
+  dataCache.clear(); // l'instance peut rester chaude entre deux appels : on relit toujours le journal
   const { data: subs } = await sb.from("push_subs").select("*");
   let sent = 0;
   for (const s of (subs || []) as Sub[]) {
@@ -134,15 +161,16 @@ async function runCron() {
       }
       if (await sendTo(s, { ...MSG[kind], tag: kind, url: "./" }).catch(() => false)) sent++;
     }
-    if (p.iv !== false && (inWin(now.min, IV_EVE) || inWin(now.min, IV_MORN))) {
-      for (const m of remMessages(await remindersOf(s.user_id), now)) {
-        if (last[m.key]) continue;
-        last[m.key] = now.day; changed = true;
-        if (await sendTo(s, { title: m.title, body: m.body, tag: m.key, url: "./" }).catch(() => false)) sent++;
-      }
-      const old = shiftDay(now.day, -7); // on oublie les rappels de plus d'une semaine
-      for (const k of Object.keys(last)) if ((k.startsWith("iv:") || k.startsWith("ev:")) && last[k] < old) { delete last[k]; changed = true; }
+    const msgs: { key: string; title: string; body: string }[] = [];
+    if (p.iv !== false && (inWin(now.min, IV_EVE) || inWin(now.min, IV_MORN))) msgs.push(...remMessages(await remindersOf(s.user_id), now));
+    if (p.td !== false) msgs.push(...todoMessages((await dataOf(s.user_id)).todos || [], now));
+    for (const m of msgs) {
+      if (last[m.key]) continue;
+      last[m.key] = now.day; changed = true;
+      if (await sendTo(s, { title: m.title, body: m.body, tag: m.key, url: "./" }).catch(() => false)) sent++;
     }
+    const old = shiftDay(now.day, -7); // on oublie les rappels de plus d'une semaine
+    for (const k of Object.keys(last)) if (/^(iv|ev|td):/.test(k) && last[k] < old) { delete last[k]; changed = true; }
     if (changed) await sb.from("push_subs").update({ last_sent: last }).eq("endpoint", s.endpoint);
   }
   return json({ ok: true, sent });
