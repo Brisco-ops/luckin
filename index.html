@@ -551,6 +551,21 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px))}
 @media (prefers-reduced-motion:no-preference){main.sw-l{animation:swl .3s cubic-bezier(.2,.8,.2,1)}main.sw-r{animation:swr .3s cubic-bezier(.2,.8,.2,1)}
  @keyframes swl{from{transform:translateX(26%);opacity:.2}}@keyframes swr{from{transform:translateX(-26%);opacity:.2}}}
 html,body{overscroll-behavior-x:none}
+
+/* Accueil : tuiles rectangulaires statiques aux coins arrondis */
+.orbit{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-content:center;max-width:420px;min-height:0;padding:8px 0}
+.planet{position:relative!important;left:auto!important;top:auto!important;transform:none!important;width:auto!important;height:auto!important;aspect-ratio:1/1.05;
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;padding:16px;text-align:left;border-radius:26px}
+.planet .p-ring{border-radius:26px!important}
+.p-ico{position:relative;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.35)}
+.p-ico svg{width:24px;height:24px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.p-txt{position:relative;display:flex;flex-direction:column;gap:3px}
+.planet .p-name{font:700 18px/1.1 var(--display)!important;max-width:none;letter-spacing:-.01em}
+.planet .p-meta{font-size:12px;max-width:none;opacity:.88}
+.planet:active .p-ring{transform:scale(.97)}
+.planet:active{transform:none!important}
+.life{display:none}
+#bloom.rect{border-radius:26px}
 </style>
 
 </head><body>
@@ -1255,23 +1270,17 @@ const AREAS=[
  {id:'finances',name:'Finances',sub:'Budget & épargne',color:'#2F9E6E',size:104,ideas:['Budget du mois et dépenses par catégorie','Objectifs d’épargne','Suivi des investissements']},
  {id:'savoir',name:'Apprentissage',sub:'Lectures & compétences',color:'#8E5CC9',size:126,ideas:['Livres en cours et notes de lecture','Formations et certifications','Temps d’étude par semaine']}];
 const H={angle:0,last:0,raf:0,open:true};
+const AREA_ICONS={"forme": "<path d=\"M2.6 12h18.8\"/><rect x=\"4\" y=\"7.5\" width=\"3.6\" height=\"9\" rx=\"1.4\"/><rect x=\"16.4\" y=\"7.5\" width=\"3.6\" height=\"9\" rx=\"1.4\"/>", "carriere": "<rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"3\"/><path d=\"M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7M3 12.5h18\"/>", "finances": "<path d=\"M4 19.5h16\"/><path d=\"M6.5 16v-4M11 16V8M15.5 16v-6M20 5.5l-4.5 3-4-2.5L6 9.5\"/>", "savoir": "<path d=\"M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5Z\"/><path d=\"M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5a1.5 1.5 0 0 1 1.5 1.5Z\"/>"};
 const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 function areaMeta(a){if(a.id==='forme'){const n=sugarStreak();const a7=lastWeightAvg();return [a7!=null?fmt(a7)+' kg':null,n?n+' j sans sucre':null].filter(Boolean).join(' · ')||a.sub}return a.sub}
 function paintHome(){
   $('#hName').textContent='Bonjour '+st().name;
   $('#hDate').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  $('#orbit').innerHTML=AREAS.map(a=>`<button class="planet${a.ready?'':' soon'}" data-area="${a.id}" style="--c:${a.color};--s:${a.size}px" aria-label="${a.name}"><span class="p-ring"></span><span class="p-name" style="${a.name.length>10?'font-size:13px':''}">${a.name}</span><span class="p-meta">${esc(areaMeta(a))}</span></button>`).join('')+'<span class="life" aria-hidden="true"></span>';
+  $('#orbit').innerHTML=AREAS.map(a=>`<button class="planet${a.ready?'':' soon'}" data-area="${a.id}" style="--c:${a.color};--s:${a.size}px" aria-label="${a.name}"><span class="p-ring"></span><span class="p-ico"><svg viewBox="0 0 24 24" aria-hidden="true">${AREA_ICONS[a.id]}</svg></span><span class="p-txt"><span class="p-name">${a.name}</span><span class="p-meta">${esc(areaMeta(a))}</span></span></button>`).join('');
   placePlanets();
 }
-function placePlanets(){const o=$('#orbit');if(!o)return;const r=o.getBoundingClientRect();const t=H.angle;
-  const Rx=Math.max(60,r.width/2-70),Ry=Math.max(60,r.height/2-74);
-  [...o.querySelectorAll('.planet')].forEach((p,k)=>{
-    const ph=k*Math.PI*2/AREAS.length;
-    const a=t*(0.85+0.12*k)+ph+0.35*Math.sin(t*0.9+k*1.3)+0.15*Math.sin(t*2.1+k);
-    const rad=0.78+0.14*Math.sin(t*1.3+k*2.1)+0.06*Math.sin(t*3.1+k*.7);
-    const x=Math.cos(a)*Rx*rad+6*Math.sin(t*4.3+k),y=Math.sin(a)*Ry*rad+6*Math.cos(t*3.7+k*1.9);
-    p.style.transform=`translate(-50%,-50%) translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`})}
-function spin(ts){if(!H.open){H.raf=0;return}if(H.last&&!reduce()&&!H.hold)H.angle+=(ts-H.last)/1000*0.09;H.last=ts;placePlanets();H.raf=requestAnimationFrame(spin)}
+function placePlanets(){}
+function spin(ts){H.raf=0;return;if(!H.open){H.raf=0;return}if(H.last&&!reduce()&&!H.hold)H.angle+=(ts-H.last)/1000*0.09;H.last=ts;placePlanets();H.raf=requestAnimationFrame(spin)}
 function showHome(animate){const from=H.cur;document.documentElement.classList.remove('tinted','in-area');H.open=true;const h=$('#home');h.hidden=false;$('#area').hidden=true;paintHome();
   H.last=0;if(!H.raf)H.raf=requestAnimationFrame(spin);
   if(animate&&from&&!reduce()){H.hold=true;const a=AREAS.find(x=>x.id===from);const el=document.querySelector(`.planet[data-area="${from}"] .p-ring`);
