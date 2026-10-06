@@ -909,6 +909,14 @@ function jobSubmit(f,v){
   hud(isNew&&before<car().goal&&weekApps()>=car().goal?'Objectif de la semaine atteint !':isNew?'Candidature ajoutée':'Candidature enregistrée')}
 /* ================= section Tâches : to-do avec échéances et priorités ================= */
 const PRIO=[['haute','Haute'],['moyenne','Moyenne'],['basse','Basse']];
+const REPEAT=[['','Jamais'],['day','Chaque jour'],['weekday','En semaine (lun.–ven.)'],['week','Chaque semaine'],['month','Chaque mois'],['year','Chaque année']];
+const REP_SHORT={day:'chaque jour',weekday:'en semaine',week:'chaque semaine',month:'chaque mois',year:'chaque année'};
+/* tâche récurrente : prochaine échéance après aujourd'hui (les occurrences manquées sont sautées) */
+function stepDue(d,r,dom){if(r==='day')return addDays(d,1);if(r==='week')return addDays(d,7);
+  if(r==='weekday'){let n=addDays(d,1);while(dow(n)>4)n=addDays(n,1);return n}
+  const [y,m]=d.split('-').map(Number),k=(m-1)+(r==='year'?12:1),ny=y+Math.floor(k/12),nm=k%12+1,last=new Date(ny,nm,0).getDate();
+  return `${ny}-${String(nm).padStart(2,'0')}-${String(Math.min(dom||+d.slice(8),last)).padStart(2,'0')}`}
+function nextDue(x){let n=stepDue(x.due||TODAY(),x.rep,x.dom);while(n<=TODAY())n=stepDue(n,x.rep,x.dom);return n}
 const TD_CATS=['Perso','Travail','Carrière','Admin','Maison','Santé','Finances','Courses'];
 const PRIO_C={haute:'var(--red)',moyenne:'var(--orange)',basse:'var(--label3)'};
 const todos=()=>db.todos||(db.todos=[]);
@@ -919,9 +927,9 @@ function paintTodos(){const v=$('#area'),t=TODAY();
   const open=todos().filter(x=>!x.done).sort((a,b)=>prioRank(a.prio)-prioRank(b.prio)||(a.due||'9999').localeCompare(b.due||'9999')||(a.time||'99').localeCompare(b.time||'99'));
   const done=todos().filter(x=>x.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
   const cnt=k=>open.filter(x=>todoBucket(x,t)===k).length,week=Date.now()-7*864e5;
-  const cell=x=>`<div class="cell td${x.done?' done':''}" style="--pc:${PRIO_C[x.prio]||PRIO_C.moyenne}"><button type="button" class="td-check" data-act="tdToggle" data-id="${x.id}" aria-label="${x.done?'Remettre à faire':'Marquer comme faite'}">${x.done?I.check:''}</button><button type="button" class="td-body" data-act="tdEdit" data-id="${x.id}"><span class="td-t">${esc(x.title)}</span><span class="fn">${[x.due?whenDay(x.due)+(x.time?' à '+esc(x.time):''):null,x.cat&&esc(x.cat),x.note?'note':null].filter(Boolean).join(' · ')||'Sans échéance'}</span></button></div>`;
+  const cell=x=>`<div class="cell td${x.done?' done':''}" style="--pc:${PRIO_C[x.prio]||PRIO_C.moyenne}"><button type="button" class="td-check" data-act="tdToggle" data-id="${x.id}" aria-label="${x.done?'Remettre à faire':'Marquer comme faite'}">${x.done?I.check:''}</button><button type="button" class="td-body" data-act="tdEdit" data-id="${x.id}"><span class="td-t">${esc(x.title)}</span><span class="fn">${[x.due?whenDay(x.due)+(x.time?' à '+esc(x.time):''):null,x.rep?'↻ '+REP_SHORT[x.rep]:null,x.cat&&esc(x.cat),x.note?'note':null].filter(Boolean).join(' · ')||'Sans échéance'}</span></button></div>`;
   v.innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><h1>Tâches</h1></div>
-   <div class="kpis tilesrow"><div><span class="v">${cnt('late')}</span><span class="k">en retard</span></div><div><span class="v">${cnt('today')}</span><span class="k">aujourd’hui</span></div><div><span class="v">${cnt('tomorrow')+cnt('week')}</span><span class="k">7 jours</span></div><div><span class="v">${done.filter(x=>(x.doneAt||0)>=week).length}</span><span class="k">faites 7 j</span></div></div>
+   <div class="kpis tilesrow"><div><span class="v">${cnt('late')}</span><span class="k">en retard</span></div><div><span class="v">${cnt('today')}</span><span class="k">aujourd’hui</span></div><div><span class="v">${cnt('tomorrow')+cnt('week')}</span><span class="k">7 jours</span></div><div><span class="v">${done.filter(x=>(x.doneAt||0)>=week).length+sum(todos().map(x=>(x.hist||[]).filter(h=>h>=week).length))}</span><span class="k">faites 7 j</span></div></div>
    ${sec('',addCell('Nouvelle tâche','tdNew'))}
    ${TBUCKETS.map(([k,l])=>{const xs=open.filter(x=>todoBucket(x,t)===k);return xs.length?sec(l,xs.map(cell).join('')):''}).join('')}
    ${!open.length?sec('',`<div class="cell"><span class="body fn">Rien à faire. Ajoute une tâche avec une échéance et une priorité : la liste se range toute seule.</span></div>`):''}
@@ -936,19 +944,22 @@ function tdSheet(x){const isNew=!x;x=x||{title:'',due:'',time:'',prio:'moyenne',
      <label class="cell field" for="tdd"><span>Échéance</span><input id="tdd" name="due" type="date" value="${x.due||''}"></label>
      <div class="cell"><div class="foods">${[[0,'Aujourd’hui'],[1,'Demain'],[7,'Dans 1 semaine'],['','Aucune']].map(([d,l])=>`<button type="button" data-act="tdQuick" data-d="${d}">${l}</button>`).join('')}</div></div>
      <label class="cell field" for="tdh"><span>Heure</span><input id="tdh" name="time" type="time" value="${x.time||''}"></label>
+     <label class="cell field" for="tdr"><span>Répéter</span><select id="tdr" name="rep">${REPEAT.map(([k,l])=>`<option value="${k}" ${k===(x.rep||'')?'selected':''}>${l}</option>`).join('')}</select></label>
      <label class="cell field" for="tdcs"><span>Catégorie</span><select id="tdcs" name="catSel"><option value="">Aucune</option>${cats.map(c=>`<option ${c===x.cat?'selected':''}>${esc(c)}</option>`).join('')}<option value="__new">Nouvelle catégorie</option></select></label>
      <label class="cell field" for="tdcn" id="tdcnw" hidden><span>Nom</span><input id="tdcn" name="catNew" placeholder="Ex. Voyage" autocomplete="off"></label>`,'Rappel le jour de l’échéance dans le résumé de 08:00, et 15 min avant si tu indiques une heure.')}
    ${sec('Note',`<div class="cell"><textarea name="note" rows="3" placeholder="Détails, liens…">${esc(x.note||'')}</textarea></div>`)}
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="tdAskDel" data-id="${x.id}">Supprimer la tâche</button>`)}
   </form>`)}
 function todoSubmit(f,v){let x=todos().find(y=>y.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid(),created:Date.now(),done:false};todos().push(x)}
-  Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),due:v.due||'',time:v.time||'',prio:v.prio||'moyenne',cat:(v.catSel==='__new'?v.catNew||'':v.catSel||'').trim(),note:(v.note||'').trim()});
+  Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),due:v.due||'',time:v.time||'',prio:v.prio||'moyenne',rep:v.rep||'',cat:(v.catSel==='__new'?v.catNew||'':v.catSel||'').trim(),note:(v.note||'').trim()});
+  if(x.rep){if(!x.due)x.due=TODAY();x.dom=+x.due.slice(8)}else delete x.dom;
   save();closeSheet();paintTodos();haptic();hud(isNew?'Tâche ajoutée':'Tâche enregistrée')}
 function todoAct(act,id,el){const x=todos().find(y=>y.id===id);
   switch(act){
    case 'tdNew':tdSheet();break;
    case 'tdEdit':if(x)tdSheet(x);break;
-   case 'tdToggle':x.done=!x.done;x.doneAt=x.done?Date.now():null;save();haptic(x.done?12:6);paintTodos();if(x.done)hud('Bien joué !');break;
+   case 'tdToggle':if(!x.done&&x.rep){const h=x.hist||(x.hist=[]);h.push(Date.now());if(h.length>60)h.splice(0,h.length-60);x.due=nextDue(x);save();haptic(12);paintTodos();hud('Faite · prochaine '+whenDay(x.due).toLowerCase());break}
+     x.done=!x.done;x.doneAt=x.done?Date.now():null;save();haptic(x.done?12:6);paintTodos();if(x.done)hud('Bien joué !');break;
    case 'tdQuick':{const d=$('#tdd');if(d)d.value=el.dataset.d===''?'':addDays(TODAY(),+el.dataset.d);break}
    case 'tdOld':S.tdOld=!S.tdOld;paintTodos();break;
    case 'tdClear':asheet('Effacer toutes les tâches faites ?',[{label:'Effacer les tâches faites',act:'tdClearDo',danger:true}]);break;
