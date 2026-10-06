@@ -31,7 +31,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 
 ## Données
 
-- Tout le journal vit dans `localStorage` sous la clé `cap-fit-v1` (objet `db` : `settings`, `days`, `workouts`, `templates`, `weekly`, `active`, `foods`, `jobs`, `reading`, `mod`, `owner`). Chat du coach : `cap-fit-v1:chat`. Ne jamais renommer ces clés : les données existantes des utilisateurs en dépendent.
+- Tout le journal vit dans `localStorage` sous la clé `cap-fit-v1` (objet `db` : `settings`, `days`, `workouts`, `templates`, `weekly`, `active`, `foods`, `jobs`, `events`, `reading`, `mod`, `owner`). Chat du coach : `cap-fit-v1:chat`. Ne jamais renommer ces clés : les données existantes des utilisateurs en dépendent.
 - `save()` met `db.mod` à jour, écrit en local puis appelle `cloudQueue()` (synchro différée de 1,5 s). `writeLocal()` écrit sans déclencher de synchro.
 - Toute nouvelle option dans `settings` doit avoir une valeur par défaut dans `seed()` **et** une migration pour les installations existantes (voir le bloc `onboarded==null` après `db=load()`).
 
@@ -43,7 +43,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 - Tables (RLS sur toutes) : `profiles`, `user_data` (journal complet, propriétaire seul), `groups` (code d’invitation 6 caractères), `group_members`, `daily_share`, `push_subs`, `cheers`. Fonctions SQL : `is_groupmate`, `join_group(invite)`, `delete_me()`.
 - **Confidentialité, règle produit** : les amis ne voient que la régularité (réveil, soir, séance faits oui/non) et la progression en % vers l’objectif. Jamais le poids, les repas, les mesures, les douleurs. `apiKey` (clé Anthropic du coach) n’est jamais envoyée au cloud.
 - Synchro : dernier écrit gagne sur le document entier (`db.mod`). `db.owner` empêche de mélanger les données de deux comptes sur un même téléphone.
-- Notifications : fonction Edge `push` (`supabase/functions/push/index.ts`), déployée depuis le tableau de bord Supabase avec « Verify JWT » désactivé (elle vérifie elle-même l’utilisateur ou l’en-tête `x-cron-secret`). `pg_cron` l’appelle toutes les 15 min pour les rappels (réveil 07:00, soir 21:30, dimanche 19:00 par défaut ; envoyés seulement si le rituel n’est pas fait). Rappels d’entretien (Carrière) : 2 jours avant et la veille à 19:00, le matin même à 08:00 (sauf entretien avant 09:00), lus dans `user_data.data.jobs`, coupables via `notif.iv`. Bouton 🔥 : un encouragement par jour et par ami. Secrets dans Supabase › Edge Functions › Secrets : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET`. La clé VAPID publique est aussi dans `src/body.html` (`VAPID_PUB`).
+- Notifications : fonction Edge `push` (`supabase/functions/push/index.ts`), déployée depuis le tableau de bord Supabase avec « Verify JWT » désactivé (elle vérifie elle-même l’utilisateur ou l’en-tête `x-cron-secret`). `pg_cron` l’appelle toutes les 15 min pour les rappels (réveil 07:00, soir 21:30, dimanche 19:00 par défaut ; envoyés seulement si le rituel n’est pas fait). Rappels d’entretien et d’événement (Carrière) : 2 jours avant et la veille à 19:00, le matin même à 08:00 (sauf entretien avant 09:00), lus dans `user_data.data.jobs` et `.events`, coupables via `notif.iv`. Bouton 🔥 : un encouragement par jour et par ami. Secrets dans Supabase › Edge Functions › Secrets : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET`. La clé VAPID publique est aussi dans `src/body.html` (`VAPID_PUB`).
 
 ## Repères dans src/body.html
 
@@ -52,7 +52,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 - Accueil (épuré : fond uni, date + « Bonjour » à gauche, citation en texte simple, sections en liste blanche avec pastille de couleur `.p-ring`, d’où part l’animation) : `AREAS`, `paintHome`, `showHome`, `openArea`, `bloomFrom` ; carte du groupe `paintFriends`.
 - Comptes et groupe : `cloudBoot`, `cloudStart`, `cloudPull`, `cloudFlush`, `showGate`, `showOnboard`, `loadGroup`, `accountSec`.
 - Notifications : `notifSec`, `notifEnable`, `notifRefresh`, `fnCall`.
-- Carrière (page dans `#area`, pas d’onglets) : `paintCareer`, `jobSheet`, `jobGoalSheet`, `jobAct` (actions `job*`), `jobSubmit`. Données `db.jobs` (entreprise, poste, lien, date, statut `envoyee|entretien|offre|refus|silence`, `relances[]`, `interviews[]`) et `settings.career` `{goal, relance}`. Une section avec `paint` dans `AREAS` s’affiche comme page.
+- Carrière (page dans `#area`, pas d’onglets) : `paintCareer`, `jobSheet`, `jobGoalSheet`, `jobAct` (actions `job*`), `jobSubmit`. Données `db.jobs` (entreprise, poste, lien, date, statut `envoyee|entretien|offre|refus|silence`, `relances[]`, `interviews[]`) et `settings.career` `{goal, relance}`. Événements (salons, masterclass…) : `db.events` (titre, type, date, heure, lieu, lien, `questions` une par ligne, `notes`), `evSheet`, `evSubmit`, actions `ev*`. Une section avec `paint` dans `AREAS` s’affiche comme page.
 - Ouverture : `#splash` (logo « lean in » animé en SVG/CSS, 6 s, rejoué à chaque retour dans l’app sauf pendant une séance ou une lecture ; un toucher le passe).
 
 ## Identité visuelle

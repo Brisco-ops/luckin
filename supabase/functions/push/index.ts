@@ -1,7 +1,7 @@
 // Luck'In : fonction « push » (Supabase › Edge Functions)
 // - kind "cron"  : appelée toutes les 15 min par la base. Envoie les rappels (réveil, soir, bilan du dimanche)
 //                  à l'heure choisie par chacun, seulement si le rituel n'est pas encore fait,
-//                  et les rappels d'entretien (Carrière) : 2 jours avant et la veille à 19:00, le matin même à 08:00.
+//                  et les rappels d'entretien et d'événement (Carrière) : 2 jours avant et la veille à 19:00, le matin même à 08:00.
 // - kind "test"  : l'utilisateur connecté s'envoie une notification de test.
 // - kind "cheer" : encourager un ami du même groupe (une fois par jour et par ami).
 // Secrets à définir dans Edge Functions › Secrets : VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, CRON_SECRET.
@@ -57,43 +57,63 @@ const MSG: Record<string, { title: string; body: string }> = {
   weekly: { title: "Bilan du dimanche", body: "Mensurations et bilan de ta semaine." },
 };
 
-// Rappels d'entretien : lus dans le journal synchronisé (user_data.data.jobs)
+// Rappels d'entretien et d'événement (Carrière) : lus dans le journal synchronisé (user_data.data.jobs / events)
 const IV_EVE = 19 * 60, IV_MORN = 8 * 60;
 const IV_KIND: Record<string, string> = { tel: "téléphone", visio: "visio", place: "sur place" };
+const EV_KIND: Record<string, string> = { salon: "Salon", masterclass: "Masterclass", conf: "Conférence", reseau: "Rencontre réseau", webinaire: "Webinaire" };
 const shiftDay = (d: string, n: number) => { const x = new Date(d + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
 const longDay = (d: string) => new Date(d + "T12:00:00Z").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 const inWin = (min: number, t: number) => min >= t && min < t + 20;
 type Iv = { date?: string; time?: string; kind?: string };
 type Job = { id: string; company?: string; role?: string; status?: string; interviews?: Iv[] };
-const jobsCache = new Map<string, Job[]>();
-async function jobsOf(userId: string) {
-  if (!jobsCache.has(userId)) {
+type Ev = { id: string; title?: string; kind?: string; date?: string; time?: string; place?: string; questions?: string };
+type Rem = { key: string; date: string; time?: string; what: string; who: string; how: string; prep: string; luck: string };
+const careerCache = new Map<string, Rem[]>();
+async function remindersOf(userId: string) {
+  if (!careerCache.has(userId)) {
     const { data } = await sb.from("user_data").select("data").eq("user_id", userId).maybeSingle();
-    const jobs = ((data?.data as { jobs?: Job[] } | null)?.jobs || []).filter((j) => j.status === "envoyee" || j.status === "entretien");
-    jobsCache.set(userId, jobs);
+    const d = (data?.data || {}) as { jobs?: Job[]; events?: Ev[] };
+    const out: Rem[] = [];
+    for (const j of d.jobs || []) {
+      if (j.status !== "envoyee" && j.status !== "entretien") continue; // refus, offre, sans réponse : plus de rappel
+      for (const iv of j.interviews || []) if (iv.date) out.push({
+        key: `iv:${j.id}:${iv.date}:${iv.time || ""}`, date: iv.date, time: iv.time, what: "Entretien",
+        who: [j.company, j.role].filter(Boolean).join(" · ") || "Entretien",
+        how: [iv.time ? "à " + iv.time : "", iv.kind && IV_KIND[iv.kind] ? "(" + IV_KIND[iv.kind] + ")" : ""].filter(Boolean).join(" "),
+        prep: "Prends le temps de te préparer.", luck: "Bonne chance !",
+      });
+    }
+    for (const e of d.events || []) {
+      if (!e.date) continue;
+      const q = String(e.questions || "").split("\n").filter((x) => x.trim()).length;
+      out.push({
+        key: `ev:${e.id}:${e.date}:${e.time || ""}`, date: e.date, time: e.time, what: (e.kind && EV_KIND[e.kind]) || "Événement",
+        who: e.title || "Événement", how: [e.time ? "à " + e.time : "", e.place || ""].filter(Boolean).join(" · "),
+        prep: q ? `${q} question${q > 1 ? "s" : ""} préparée${q > 1 ? "s" : ""} dans l’app.` : "Note tes questions dans l’app.",
+        luck: q ? "Relis tes questions avant d’y aller." : "Profites-en bien !",
+      });
+    }
+    careerCache.set(userId, out);
   }
-  return jobsCache.get(userId)!;
+  return careerCache.get(userId)!;
 }
-function ivMessages(jobs: Job[], now: { day: string; min: number }) {
+function remMessages(rems: Rem[], now: { day: string; min: number }) {
   const out: { key: string; title: string; body: string }[] = [];
-  for (const j of jobs) for (const iv of j.interviews || []) {
-    if (!iv.date) continue;
-    const who = [j.company, j.role].filter(Boolean).join(" · ") || "Entretien";
-    const how = [iv.time ? "à " + iv.time : "", iv.kind && IV_KIND[iv.kind] ? "(" + IV_KIND[iv.kind] + ")" : ""].filter(Boolean).join(" ");
-    const key = `iv:${j.id}:${iv.date}:${iv.time || ""}`;
-    if (inWin(now.min, IV_EVE) && shiftDay(now.day, 2) === iv.date)
-      out.push({ key: key + ":j2", title: "Entretien dans 2 jours", body: `${who}, ${longDay(iv.date)} ${how}. Prends le temps de te préparer.`.replace(" .", ".") });
-    if (inWin(now.min, IV_EVE) && shiftDay(now.day, 1) === iv.date)
-      out.push({ key: key + ":j1", title: "Entretien demain", body: `${who}, ${how}.`.replace(", .", ".") });
-    const ivMin = toMin(iv.time);
-    if (inWin(now.min, IV_MORN) && now.day === iv.date && (ivMin == null || ivMin >= IV_MORN + 60))
-      out.push({ key: key + ":j0", title: "Entretien aujourd’hui", body: `${who}, ${how}. Bonne chance !`.replace(", .", ".") });
+  const line = (...p: string[]) => p.filter(Boolean).join(", ") + ".";
+  for (const r of rems) {
+    if (inWin(now.min, IV_EVE) && shiftDay(now.day, 2) === r.date)
+      out.push({ key: r.key + ":j2", title: `${r.what} dans 2 jours`, body: line(r.who, [longDay(r.date), r.how].filter(Boolean).join(" ")) + " " + r.prep });
+    if (inWin(now.min, IV_EVE) && shiftDay(now.day, 1) === r.date)
+      out.push({ key: r.key + ":j1", title: `${r.what} demain`, body: line(r.who, r.how) });
+    const at = toMin(r.time);
+    if (inWin(now.min, IV_MORN) && now.day === r.date && (at == null || at >= IV_MORN + 60))
+      out.push({ key: r.key + ":j0", title: `${r.what} aujourd’hui`, body: line(r.who, r.how) + " " + r.luck });
   }
   return out;
 }
 
 async function runCron() {
-  jobsCache.clear(); // l'instance peut rester chaude entre deux appels : on relit toujours le journal
+  careerCache.clear(); // l'instance peut rester chaude entre deux appels : on relit toujours le journal
   const { data: subs } = await sb.from("push_subs").select("*");
   let sent = 0;
   for (const s of (subs || []) as Sub[]) {
@@ -115,13 +135,13 @@ async function runCron() {
       if (await sendTo(s, { ...MSG[kind], tag: kind, url: "./" }).catch(() => false)) sent++;
     }
     if (p.iv !== false && (inWin(now.min, IV_EVE) || inWin(now.min, IV_MORN))) {
-      for (const m of ivMessages(await jobsOf(s.user_id), now)) {
+      for (const m of remMessages(await remindersOf(s.user_id), now)) {
         if (last[m.key]) continue;
         last[m.key] = now.day; changed = true;
         if (await sendTo(s, { title: m.title, body: m.body, tag: m.key, url: "./" }).catch(() => false)) sent++;
       }
-      const old = shiftDay(now.day, -7); // on oublie les rappels d'entretien de plus d'une semaine
-      for (const k of Object.keys(last)) if (k.startsWith("iv:") && last[k] < old) { delete last[k]; changed = true; }
+      const old = shiftDay(now.day, -7); // on oublie les rappels de plus d'une semaine
+      for (const k of Object.keys(last)) if ((k.startsWith("iv:") || k.startsWith("ev:")) && last[k] < old) { delete last[k]; changed = true; }
     }
     if (changed) await sb.from("push_subs").update({ last_sent: last }).eq("endpoint", s.endpoint);
   }
