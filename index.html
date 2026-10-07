@@ -717,6 +717,21 @@ a.cell{text-decoration:none}
 .br-text h3{font:700 19px/1.3 var(--display);margin:.8em 0 .4em}
 .br-text h3:first-child{margin-top:0}
 .br-inl{margin:.6em 0;border-radius:14px}
+/* Carrière › Événements et Apprentissage : sélecteur en haut de page */
+.ev-seg{padding:0 2px}
+.ev-seg .seg{background:var(--glass);border:1px solid var(--glass-line)}
+.ev-seg .seg span{padding:8px 2px;font-size:14px}
+/* Apprentissage : carte des connexions */
+.br-graph{position:relative;background:var(--glass);border:1px solid var(--glass-line);border-radius:20px;overflow:hidden;box-shadow:var(--glass-shadow)}
+#brgs{display:block;width:100%;height:62vh;touch-action:none;user-select:none;-webkit-user-select:none}
+.br-ge line{stroke:var(--label3);stroke-width:1.5;opacity:.7;vector-effect:non-scaling-stroke}
+.br-gn{cursor:pointer}
+.br-gn .hit{fill:transparent}
+.br-gn circle:not(.hit){fill:var(--area);stroke:var(--card);stroke-width:2;vector-effect:non-scaling-stroke}
+.br-gn.ghost circle:not(.hit){fill:var(--card);stroke:var(--label3);stroke-dasharray:3 3}
+.br-gn text{font:600 13px var(--font);fill:var(--label);paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round}
+.br-gn.ghost text{fill:var(--label2);font-weight:500}
+.br-gfit{position:absolute;top:10px;right:10px;font:600 13px var(--font);padding:6px 11px;border-radius:99px;border:0;background:var(--fill);color:var(--label);cursor:pointer}
 </style>
 
 </head><body>
@@ -1399,6 +1414,8 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.change==='exsel'){S.ex=t.value;render();return}
   if(t.dataset.setting){st()[t.dataset.setting]=t.checked;save();return}
   if(t.dataset.tday!=null){const k=+t.dataset.tday;const a=new Set(st().trainingDays);t.checked?a.add(k):a.delete(k);st().trainingDays=[...a].sort();save();render();return}
+  if(t.name==='evView'){S.evView=t.value;paintCareer();return}
+  if(t.name==='brView'){S.brView=t.value;paintBrain();return}
   if(!t.closest('form')&&t.closest('.seg')){if(t.name==='model'){st().model=t.value;save();hud('Modèle mis à jour')}if(t.name==='countMode'){st().countMode=t.value;save();hud(t.value==='mains'?'Portions de main activées':'Calories activées')}if(t.name==='muscleUnit'){st().muscleUnit=t.value;save()}return}
 });
 function importJSON(s){try{const d=JSON.parse(s);if(!d.days||!d.settings)throw 0;db=d;save();closeSheet(true);render({top:true});hud('Données importées')}catch(e){hud('Ce n’est pas une sauvegarde Luck’In Forme valide')}}
@@ -1543,8 +1560,10 @@ function carStats(){const all=jobs();
 function carEvents(){const t=TODAY();
   const up=events().filter(e=>e.date>=t).sort((x,y)=>evWhen(x).localeCompare(evWhen(y))),past=events().filter(e=>e.date<t).sort((x,y)=>evWhen(y).localeCompare(evWhen(x)));
   const cell=e=>`<button class="cell tap" data-act="evEdit" data-id="${e.id}"><span class="body"><span>${esc(e.title)}</span><span class="fn">${[whenDay(e.date)+(e.time?' à '+esc(e.time):''),(EVKIND.find(k=>k[0]===e.kind)||[])[1],e.place&&esc(e.place),nQ(e)?nQ(e)+' question'+(nQ(e)>1?'s':''):null].filter(Boolean).join(' · ')}</span></span>${e.date===t?'<span class="pill tint">Aujourd’hui</span>':''}${I.chev}</button>`;
-  return `${sec('À venir',up.map(cell).join('')+addCell('Nouvel événement','evNew'),'Salons, masterclass, conférences… Rappels 2 jours avant et la veille à 19:00, le matin même à 08:00.')}
-   ${past.length?sec('Passés',S.evOld?past.map(cell).join(''):`<button class="cell tap link" data-act="evOld"><span>Voir les ${past.length} événement${past.length>1?'s':''} passé${past.length>1?'s':''}</span></button>`):''}`}
+  const v=S.evView==='past'?'past':'up';
+  return `<div class="ev-seg">${seg('evView',[['up',`À venir${up.length?' · '+up.length:''}`],['past',`Passés${past.length?' · '+past.length:''}`]],v)}</div>
+   ${v==='up'?sec('',up.map(cell).join('')+addCell('Nouvel événement','evNew'),'Salons, masterclass, conférences… Rappels 2 jours avant et la veille à 19:00, le matin même à 08:00.')
+     :sec('',past.length?past.map(cell).join(''):`<div class="cell"><span class="body fn">Aucun événement passé pour l’instant.</span></div>`,'Retrouve ici tes notes et les questions posées.')}`}
 function carContacts(){const t=TODAY();
   const due=contacts().filter(x=>x.next).sort((a,b)=>a.next.localeCompare(b.next));
   const rest=contacts().filter(x=>!x.next).sort((a,b)=>a.name.localeCompare(b.name,'fr'));
@@ -1741,10 +1760,11 @@ function paintBrain(){const v=$('#area');const n=S.note&&notes().find(x=>x.id===
 function brList(){const tag=S.brTag||'';
   const tags=[...new Set(notes().flatMap(n=>n.tags||[]))].sort((a,b)=>a.localeCompare(b,'fr'));
   return `<div class="a-head"><p class="l2">Deuxième cerveau</p><h1>Apprentissage</h1></div>
-   <div class="br-search"><input type="search" id="brq" placeholder="Rechercher dans tes notes" value="${esc(S.brQ||'')}" autocomplete="off" enterkeyhint="search"></div>
+   <div class="ev-seg">${seg('brView',[['list','Liste'],['map','Carte des connexions']],S.brView==='map'?'map':'list')}</div>
+   ${S.brView==='map'?brGraph():`<div class="br-search"><input type="search" id="brq" placeholder="Rechercher dans tes notes" value="${esc(S.brQ||'')}" autocomplete="off" enterkeyhint="search"></div>
    ${tags.length?`<div class="foods br-tags"><button type="button" data-act="brTag" data-t="" class="${tag?'':'on'}">Toutes</button>${tags.map(t=>`<button type="button" data-act="brTag" data-t="${esc(t)}" class="${t===tag?'on':''}">#${esc(t)}</button>`).join('')}</div>`:''}
    ${sec('',addCell('Nouvelle note','brNew')+`<button class="cell tap link" data-act="brExport"><span class="plus">${I.up}</span><span>Exporter mes notes</span></button>`,'','notile')}
-   <div id="brres">${brResults()}</div>`}
+   <div id="brres">${brResults()}</div>`}`}
 function brResults(){const q=brNorm(S.brQ||''),tag=S.brTag||'';
   const list=notes().filter(n=>(!tag||(n.tags||[]).includes(tag))&&(!q||brNorm([n.title,n.body,(n.tags||[]).join(' ')].join(' ')).includes(q))).sort((a,b)=>(b.updated||0)-(a.updated||0));
   const cell=n=>{const kinds=[...new Set((n.media||[]).map(m=>m.type))],nl=new Set([...brOut(n).map(brNorm),...brBack(n).map(x=>brNorm(x.title))]).size;
@@ -1809,6 +1829,57 @@ async function brainFiles(files,kind){const n=notes().find(x=>x.id===S.note);if(
   for(const f of files){hud(`Envoi ${ok+1}/${files.length}…`);const b=kind==='image'?await brShrink(f):f;if(await brUpload(n,b,kind,f.name))ok++}
   if(ok){paintBrain();hud(ok>1?ok+' médias ajoutés':'Média ajouté')}}
 /* mémo vocal enregistré dans l'app */
+/* ---------- carte des connexions : disposition par forces (calculée une fois, gardée tant que les liens ne changent pas) ---------- */
+function brGraphData(){const ns=notes(),idx=new Map(ns.map(n=>[brNorm(n.title),n])),nodes=ns.map(n=>({id:n.id,t:n.title})),ghosts=new Map(),edges=[],seen=new Set();
+  ns.forEach(n=>brOut(n).forEach(t=>{const k=brNorm(t);let to=idx.get(k)?.id;if(!to){if(!ghosts.has(k)){ghosts.set(k,'g:'+k);nodes.push({id:'g:'+k,t,ghost:true})}to=ghosts.get(k)}
+    const e=[n.id,to].sort().join('|');if(to!==n.id&&!seen.has(e)){seen.add(e);edges.push([n.id,to])}}));
+  return {nodes,edges}}
+function brLayout(G){const sig=G.nodes.map(n=>n.id).join(',')+'#'+G.edges.map(e=>e.join('-')).join(',');if(S.brLay?.sig===sig)return S.brLay.pos;
+  const N=G.nodes.length,pos=new Map(),k=Math.max(60,Math.sqrt(1e6/Math.max(N,1))*.55);
+  G.nodes.forEach((n,i)=>{const a=i*2.399963,r=30*Math.sqrt(i+1);pos.set(n.id,{x:500+r*Math.cos(a),y:500+r*Math.sin(a)})});
+  const deg=new Map();G.edges.forEach(([a,b])=>{deg.set(a,(deg.get(a)||0)+1);deg.set(b,(deg.get(b)||0)+1)});
+  let temp=120;const ids=G.nodes.map(n=>n.id);
+  for(let it=0;it<320;it++){const d=new Map(ids.map(id=>[id,{x:0,y:0}]));
+    for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const p=pos.get(ids[i]),q=pos.get(ids[j]);let dx=p.x-q.x,dy=p.y-q.y,dist=Math.hypot(dx,dy)||.01;const f=k*k/dist;dx/=dist;dy/=dist;
+      const a=d.get(ids[i]),b=d.get(ids[j]);a.x+=dx*f;a.y+=dy*f;b.x-=dx*f;b.y-=dy*f}
+    G.edges.forEach(([u,v])=>{const p=pos.get(u),q=pos.get(v);let dx=p.x-q.x,dy=p.y-q.y,dist=Math.hypot(dx,dy)||.01;const f=dist*dist/k;dx/=dist;dy/=dist;
+      const a=d.get(u),b=d.get(v);a.x-=dx*f;a.y-=dy*f;b.x+=dx*f;b.y+=dy*f});
+    ids.forEach(id=>{const p=pos.get(id),D=d.get(id);D.x+=(500-p.x)*(deg.get(id)?.02:.06)*k;D.y+=(500-p.y)*(deg.get(id)?.02:.06)*k;
+      const m=Math.hypot(D.x,D.y)||1;p.x+=D.x/m*Math.min(m,temp);p.y+=D.y/m*Math.min(m,temp)});
+    temp=Math.max(2,temp*.985)}
+  S.brLay={sig,pos};S.brVB=null;return pos}
+function brGraph(){const G=brGraphData();
+  if(!notes().length)return sec('',`<div class="cell"><span class="body fn">Crée des notes et relie-les avec [[Titre]] : elles apparaîtront ici, reliées entre elles.</span></div>`,'','notile');
+  const pos0=brLayout(G),deg=new Map();
+  /* étire la disposition dans le sens où le cadre a de la place (le cadre est plus haut que large sur téléphone) */
+  const pos=(()=>{const P=[...pos0.values()],x0=Math.min(...P.map(p=>p.x)),x1=Math.max(...P.map(p=>p.x)),y0=Math.min(...P.map(p=>p.y)),y1=Math.max(...P.map(p=>p.y));
+    const ar=Math.min(1.6,(innerWidth-32)/(innerHeight*.62)),w=Math.max(1,x1-x0),h=Math.max(1,y1-y0),cx=(x0+x1)/2,cy=(y0+y1)/2;
+    const ky=w/h>ar?Math.min(2.2,(w/ar)/h):1,kx=w/h<ar?Math.min(2.2,(h*ar)/w):1;
+    return new Map([...pos0].map(([id,p])=>[id,{x:cx+(p.x-cx)*kx,y:cy+(p.y-cy)*ky}]))})();G.edges.forEach(([a,b])=>{deg.set(a,(deg.get(a)||0)+1);deg.set(b,(deg.get(b)||0)+1)});
+  const xs=[...pos.values()].map(p=>p.x),ys=[...pos.values()].map(p=>p.y),pad=70;
+  /* cadrage initial : tout le réseau, aux proportions du cadre (largeur écran × 62 % de la hauteur) */
+  const vb=S.brVB||(S.brVB=(()=>{let x=Math.min(...xs)-pad,y=Math.min(...ys)-pad,w=Math.max(220,Math.max(...xs)-Math.min(...xs)+pad*2),h=Math.max(220,Math.max(...ys)-Math.min(...ys)+pad*2);
+    const ar=Math.min(1.6,(innerWidth-32)/(innerHeight*.62));if(w/h>ar){const nh=w/ar;y-=(nh-h)/2;h=nh}else{const nw=h*ar;x-=(nw-w)/2;w=nw}return {x,y,w,h}})());
+  const r=id=>7+Math.min(10,3*Math.sqrt(deg.get(id)||0)),cut=t=>t.length>22?t.slice(0,21)+'…':t;
+  const linked=G.nodes.filter(n=>!n.ghost&&deg.get(n.id)).length;
+  return `<div class="br-graph"><svg id="brgs" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" role="img" aria-label="Carte des connexions entre tes notes">
+    <g class="br-ge">${G.edges.map(([a,b])=>{const p=pos.get(a),q=pos.get(b);return `<line x1="${p.x.toFixed(1)}" y1="${p.y.toFixed(1)}" x2="${q.x.toFixed(1)}" y2="${q.y.toFixed(1)}"/>`}).join('')}</g>
+    ${G.nodes.map(n=>{const p=pos.get(n.id);return `<g class="br-gn${n.ghost?' ghost':''}" data-act="${n.ghost?'brGoTitle':'brOpen'}" ${n.ghost?`data-t="${esc(n.t)}"`:`data-id="${n.id}"`} transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})"><circle r="${r(n.id)+12}" class="hit"/><circle r="${r(n.id)}"/><text y="${r(n.id)+16}" text-anchor="middle">${esc(cut(n.t))}</text></g>`}).join('')}
+   </svg><button type="button" class="br-gfit" data-act="brFit" aria-label="Recentrer">Recentrer</button></div>
+   <p class="sec-f">${notes().length} note${notes().length>1?'s':''} · ${G.edges.length} connexion${G.edges.length>1?'s':''}${notes().length-linked?` · ${notes().length-linked} isolée${notes().length-linked>1?'s':''}`:''}. Touche une note pour l’ouvrir, glisse pour te déplacer, pince pour zoomer. Cercle en pointillés : note citée mais pas encore créée.</p>`}
+(function(){let st=null,moved=false;
+  const svg=()=>$('#brgs'),apply=()=>{const v=S.brVB,g=svg();if(g&&v)g.setAttribute('viewBox',`${v.x} ${v.y} ${v.w} ${v.h}`)};
+  const pt=(e,i)=>({x:e.touches[i].clientX,y:e.touches[i].clientY});
+  document.addEventListener('touchstart',e=>{const g=e.target.closest?.('#brgs');if(!g)return;moved=false;const r=g.getBoundingClientRect(),v={...S.brVB};
+    st=e.touches.length>1?{two:true,r,v,d:Math.hypot(pt(e,0).x-pt(e,1).x,pt(e,0).y-pt(e,1).y),m:{x:(pt(e,0).x+pt(e,1).x)/2,y:(pt(e,0).y+pt(e,1).y)/2}}:{r,v,p:pt(e,0)}},{passive:true});
+  document.addEventListener('touchmove',e=>{if(!st||!e.target.closest?.('#brgs'))return;e.preventDefault();const {r,v}=st,sx=v.w/r.width;
+    if(st.two&&e.touches.length>1){const d=Math.hypot(pt(e,0).x-pt(e,1).x,pt(e,0).y-pt(e,1).y),k=Math.min(4,Math.max(.25,st.d/d)),mx=v.x+(st.m.x-r.left)*sx,my=v.y+(st.m.y-r.top)*sx;
+      S.brVB={x:mx-(mx-v.x)*k,y:my-(my-v.y)*k,w:v.w*k,h:v.h*k};moved=true}
+    else if(!st.two){const dx=(pt(e,0).x-st.p.x)*sx,dy=(pt(e,0).y-st.p.y)*sx;if(Math.abs(dx)+Math.abs(dy)>4*sx)moved=true;S.brVB={...v,x:v.x-dx,y:v.y-dy}}
+    apply()},{passive:false});
+  document.addEventListener('touchend',e=>{if(st&&!e.touches.length)st=null},{passive:true});
+  document.addEventListener('click',e=>{if(moved&&e.target.closest?.('#brgs')){e.stopPropagation();e.preventDefault();moved=false}},true);
+})();
 /* ---------- écriture : barre d'outils et appui long dans le texte ---------- */
 const brTa=()=>$('#brb');
 const brSp=p=>p&&!/\s$/.test(p)?' ':'';
@@ -1906,6 +1977,7 @@ function brainAct(act,id,el){const n=notes().find(x=>x.id===id);
    case 'brTLinkGo':{const u=($('#brpu')?.value||'').trim(),tx=($('#brpt')?.value||'').trim().replace(/[\[\]]/g,'');if(!u){hud('Indique une adresse');break}const url=safeUrl(u);brPopClose();brInsert((p,s,q)=>[p+(s?'':brSp(p)),tx||s?`[${tx||s}](${url})`:url,q]);break}
    case 'brPopClose':brPopClose();break;
    case 'brExport':brExport();break;
+   case 'brFit':S.brVB=null;paintBrain();break;
    case 'brSaveZip':brSaveZip();break;
    case 'brRecGo':brRecToggle();break;
    case 'brNeedAcct':hud('Connecte-toi dans Réglages pour ajouter des médias');break;

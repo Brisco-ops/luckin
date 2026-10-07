@@ -504,3 +504,18 @@ a.cell{text-decoration:none}
 .br-text h3{font:700 19px/1.3 var(--display);margin:.8em 0 .4em}
 .br-text h3:first-child{margin-top:0}
 .br-inl{margin:.6em 0;border-radius:14px}
+/* Carrière › Événements et Apprentissage : sélecteur en haut de page */
+.ev-seg{padding:0 2px}
+.ev-seg .seg{background:var(--glass);border:1px solid var(--glass-line)}
+.ev-seg .seg span{padding:8px 2px;font-size:14px}
+/* Apprentissage : carte des connexions */
+.br-graph{position:relative;background:var(--glass);border:1px solid var(--glass-line);border-radius:20px;overflow:hidden;box-shadow:var(--glass-shadow)}
+#brgs{display:block;width:100%;height:62vh;touch-action:none;user-select:none;-webkit-user-select:none}
+.br-ge line{stroke:var(--label3);stroke-width:1.5;opacity:.7;vector-effect:non-scaling-stroke}
+.br-gn{cursor:pointer}
+.br-gn .hit{fill:transparent}
+.br-gn circle:not(.hit){fill:var(--area);stroke:var(--card);stroke-width:2;vector-effect:non-scaling-stroke}
+.br-gn.ghost circle:not(.hit){fill:var(--card);stroke:var(--label3);stroke-dasharray:3 3}
+.br-gn text{font:600 13px var(--font);fill:var(--label);paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round}
+.br-gn.ghost text{fill:var(--label2);font-weight:500}
+.br-gfit{position:absolute;top:10px;right:10px;font:600 13px var(--font);padding:6px 11px;border-radius:99px;border:0;background:var(--fill);color:var(--label);cursor:pointer}
