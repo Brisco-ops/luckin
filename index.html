@@ -578,15 +578,15 @@ html,body{overscroll-behavior-x:none}
 .lk-w1,.lk-w2{fill:var(--lk-ink)}
 .lk-arrow path{fill:none;stroke:var(--lk-arrow);stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round}
 /* 0 → 0,3 s : la chaise se dessine, buste penché en arrière */
-#splash .lk-chair{stroke-dasharray:1 1;stroke-dashoffset:1;animation:lkDraw .93s cubic-bezier(.4,0,.2,1) .07s forwards}
-#splash .lk-body{transform-origin:0 0;transform:rotate(-44deg);animation:lkLean 1.27s cubic-bezier(.6,0,.25,1.08) 1.13s forwards}
-#splash .lk-ghost{opacity:0;animation:lkFade .6s ease-out 1.27s forwards}
-#splash .lk-torso,#splash .lk-head{opacity:0;animation:lkFade .33s ease-out .07s forwards}
+#splash .lk-chair{stroke-dasharray:1 1;stroke-dashoffset:1;animation:lkDraw .74s cubic-bezier(.4,0,.2,1) .06s forwards}
+#splash .lk-body{transform-origin:0 0;transform:rotate(-44deg);animation:lkLean 1.02s cubic-bezier(.6,0,.25,1.08) .9s forwards}
+#splash .lk-ghost{opacity:0;animation:lkFade .48s ease-out 1.02s forwards}
+#splash .lk-torso,#splash .lk-head{opacity:0;animation:lkFade .26s ease-out .06s forwards}
 /* 0,8 → 1,2 s : « luck » et « in » en fondu, puis la flèche se trace */
-#splash .lk-w1,#splash .lk-w2{opacity:0;transform:translateY(8px);animation:lkIn .67s ease-out 2.53s forwards}
-#splash .lk-w2{animation-delay:2.77s}
-#splash .lk-a1,#splash .lk-a2{stroke-dasharray:1 1;stroke-dashoffset:1;animation:lkDraw .53s ease-out 3.4s forwards}
-#splash .lk-a2{animation-delay:3.9s;animation-duration:.27s}
+#splash .lk-w1,#splash .lk-w2{opacity:0;transform:translateY(8px);animation:lkIn .54s ease-out 2.02s forwards}
+#splash .lk-w2{animation-delay:2.22s}
+#splash .lk-a1,#splash .lk-a2{stroke-dasharray:1 1;stroke-dashoffset:1;animation:lkDraw .42s ease-out 2.72s forwards}
+#splash .lk-a2{animation-delay:3.12s;animation-duration:.22s}
 :is(#splash.short,.lk-static) :is(.lk-ghost,.lk-chair,.lk-body,.lk-torso,.lk-head,.lk-w1,.lk-w2,.lk-a1,.lk-a2){animation:none!important;opacity:1!important;transform:none!important;stroke-dashoffset:0!important}
 @keyframes lkDraw{to{stroke-dashoffset:0}}
 @keyframes lkLean{to{transform:rotate(0)}}
@@ -2334,7 +2334,7 @@ render();keepAwake();showHome(false);cloudBoot();
 (function(){const first=$('#splash');if(!first)return;const HTML=first.outerHTML;let hiddenAt=0;
   function play(sp){const short=reduce();if(short)sp.classList.add('short');let done=false;
     const end=()=>{if(done)return;done=true;sp.classList.add('out');setTimeout(()=>sp.remove(),420)};
-    sp.addEventListener('click',end);setTimeout(end,short?500:4600)}
+    sp.addEventListener('click',end);setTimeout(end,short?500:3600)}
   play(first);
   /* L'animation se joue à l'ouverture de l'app. Après un simple passage dans une autre app, elle ne se rejoue que si l'absence a duré au moins 30 min.
      Jamais pendant une séance ni une lecture chronométrée. */

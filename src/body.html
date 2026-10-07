@@ -1597,7 +1597,7 @@ render();keepAwake();showHome(false);cloudBoot();
 (function(){const first=$('#splash');if(!first)return;const HTML=first.outerHTML;let hiddenAt=0;
   function play(sp){const short=reduce();if(short)sp.classList.add('short');let done=false;
     const end=()=>{if(done)return;done=true;sp.classList.add('out');setTimeout(()=>sp.remove(),420)};
-    sp.addEventListener('click',end);setTimeout(end,short?500:4600)}
+    sp.addEventListener('click',end);setTimeout(end,short?500:3600)}
   play(first);
   /* L'animation se joue à l'ouverture de l'app. Après un simple passage dans une autre app, elle ne se rejoue que si l'absence a duré au moins 30 min.
      Jamais pendant une séance ni une lecture chronométrée. */
