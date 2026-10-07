@@ -1415,6 +1415,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.setting){st()[t.dataset.setting]=t.checked;save();return}
   if(t.dataset.tday!=null){const k=+t.dataset.tday;const a=new Set(st().trainingDays);t.checked?a.add(k):a.delete(k);st().trainingDays=[...a].sort();save();render();return}
   if(t.name==='evView'){S.evView=t.value;paintCareer();return}
+  if(t.name==='ctCh'){const m=t.value==='mail';const sj=$('.ct-subj');if(sj)sj.hidden=!m;const b=$('#ctgo');if(b)b.textContent=m?'Ouvrir dans Mail':'Ouvrir dans Messages';return}
   if(t.name==='brView'){S.brView=t.value;paintBrain();return}
   if(!t.closest('form')&&t.closest('.seg')){if(t.name==='model'){st().model=t.value;save();hud('Modèle mis à jour')}if(t.name==='countMode'){st().countMode=t.value;save();hud(t.value==='mains'?'Portions de main activées':'Calories activées')}if(t.name==='muscleUnit'){st().muscleUnit=t.value;save()}return}
 });
@@ -1491,6 +1492,7 @@ const events=()=>db.events||(db.events=[]);
 const evWhen=e=>e.date+(e.time||'');
 const nQ=e=>(e.questions||'').split('\n').filter(x=>x.trim()).length;
 const contacts=()=>db.contacts||(db.contacts=[]);
+const careerOn2=()=>H.cur==='carriere'&&!$('#area').hidden;
 const CONTRACTS=['CDI','CDD','VIE','Stage','Alternance','Freelance','Autre'];
 /* import d'un tableau Excel ou CSV (bibliothèque SheetJS chargée seulement à ce moment-là) */
 let XLSXp=null;
@@ -1570,9 +1572,27 @@ function carContacts(){const t=TODAY();
   const cell=x=>`<button class="cell tap" data-act="ctEdit" data-id="${x.id}"><span class="ct-av" style="--h:${hueOf(x.id)}">${esc(x.name.trim().charAt(0).toUpperCase()||'?')}</span><span class="body"><span>${esc(x.name)}</span><span class="fn">${[x.role&&esc(x.role),x.company&&esc(x.company)].filter(Boolean).join(' · ')||esc(x.met||'')}</span></span>${x.next?`<span class="pill ${x.next<=t?'late':''}">${x.next<t?'En retard':x.next===t?'Aujourd’hui':fdate(x.next)}</span>`:''}${I.chev}</button>`;
   return `${due.length?sec('À contacter',due.map(cell).join('')):''}
    ${sec(due.length?'Autres contacts':'',rest.map(cell).join('')+addCell('Nouveau contact','ctNew'),'Recruteurs, personnes rencontrées, anciens collègues… Donne une date « À recontacter » pour qu’ils apparaissent en haut.')}`}
+/* ---------- écrire à un contact : message préparé dans l'app, envoyé par Mail ou Messages ---------- */
+const firstName=n=>String(n||'').trim().split(/\s+/)[0]||'';
+function ctTemplates(x){const p=firstName(x.name),me=st().name&&st().name!=='toi'?st().name:'',sig=`\n\nBien cordialement,${me?'\n'+me:''}`,
+  met=(m=>{if(!m)return '';const r=m.replace(/^\S+\s+/,'');if(/^le\s/i.test(m))return ' lors du '+r;if(/^les\s/i.test(m))return ' lors des '+r;if(/^la\s/i.test(m))return ' lors de la '+r;
+    if(/^l['’]/i.test(m))return ' lors de l’'+m.slice(2);if(/^(un|une)\s/i.test(m))return ' lors d’'+m.charAt(0).toLowerCase()+m.slice(1);return ` (${m})`})(String(x.met||'').trim()),co=x.company?` chez ${x.company}`:'';
+  return [
+   ['merci','Remerciement',`Merci pour notre échange`,`Bonjour ${p},\n\nMerci pour notre échange${met}. J’ai beaucoup apprécié ce que vous m’avez partagé sur votre parcours${co}.\n\nJe reste à votre disposition et aurai plaisir à garder le contact.${sig}`],
+   ['relance','Relance',`Suite à notre échange`,`Bonjour ${p},\n\nJe me permets de revenir vers vous suite à notre échange${met}. Avez-vous eu l’occasion de regarder ma candidature${co} ?\n\nJe reste disponible pour en discuter.${sig}`],
+   ['cafe','Demande d’échange',`Un échange de 15 minutes ?`,`Bonjour ${p},\n\nSeriez-vous disponible pour un court échange (15 minutes, en visio ou autour d’un café) dans les prochains jours ? J’aimerais beaucoup avoir votre regard sur mon projet professionnel.\n\nMerci d’avance,${me?'\n'+me:''}`],
+   ['libre','Libre','',`Bonjour ${p},\n\n`]]}
+function ctMsgSheet(x){const t=ctTemplates(x),ch=x.email?'mail':'sms';
+  sheet('Écrire à '+esc(firstName(x.name)||x.name),`<form id="sf" data-form="ctMsg" data-id="${x.id}">
+   ${sec('',`<div class="cell block"><span>Modèle</span><div class="foods">${t.map(([k,l])=>`<button type="button" data-act="ctTpl" data-id="${x.id}" data-k="${k}">${l}</button>`).join('')}</div></div>
+     ${x.email&&x.phone?`<div class="cell block"><span>Envoyer par</span>${seg('ctCh',[['mail','E-mail'],['sms','Message']],ch)}</div>`:''}`)}
+   ${sec('',`<label class="cell field ct-subj" for="cms" ${ch==='mail'?'':'hidden'}><span>Objet</span><input id="cms" name="subj" value="${esc(t[0][2])}" autocomplete="off"></label>
+     <div class="cell"><textarea id="cmt" name="text" rows="11">${esc(t[0][3])}</textarea></div>`,'Le message s’ouvre dans Mail ou Messages, déjà rempli : relis-le puis envoie. Le contact est noté comme fait aujourd’hui.')}
+   ${sec('',`<button type="button" class="cell tap link center" data-act="ctSend" data-id="${x.id}" id="ctgo">${ch==='mail'?'Ouvrir dans Mail':'Ouvrir dans Messages'}</button>`)}
+  </form>`,{save:''})}
 const ctAction=(href,label)=>`<a class="cell tap link" href="${esc(href)}" ${/^https/.test(href)?'target="_blank" rel="noopener"':''}>${label}</a>`;
 function ctSheet(x){const isNew=!x;x=x||{name:'',company:'',role:'',email:'',linkedin:'',phone:'',met:'',next:'',notes:''};
-  const acts=[x.email&&ctAction('mailto:'+x.email,'Écrire un e-mail'),x.linkedin&&ctAction(safeUrl(x.linkedin),'Ouvrir LinkedIn'),x.phone&&ctAction('tel:'+x.phone.replace(/[^\d+]/g,''),'Appeler')].filter(Boolean);
+  const acts=[(x.email||x.phone)&&!isNew&&`<button type="button" class="cell tap link" data-act="ctMsg" data-id="${x.id}">Écrire un message</button>`,x.linkedin&&ctAction(safeUrl(x.linkedin),'Ouvrir LinkedIn'),x.phone&&ctAction('tel:'+x.phone.replace(/[^\d+]/g,''),'Appeler')].filter(Boolean);
   sheet(isNew?'Nouveau contact':'Contact',`<form id="sf" data-form="ct" data-id="${x.id||''}">
    ${acts.length?sec('',acts.join('')):''}
    ${sec('',`<label class="cell field" for="cn"><span>Nom</span><input id="cn" name="name" value="${esc(x.name)}" required placeholder="Prénom Nom" autocomplete="off"></label>
@@ -1585,6 +1605,7 @@ function ctSheet(x){const isNew=!x;x=x||{name:'',company:'',role:'',email:'',lin
      <label class="cell field" for="cnx"><span>À recontacter le</span><input id="cnx" name="next" type="date" value="${x.next||''}"></label>
      ${isNew?'':`<div class="cell"><span class="body" id="clast">${x.last?'Dernier contact le '+fdate(x.last):'Pas encore de contact noté'}</span></div><button type="button" class="cell tap link" data-act="ctDone" data-id="${x.id}">Contact fait aujourd’hui</button>`}`,isNew?'':'« Contact fait » note la date et retire le contact de « À contacter ».')}
    ${sec('Notes',`<div class="cell"><textarea name="notes" rows="4" placeholder="De quoi vous avez parlé, ce que tu veux lui demander…">${esc(x.notes||'')}</textarea></div>`)}
+   ${(x.msgs||[]).length?sec('Messages envoyés',x.msgs.slice().reverse().slice(0,10).map(m=>`<div class="cell"><span class="body"><span>${m.ch==='mail'?'E-mail':'Message'}${m.subj?' · '+esc(m.subj):''}</span><span class="fn clamp2">${fdate(m.d)} · ${esc(m.text.replace(/\s+/g,' ').slice(0,120))}</span></span></div>`).join(''),'L’app note ce que tu as préparé ; l’envoi se confirme dans Mail ou Messages.'):''}
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="ctAskDel" data-id="${x.id}">Supprimer le contact</button>`)}
   </form>`)}
 function ctSubmit(f,v){let x=contacts().find(c=>c.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid()};contacts().push(x)}
@@ -1641,6 +1662,14 @@ function jobAct(act,id,el){const j=jobs().find(x=>x.id===id);
    case 'carTab':if(S.car===el.dataset.v){const a=$('#area');if(a.scrollTop>8)a.scrollTo({top:0,behavior:reduce()?'auto':'smooth'});else if(S.car===CTABS[0][0])showHome(true);break}S.car=el.dataset.v;try{localStorage.setItem(K+':car',S.car)}catch(e){}haptic(6);paintCareer({top:true});break;
    case 'ctNew':ctSheet();break;
    case 'ctEdit':{const x=contacts().find(c=>c.id===id);if(x)ctSheet(x);break}
+   case 'ctMsg':{const x=contacts().find(c=>c.id===id);if(x)ctMsgSheet(x);break}
+   case 'ctTpl':{const x=contacts().find(c=>c.id===id);const t=ctTemplates(x).find(y=>y[0]===el.dataset.k);if(!t)break;
+     const ta=$('#cmt');if(ta.value.trim()&&!ctTemplates(x).some(y=>y[3]===ta.value)&&!confirm('Remplacer le texte déjà écrit ?'))break;ta.value=t[3];if(t[2])$('#cms').value=t[2];break}
+   case 'ctSend':{const x=contacts().find(c=>c.id===id);if(!x)break;const ch=document.querySelector('input[name=ctCh]:checked')?.value||(x.email?'mail':'sms');
+     const text=$('#cmt').value.replace(/\s+$/,''),subj=$('#cms').value.trim();if(!text.trim()){hud('Le message est vide');break}
+     const url=ch==='mail'?`mailto:${encodeURIComponent(x.email).replace(/%40/g,'@')}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(text)}`:`sms:${x.phone.replace(/[^\d+]/g,'')}&body=${encodeURIComponent(text)}`;
+     (x.msgs||(x.msgs=[])).push({d:TODAY(),ch,subj:ch==='mail'?subj:'',text});if(x.msgs.length>30)x.msgs.splice(0,x.msgs.length-30);x.last=TODAY();if(x.next&&x.next<=TODAY())x.next='';save();
+     location.href=url;closeSheet();if(careerOn2())paintCareer();break}
    case 'ctDone':{const x=contacts().find(c=>c.id===id);x.last=TODAY();x.next='';const n=$('#cnx');if(n)n.value='';save();haptic();hud('Contact noté');const l=$('#clast');if(l)l.textContent='Dernier contact le '+fdate(x.last);paintCareer();break}
    case 'ctAskDel':asheet('Supprimer ce contact et ses notes ?',[{label:'Supprimer le contact',act:'ctDel',data:{id},danger:true}]);break;
    case 'ctDel':db.contacts=contacts().filter(c=>c.id!==id);save();paintCareer();hud('Contact supprimé');break;
