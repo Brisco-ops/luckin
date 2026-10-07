@@ -824,7 +824,7 @@ function seedTemplates(){
 function seed(){
   let old={};try{old=JSON.parse(localStorage.getItem('cap-objectifs-v1')||'{}').settings||{}}catch(e){}
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
-    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,sound:true,failureBonus:true,
+    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,restBetween:0,sound:true,failureBonus:true,
     apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',career:{goal:5,relance:7}},
     days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[],notes:[]};
 }
@@ -838,6 +838,8 @@ if(!db.settings.restFix){db.templates.forEach(t=>t.exercises.forEach(e=>e.rest=4
 if(db.settings.onboarded==null){db.settings.onboarded=1;if(db.settings.reading==null)db.settings.reading={on:true,label:'Lecture de la Bible',min:10};if(db.settings.supps==null)db.settings.supps=true;writeLocal()}
 /* section Carrière : objectif hebdomadaire et liste des candidatures */
 if(!db.todos){db.todos=[];writeLocal()}
+/* repos lancé automatiquement : réglage absent des anciennes installations (donc éteint), on l'active une fois */
+if(!db.settings.autoFix){db.settings.autoTimer=true;db.settings.autoFix=1;if(db.settings.restBetween==null)db.settings.restBetween=0;writeLocal()}
 if(!db.notes){db.notes=[];writeLocal()}
 if(db.settings.career==null||!db.jobs||!db.events||!db.contacts){if(db.settings.career==null)db.settings.career={goal:5,relance:7};if(!db.jobs)db.jobs=[];if(!db.events)db.events=[];if(!db.contacts)db.contacts=[];writeLocal()}
 if(!db.settings.muscleFix){db.settings.muscleUnit='kg';db.settings.muscleFix=1;save()}
@@ -986,7 +988,7 @@ ${ts!=null?`      <div class="inrow"><div><div class="lbl">Durée (s)</div><div 
       <div><div class="lbl">Répétitions</div><div class="numbox"><button type="button" data-step="rp-${i}" data-d="-1" aria-label="Moins une">−</button><input id="rp-${i}" name="reps" inputmode="numeric" value="${prev?.reps??''}" placeholder="0"><button type="button" data-step="rp-${i}" data-d="1" aria-label="Plus une">+</button></div></div></div>
       <div><div class="lbl">RIR · répétitions en réserve</div>${seg('rir-'+i,[[0,'0'],[1,'1'],[2,'2'],[3,'3'],[4,'4+']],prev?.rir??2)}</div>
       <button class="btn-fill">Valider la série ${nextIdx+1}</button>
-`}      <div style="display:flex;justify-content:space-between;align-items:center"><button type="button" class="rest-btn" data-act="restNow" data-i="${i}">Lancer le repos (${mmss(e.rest)})</button><button type="button" class="rest-btn" data-act="techNote" data-i="${i}">${e.tech?'Note : '+esc(e.tech.slice(0,18))+(e.tech.length>18?'…':''):'Note technique'}</button></div>
+`}      <div style="display:flex;justify-content:space-between;align-items:center">${db.settings.autoTimer?'<span></span>':`<button type="button" class="rest-btn" data-act="restNow" data-i="${i}">Lancer le repos (${mmss(e.rest)})</button>`}<button type="button" class="rest-btn" data-act="techNote" data-i="${i}">${e.tech?'Note : '+esc(e.tech.slice(0,18))+(e.tech.length>18?'…':''):'Note technique'}</button></div>
      </form></div>`});
   return `<div class="lt wk-head"><div><span class="eyebrow">Séance en cours</span><h1 class="sm">${esc(w.name)}</h1></div><span class="elapsed" id="elapsed">${mmss((Date.now()-w.start)/1000)}</span></div>
    ${blocks.join('')}
@@ -1049,6 +1051,7 @@ function vSettings(){
    <label class="cell field" for="rd-m"><span>Durée</span><input id="rd-m" data-rd="min" inputmode="numeric" value="${s.reading?.min||10}"><span class="l2">min</span></label>
    <label class="cell" for="sw-sp"><span class="body"><span>Suivre mes compléments</span><span class="fn">Vitamines, zinc, magnésium, créatine</span></span><input id="sw-sp" type="checkbox" class="switch" data-setting="supps" ${s.supps?'checked':''}></label>`,'La lecture apparaît dans la fiche du réveil. Les compléments, dans les fiches repas et soir.')}
   ${sec('Chrono de repos',`<label class="cell" for="sw1"><span class="body">Démarrer après chaque série</span><input id="sw1" type="checkbox" class="switch" data-setting="autoTimer" ${s.autoTimer?'checked':''}></label>
+   <label class="cell field" for="rbw"><span>Repos entre deux exercices</span><select id="rbw" data-change="restBetween">${[[0,'Comme les séries'],[60,'1:00'],[90,'1:30'],[120,'2:00'],[150,'2:30'],[180,'3:00']].map(([v,l])=>`<option value="${v}" ${+s.restBetween===v?'selected':''}>${l}</option>`).join('')}</select></label>
    <label class="cell" for="sw2"><span class="body">Son à la fin du repos</span><input id="sw2" type="checkbox" class="switch" data-setting="sound" ${s.sound?'checked':''}></label>
    <label class="cell" for="sw3"><span class="body">+30 s si série à l’échec (RIR 0)</span><input id="sw3" type="checkbox" class="switch" data-setting="failureBonus" ${s.failureBonus?'checked':''}></label>`,
    'Chaque exercice a son propre temps de repos, défini dans le programme. L’écran reste allumé pendant la séance.')}
@@ -1346,7 +1349,7 @@ function logSet(i,s){const w=db.workouts.find(x=>x.id===db.active.id);const e=w.
   if(e.logged.length>=e.sets&&S.openEx===i)S.openEx=null;
   const last=w.exercises.every(x=>x.logged.length>=x.sets);
   if(db.active.timer?.kind==='work')db.active.timer=null;
-  if(st().autoTimer&&!last){const bonus=s.rir===0&&st().failureBonus?30:0;const nextEx=e.logged.length>=e.sets?w.exercises.find(x=>x.logged.length<x.sets):e;startTimer(e.rest+bonus,(nextEx?nextEx.name:e.name)+(bonus?' · +30 s (échec)':''))}
+  if(st().autoTimer&&!last){const bonus=s.rir===0&&st().failureBonus?30:0;const done=e.logged.length>=e.sets,nextEx=done?w.exercises.find(x=>x.logged.length<x.sets):e;const rest=done&&+st().restBetween?+st().restBetween:e.rest;startTimer(rest+bonus,(nextEx?nextEx.name:e.name)+(bonus?' · +30 s (échec)':''))}
   save();render();if(last)hud('Tous les exercices sont faits. Termine la séance.')}
 function addExSheet(){sheet('Ajouter un exercice',`<form id="sf" data-form="addEx">${sec('',exRow())}</form>`,{save:'Ajouter'})}
 function parseHealth(txt){const map={poids:'weight',weight:'weight',mg:'fat',fat:'fat',muscle:'muscle',visceral:'visceral',visc:'visceral',sommeil:'sleepH',sleep:'sleepH',pas:'steps',steps:'steps',eau:'water'};const out={};
@@ -1438,6 +1441,7 @@ document.addEventListener('input',ev=>{const t=ev.target;
   if(t.name&&t.name.startsWith('b_')){const box=document.querySelector(`[data-bdet="${t.name.slice(2)}"]`);if(box)box.hidden=+t.value===0}
 });
 document.addEventListener('change',ev=>{const t=ev.target;
+  if(t.dataset.change==='restBetween'){st().restBetween=+t.value;save();hud('Repos entre exercices : '+(+t.value?mmss(+t.value):'comme les séries'));return}
   if(t.dataset.change==='mealPhoto'){const f=t.files[0];t.value='';if(f)mealImg(f).then(b=>{S.mealImg=b;mealAnalyze()}).catch(()=>hud('Photo illisible'));return}
   if(t.dataset.change==='jobImport'){jobImport(t.files[0]);t.value='';return}
   if(t.dataset.change==='brFile'){brainFiles(t.files,t.dataset.kind);t.value='';return}
