@@ -84,7 +84,7 @@ function seed(){
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
     countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,sound:true,failureBonus:true,
     apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',career:{goal:5,relance:7}},
-    days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[]};
+    days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[],notes:[]};
 }
 let db;
 function load(){try{const s=localStorage.getItem(K);if(s)return JSON.parse(s)}catch(e){}return seed()}
@@ -96,6 +96,7 @@ if(!db.settings.restFix){db.templates.forEach(t=>t.exercises.forEach(e=>e.rest=4
 if(db.settings.onboarded==null){db.settings.onboarded=1;if(db.settings.reading==null)db.settings.reading={on:true,label:'Lecture de la Bible',min:10};if(db.settings.supps==null)db.settings.supps=true;writeLocal()}
 /* section Carrière : objectif hebdomadaire et liste des candidatures */
 if(!db.todos){db.todos=[];writeLocal()}
+if(!db.notes){db.notes=[];writeLocal()}
 if(db.settings.career==null||!db.jobs||!db.events||!db.contacts){if(db.settings.career==null)db.settings.career={goal:5,relance:7};if(!db.jobs)db.jobs=[];if(!db.events)db.events=[];if(!db.contacts)db.contacts=[];writeLocal()}
 if(!db.settings.muscleFix){db.settings.muscleUnit='kg';db.settings.muscleFix=1;save()}
 const st=()=>db.settings;
@@ -593,13 +594,13 @@ document.addEventListener('click',ev=>{
   const is=ev.target.closest('[data-istep]');if(is){const h=$('#'+is.dataset.istep);const v=clamp((+h.value||0)+ +is.dataset.d,0,30);h.value=v;$('#o-'+is.dataset.istep).textContent=v;return}
   const sp=ev.target.closest('[data-step]');if(sp){const inp=$('#'+sp.dataset.step);const v=Math.max(0,(num(inp.value)||0)+ +sp.dataset.d);inp.value=String(Math.round(v*100)/100).replace('.',',');return}
   const el=ev.target.closest('[data-act]');if(!el)return;const act=el.dataset.act,id=el.dataset.id;
-  if(act==='closeSheet'){if(el.classList.contains('scrim')&&ev.target!==el)return;closeSheet();return}
+  if(act==='closeSheet'){if(el.classList.contains('scrim')&&ev.target!==el)return;if(REC.mr&&REC.mr.state==='recording'){REC.cancel=true;REC.mr.stop()}closeSheet();return}
   if(el.closest('.asheet'))closeSheet(true);
   if(act==='agMorning'){morningSheet();return}
   if(act==='agEvening'){eveningSheet();return}
   if(act==='agWeekly'){weeklySheet();return}
   if(act==='agWorkout'){S.tab='workout';openArea('forme');return}
-  if(jobAct(act,id,el)||todoAct(act,id,el)){if(!$('#home').hidden)paintAgenda();return} /* actions des sections Carrière et Tâches */
+  if(jobAct(act,id,el)||todoAct(act,id,el)||brainAct(act,id,el)){if(!$('#home').hidden)paintAgenda();return} /* actions des sections Carrière et Tâches */
   switch(act){
    case 'sugarInfo':{const n=sugarStreak(),b=sugarBest();asheet(`Série sans sucre ajouté : ${n} jour${n>1?'s':''} · record ${b} jour${b>1?'s':''}. Une journée compte une fois la fiche du soir validée sans sucre ajouté (repas et hors repas).`,[{label:'Ouvrir la fiche du soir',act:'evening'}]);break}
    case 'morning':morningSheet();break;
@@ -665,6 +666,7 @@ document.addEventListener('input',ev=>{const t=ev.target;
 });
 document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.change==='jobImport'){jobImport(t.files[0]);t.value='';return}
+  if(t.dataset.change==='brFile'){brainFiles(t.files,t.dataset.kind);t.value='';return}
   if(t.id==='tdcs'){const w=$('#tdcnw');w.hidden=t.value!=='__new';if(!w.hidden)$('#tdcn').focus();return}
   if(t.id==='imp'){const f=t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importJSON(r.result);r.readAsText(f);return}
   if(t.dataset.change==='name'){st().name=t.value.trim()||'toi';save();hud('Prénom enregistré');return}
@@ -683,6 +685,7 @@ document.addEventListener('submit',ev=>{
   if(f.dataset.form==='ev'){evSubmit(f,v);return}
   if(f.dataset.form==='ct'){ctSubmit(f,v);return}
   if(f.dataset.form==='todo'){todoSubmit(f,v);return}
+  if(f.dataset.form==='brNote'||f.dataset.form==='brLink'){brainSubmit(f,v);return}
   switch(f.dataset.form){
    case 'morning':{const D=day(t);D.morning=Object.assign(D.morning||{},{weight:num(v.weight),fat:num(v.fat),muscle:num(v.muscle),visceral:num(v.visceral),time:v.time||nowHM(),sleepH:num(v.sleepH),sleepQ:v.sleepQ?+v.sleepQ:null});save();closeSheet();render();haptic();hud('Réveil enregistré');break}
    case 'meal':{const D=day(t);const o={type:v.type,time:v.time,foods:(v.foods||'').trim(),source:v.source,speed:v.speed,comment:(v.comment||'').trim(),supps:fd.getAll('msupp'),sugar:!!v.sugar};
@@ -983,6 +986,131 @@ function todoAct(act,id,el){const x=todos().find(y=>y.id===id);
    case 'tdDel':db.todos=todos().filter(y=>y.id!==id);save();paintTodos();hud('Tâche supprimée');break;
    default:return false}
   return true}
+/* ================= section Apprentissage : deuxième cerveau ================= */
+/* Notes en texte avec liens [[Titre]] (même format qu'Obsidian), étiquettes, photos et audios stockés en ligne
+   (Supabase Storage, dossier privé de l'utilisateur), vidéos de préférence en lien. */
+const BRAIN_BUCKET='brain',BR_MAX=50*1024*1024;
+const notes=()=>db.notes||(db.notes=[]);
+const brNorm=x=>normH(x).replace(/\s+/g,' ');
+const brByTitle=t=>notes().find(n=>brNorm(n.title)===brNorm(t));
+const brOut=n=>[...new Set([...(n.body||'').matchAll(/\[\[([^\]\n]{1,120})\]\]/g)].map(m=>m[1].trim()))];
+const brBack=n=>notes().filter(x=>x.id!==n.id&&brOut(x).some(t=>brNorm(t)===brNorm(n.title)));
+const brUrls=new Map();
+async function brUrl(path){const c=brUrls.get(path);if(c&&c.exp>Date.now())return c.url;
+  const r=await sb.storage.from(BRAIN_BUCKET).createSignedUrl(path,3600);if(r.error)throw r.error;brUrls.set(path,{url:r.data.signedUrl,exp:Date.now()+3500e3});return r.data.signedUrl}
+function brText(n){const lines=esc(n.body||'').split('\n');
+  return lines.map(l=>{let h=l.replace(/\[\[([^\]\n]{1,120})\]\]/g,(m,t)=>{const x=brByTitle(t.replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&amp;/g,'&'));return `<button type="button" class="br-ln${x?'':' new'}" data-act="brGoTitle" data-t="${t}">${t}</button>`})
+     .replace(/(https?:\/\/[^\s<]+)/g,u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\/(www\.)?/,'').slice(0,40)}${u.length>48?'…':''}</a>`)
+     .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+    return /^\s*[-•]\s+/.test(l)?`<li>${h.replace(/^\s*[-•]\s+/,'')}</li>`:h?`<p>${h}</p>`:''}).join('').replace(/(<li>.*?<\/li>)+/g,m=>`<ul>${m}</ul>`)}
+const BR_ICON={image:'Photo',audio:'Audio',video:'Vidéo'};
+function paintBrain(){const v=$('#area');const n=S.note&&notes().find(x=>x.id===S.note);
+  v.innerHTML=`<div class="a-in br">${HOMEBTN}${n?brNoteView(n):brList()}</div>`;if(n)brHydrate()}
+function brList(){const tag=S.brTag||'';
+  const tags=[...new Set(notes().flatMap(n=>n.tags||[]))].sort((a,b)=>a.localeCompare(b,'fr'));
+  return `<div class="a-head"><p class="l2">Deuxième cerveau</p><h1>Apprentissage</h1></div>
+   <div class="br-search"><input type="search" id="brq" placeholder="Rechercher dans tes notes" value="${esc(S.brQ||'')}" autocomplete="off" enterkeyhint="search"></div>
+   ${tags.length?`<div class="foods br-tags"><button type="button" data-act="brTag" data-t="" class="${tag?'':'on'}">Toutes</button>${tags.map(t=>`<button type="button" data-act="brTag" data-t="${esc(t)}" class="${t===tag?'on':''}">#${esc(t)}</button>`).join('')}</div>`:''}
+   ${sec('',addCell('Nouvelle note','brNew'))}
+   <div id="brres">${brResults()}</div>`}
+function brResults(){const q=brNorm(S.brQ||''),tag=S.brTag||'';
+  const list=notes().filter(n=>(!tag||(n.tags||[]).includes(tag))&&(!q||brNorm([n.title,n.body,(n.tags||[]).join(' ')].join(' ')).includes(q))).sort((a,b)=>(b.updated||0)-(a.updated||0));
+  const cell=n=>{const kinds=[...new Set((n.media||[]).map(m=>m.type))],nl=new Set([...brOut(n).map(brNorm),...brBack(n).map(x=>brNorm(x.title))]).size;
+    return `<button class="cell tap" data-act="brOpen" data-id="${n.id}"><span class="body"><span>${esc(n.title)}</span><span class="fn clamp2">${esc((n.body||'').replace(/\[\[|\]\]/g,'').slice(0,140))||'—'}</span><span class="fn">${[...kinds.map(k=>BR_ICON[k]),(n.links||[]).length?(n.links.length+' lien'+(n.links.length>1?'s':'')):null,nl?nl+' connexion'+(nl>1?'s':''):null,(n.tags||[]).map(t=>'#'+esc(t)).join(' ')||null].filter(Boolean).join(' · ')}</span></span>${I.chev}</button>`};
+  return `${sec(list.length?`${list.length} note${list.length>1?'s':''}`:'',list.length?list.map(cell).join(''):`<div class="cell"><span class="body fn">${notes().length?'Aucune note ne correspond.':'Ton deuxième cerveau est vide. Note une idée, un résumé de lecture, une photo de tableau, un mémo vocal… et relie les notes entre elles avec [[Titre]].'}</span></div>`,'','notile')}`}
+function brNoteView(n){const out=brOut(n),back=brBack(n),signed=!!(sb&&A.user);
+  const media=(n.media||[]).map(m=>`<div class="br-m" data-path="${esc(m.path)}" data-type="${m.type}">${m.type==='image'?'<div class="br-img"></div>':m.type==='audio'?'<audio controls preload="none"></audio>':'<video controls playsinline preload="metadata"></video>'}<div class="br-mf"><span class="fn">${esc(BR_ICON[m.type])}${m.name?' · '+esc(m.name):''}</span><button type="button" class="link" data-act="brDelMedia" data-id="${n.id}" data-m="${m.id}">Retirer</button></div></div>`).join('');
+  return `<div class="a-head"><button type="button" class="link br-back" data-act="brBackList">‹ Toutes les notes</button><h1 class="br-title">${esc(n.title)}</h1>${(n.tags||[]).length?`<p class="l2">${n.tags.map(t=>'#'+esc(t)).join(' ')}</p>`:''}</div>
+   ${sec('',`<div class="cell br-text">${brText(n)||'<p class="fn">Pas encore de texte.</p>'}</div><button class="cell tap link" data-act="brEdit" data-id="${n.id}">Modifier la note</button>`,'','notile')}
+   ${media?`<div class="br-media">${media}</div>`:''}
+   ${(n.links||[]).length?sec('Liens',n.links.map((l,i)=>`<div class="cell"><a class="body" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener"><span>${esc(l.title||l.url.replace(/^https?:\/\/(www\.)?/,''))}</span><span class="fn">${esc(l.url.replace(/^https?:\/\/(www\.)?/,'').split('/')[0])}</span></a><button type="button" class="link" data-act="brDelLink" data-id="${n.id}" data-i="${i}">Retirer</button></div>`).join(''),'','notile'):''}
+   ${sec('Ajouter',`<div class="cell"><div class="foods br-add">
+      <label${signed?'':' data-act="brNeedAcct"'}>${signed?`<input type="file" accept="image/*" multiple data-change="brFile" data-kind="image" hidden>`:''}Photo</label>
+      <button type="button" data-act="${signed?'brRecord':'brNeedAcct'}">Mémo vocal</button>
+      <label${signed?'':' data-act="brNeedAcct"'}>${signed?`<input type="file" accept="audio/*" data-change="brFile" data-kind="audio" hidden>`:''}Fichier audio</label>
+      <label${signed?'':' data-act="brNeedAcct"'}>${signed?`<input type="file" accept="video/*" data-change="brFile" data-kind="video" hidden>`:''}Vidéo</label>
+      <button type="button" data-act="brLinkNew" data-id="${n.id}">Lien</button></div></div>`,signed?'Vidéos : un lien (YouTube, Drive…) est préférable à un fichier (50 Mo maximum). Les photos sont réduites automatiquement.':'Connecte-toi (Réglages) pour ajouter photos, audios et vidéos : ils sont rangés dans ton espace en ligne.','notile')}
+   ${sec('Connexions',(out.length||back.length)?[...out.map(t=>{const x=brByTitle(t),both=x&&back.includes(x);return `<button class="cell tap" data-act="brGoTitle" data-t="${esc(t)}"><span class="body"><span>${esc(t)}</span><span class="fn">${!x?'Note pas encore créée · toucher pour la créer':both?'Liées dans les deux sens':'Liée depuis cette note'}</span></span>${I.chev}</button>`}),
+      ...back.filter(x=>!out.some(t=>brNorm(t)===brNorm(x.title))).map(x=>`<button class="cell tap" data-act="brOpen" data-id="${x.id}"><span class="body"><span>${esc(x.title)}</span><span class="fn">Mentionne cette note</span></span>${I.chev}</button>`)].join('')
+      :`<div class="cell"><span class="body fn">Aucune connexion. Dans le texte, écris [[Titre d’une note]] pour la relier.</span></div>`,'','notile')}
+   ${sec('',`<button type="button" class="cell tap danger center" data-act="brAskDel" data-id="${n.id}">Supprimer la note</button>`,'','notile')}`}
+async function brHydrate(){if(!sb||!A.user)return;for(const el of document.querySelectorAll('#area .br-m[data-path]')){try{const u=await brUrl(el.dataset.path);
+  if(el.dataset.type==='image')el.querySelector('.br-img').innerHTML=`<img src="${u}" alt="" loading="lazy">`;else{const m=el.querySelector('audio,video');if(m&&!m.src)m.src=u}}catch(e){el.querySelector('.fn').textContent+=' · indisponible hors connexion'}}}
+function brSheet(n,o={}){const isNew=!n;n=n||{title:o.title||'',body:'',tags:[]};
+  const others=notes().filter(x=>x.id!==n.id).sort((a,b)=>a.title.localeCompare(b.title,'fr'));
+  sheet(isNew?'Nouvelle note':'Modifier la note',`<form id="sf" data-form="brNote" data-id="${n.id||''}">
+   ${sec('',`<label class="cell field" for="brt"><span>Titre</span><input id="brt" name="title" value="${esc(n.title)}" required placeholder="Idée, livre, concept…" autocomplete="off"></label>`)}
+   ${sec('Texte',`<div class="cell"><textarea id="brb" name="body" rows="9" placeholder="Écris librement. Pour relier une note : [[Titre de la note]]. Liste : commence la ligne par « - ».">${esc(n.body||'')}</textarea></div>
+     ${others.length?`<label class="cell field" for="brl"><span>Lier une note</span><select id="brl" data-change="brInsLink"><option value="">Choisir…</option>${others.map(x=>`<option>${esc(x.title)}</option>`).join('')}</select></label>`:''}`,'Le lien [[Titre]] est inséré à l’endroit du curseur. Un titre qui n’existe pas encore crée une note à remplir plus tard.')}
+   ${sec('',`<label class="cell field" for="brg"><span>Étiquettes</span><input id="brg" name="tags" value="${esc((n.tags||[]).join(', '))}" placeholder="lecture, finance, idée" autocomplete="off"></label>`)}
+  </form>`)}
+function brLinkSheet(id){sheet('Ajouter un lien',`<form id="sf" data-form="brLink" data-id="${id}">
+   ${sec('',`<label class="cell field" for="blu"><span>Adresse</span><input id="blu" name="url" inputmode="url" autocapitalize="off" required placeholder="youtube.com/…" autocomplete="off"></label>
+     <label class="cell field" for="blt"><span>Titre</span><input id="blt" name="title" placeholder="Facultatif" autocomplete="off"></label>`,'Vidéo YouTube, dossier Google Drive, article, podcast…')}</form>`,{save:'Ajouter'})}
+function brainSubmit(f,v){
+  if(f.dataset.form==='brLink'){const n=notes().find(x=>x.id===f.dataset.id);if(!n)return;const url=safeUrl(String(v.url||'').trim());(n.links||(n.links=[])).push({url,title:String(v.title||'').trim()});n.updated=Date.now();save();closeSheet();paintBrain();hud('Lien ajouté');return}
+  const title=String(v.title||'').replace(/\s+/g,' ').trim();if(!title)return;
+  let n=notes().find(x=>x.id===f.dataset.id);const isNew=!n;
+  const dup=notes().find(x=>x.id!==f.dataset.id&&brNorm(x.title)===brNorm(title));if(dup){hud('Une note porte déjà ce titre');return}
+  if(isNew){n={id:uid(),created:Date.now(),media:[],links:[]};notes().push(n)}
+  const old=n.title;Object.assign(n,{title,body:String(v.body||'').replace(/\s+$/,''),tags:[...new Set(String(v.tags||'').split(/[,#]/).map(x=>x.trim().toLowerCase()).filter(Boolean))],updated:Date.now()});
+  /* renommer une note met à jour les liens [[ancien titre]] des autres notes */
+  if(old&&brNorm(old)!==brNorm(title)){const re=new RegExp('\\[\\['+old.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\]\\]','gi');notes().forEach(x=>{if(x.id!==n.id&&re.test(x.body||'')){x.body=x.body.replace(re,'[['+title+']]');x.updated=Date.now()}})}
+  S.note=n.id;save();closeSheet();paintBrain();$('#area').scrollTop=0;haptic();hud(isNew?'Note créée':'Note enregistrée')}
+/* photos réduites (2048 px max, JPEG) avant l'envoi */
+async function brShrink(file){if(!/^image\//.test(file.type)||/gif|svg/.test(file.type))return file;
+  try{const url=URL.createObjectURL(file);const img=await new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ko;i.src=url});
+    const k=Math.min(1,2048/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);const b=await new Promise(ok=>c.toBlob(ok,'image/jpeg',.82));return b&&b.size<file.size?b:file}catch(e){return file}}
+async function brUpload(n,blob,type,name){if(!sb||!A.user){hud('Connecte-toi pour ajouter des médias');return false}if(needNet())return false;
+  if(blob.size>BR_MAX){hud('Fichier trop lourd (50 Mo max) : ajoute plutôt un lien');return false}
+  const id=uid(),ext=((blob.type||'').split('/')[1]||'bin').replace(/[^a-z0-9]/gi,'').slice(0,5)||'bin',path=`${A.user.id}/${n.id}/${id}.${ext}`;
+  const r=await sb.storage.from(BRAIN_BUCKET).upload(path,blob,{contentType:blob.type||'application/octet-stream',upsert:false});
+  if(r.error){hud(/bucket|not found/i.test(r.error.message)?'Espace médias pas encore créé dans Supabase':'Envoi impossible : '+r.error.message);return false}
+  (n.media||(n.media=[])).push({id,type,path,name:name||'',size:blob.size,at:Date.now()});n.updated=Date.now();save();return true}
+async function brainFiles(files,kind){const n=notes().find(x=>x.id===S.note);if(!n||!files?.length)return;let ok=0;
+  for(const f of files){hud(`Envoi ${ok+1}/${files.length}…`);const b=kind==='image'?await brShrink(f):f;if(await brUpload(n,b,kind,f.name))ok++}
+  if(ok){paintBrain();hud(ok>1?ok+' médias ajoutés':'Média ajouté')}}
+/* mémo vocal enregistré dans l'app */
+const REC={};
+document.addEventListener('input',ev=>{if(ev.target.id!=='brq')return;S.brQ=ev.target.value;const r=$('#brres');if(r)r.innerHTML=brResults()});
+document.addEventListener('change',ev=>{const t=ev.target;if(t.id!=='brl'||!t.value)return;const ta=$('#brb'),ins='[['+t.value+']]';
+  const a=ta.selectionStart??ta.value.length,b=ta.selectionEnd??a;ta.value=ta.value.slice(0,a)+ins+ta.value.slice(b);ta.focus();ta.selectionStart=ta.selectionEnd=a+ins.length;t.value=''});
+function brRecordSheet(){sheet('Mémo vocal',`${sec('',`<div class="cell br-rec"><span class="br-rt" id="brrt">0:00</span><button type="button" class="br-rb" data-act="brRecGo" id="brrb" aria-label="Enregistrer"></button><span class="fn" id="brrs">Touche le rond pour enregistrer.</span></div>`,'','notile')}`,{save:''})}
+async function brRecToggle(){const b=$('#brrb');
+  if(REC.mr&&REC.mr.state==='recording'){REC.mr.stop();return}
+  REC.cancel=false;
+  try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});const type=['audio/mp4','audio/webm;codecs=opus','audio/webm'].find(t=>window.MediaRecorder?.isTypeSupported?.(t))||'';
+    const mr=new MediaRecorder(stream,type?{mimeType:type}:undefined);REC.mr=mr;REC.chunks=[];REC.t0=Date.now();
+    mr.ondataavailable=e=>{if(e.data.size)REC.chunks.push(e.data)};
+    mr.onstop=async()=>{clearInterval(REC.iv);stream.getTracks().forEach(t=>t.stop());if(REC.cancel){REC.cancel=false;return}const blob=new Blob(REC.chunks,{type:mr.mimeType||type||'audio/mp4'});
+      $('#brrs')&&($('#brrs').textContent='Envoi…');const n=notes().find(x=>x.id===S.note);
+      const name='Mémo du '+new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' · '+mmss((Date.now()-REC.t0)/1000);
+      if(n&&await brUpload(n,blob,'audio',name)){closeSheet();paintBrain();hud('Mémo ajouté')}else if($('#brrs'))$('#brrs').textContent='Échec de l’envoi.'};
+    mr.start(1000);b.classList.add('on');$('#brrs').textContent='Enregistrement… touche pour arrêter.';
+    REC.iv=setInterval(()=>{const e=$('#brrt');if(e)e.textContent=mmss((Date.now()-REC.t0)/1000)},250)}
+  catch(e){hud('Micro indisponible : autorise-le dans Réglages › Luck’In ou utilise « Fichier audio »')}}
+function brainAct(act,id,el){const n=notes().find(x=>x.id===id);
+  switch(act){
+   case 'brNew':brSheet();break;
+   case 'brOpen':S.note=id;paintBrain();$('#area').scrollTop=0;break;
+   case 'brBackList':S.note=null;paintBrain();break;
+   case 'brEdit':if(n)brSheet(n);break;
+   case 'brGoTitle':{const x=brByTitle(el.dataset.t);if(x){S.note=x.id;paintBrain();$('#area').scrollTop=0}else brSheet(null,{title:el.dataset.t});break}
+   case 'brTag':S.brTag=el.dataset.t;paintBrain();break;
+   case 'brLinkNew':brLinkSheet(id);break;
+   case 'brDelLink':if(n){n.links.splice(+el.dataset.i,1);n.updated=Date.now();save();paintBrain()}break;
+   case 'brDelMedia':asheet('Retirer ce média ? Il sera supprimé de ton espace en ligne.',[{label:'Retirer le média',act:'brDelMediaGo',data:{id,m:el.dataset.m},danger:true}]);break;
+   case 'brDelMediaGo':{if(!n)break;const m=(n.media||[]).find(x=>x.id===el.dataset.m);if(!m)break;n.media=n.media.filter(x=>x!==m);n.updated=Date.now();save();paintBrain();
+     if(sb&&A.user)sb.storage.from(BRAIN_BUCKET).remove([m.path]).catch(()=>{});hud('Média retiré');break}
+   case 'brAskDel':asheet('Supprimer cette note, ses photos et ses audios ?',[{label:'Supprimer la note',act:'brDel',data:{id},danger:true}]);break;
+   case 'brDel':{if(!n)break;const paths=(n.media||[]).map(m=>m.path);db.notes=notes().filter(x=>x.id!==id);S.note=null;save();paintBrain();
+     if(paths.length&&sb&&A.user)sb.storage.from(BRAIN_BUCKET).remove(paths).catch(()=>{});hud('Note supprimée');break}
+   case 'brRecord':brRecordSheet();break;
+   case 'brRecGo':brRecToggle();break;
+   case 'brNeedAcct':hud('Connecte-toi dans Réglages pour ajouter des médias');break;
+   default:return false}
+  return true}
 /* ================= accueil : ce qui est à faire aujourd'hui et bientôt, toutes sections confondues ================= */
 const AG_SOON=7;
 function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntries(AREAS.map(a=>[a.id,a.color])),out=[];
@@ -1015,7 +1143,7 @@ const AREAS=[
  {id:'carriere',name:'Carrière',sub:'Candidatures & entretiens',color:'#3E6FD8',size:112,paint:()=>paintCareer()},
  {id:'taches',name:'Tâches',sub:'To-do, échéances & priorités',color:'#D94F70',size:110,paint:()=>paintTodos()},
  {id:'finances',name:'Finances',sub:'Budget & épargne',color:'#2F9E6E',size:104,ideas:['Budget du mois et dépenses par catégorie','Objectifs d’épargne','Suivi des investissements']},
- {id:'savoir',name:'Apprentissage',short:'Savoir',sub:'Lectures & compétences',color:'#8E5CC9',size:126,ideas:['Livres en cours et notes de lecture','Formations et certifications','Temps d’étude par semaine']}];
+ {id:'savoir',name:'Apprentissage',short:'Savoir',sub:'Deuxième cerveau',color:'#8E5CC9',size:126,paint:()=>paintBrain()}];
 const H={angle:0,last:0,raf:0,open:true};
 const AREA_ICONS={"taches": "<rect x=\"3.5\" y=\"3.5\" width=\"17\" height=\"17\" rx=\"5\"/><path d=\"M8 12.3l2.8 2.7 5.4-5.5\"/>", "forme": "<path d=\"M2.6 12h18.8\"/><rect x=\"4\" y=\"7.5\" width=\"3.6\" height=\"9\" rx=\"1.4\"/><rect x=\"16.4\" y=\"7.5\" width=\"3.6\" height=\"9\" rx=\"1.4\"/>", "carriere": "<rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"3\"/><path d=\"M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7M3 12.5h18\"/>", "finances": "<path d=\"M4 19.5h16\"/><path d=\"M6.5 16v-4M11 16V8M15.5 16v-6M20 5.5l-4.5 3-4-2.5L6 9.5\"/>", "savoir": "<path d=\"M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5Z\"/><path d=\"M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5a1.5 1.5 0 0 1 1.5 1.5Z\"/>"};
 const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1314,7 +1442,7 @@ document.addEventListener('click',async ev=>{const el=ev.target.closest('[data-a
      db=seed();writeLocal();try{localStorage.removeItem(CK)}catch(e){}chat=[];S.tab='today';
      showHome(false);render();showGate('login','Déconnecté.');break}
    case 'askDeleteMe':asheet('Supprimer ton compte ? Tes données en ligne et ta place dans le groupe sont effacées. Action définitive.',[{label:'Supprimer mon compte',act:'deleteMeGo',danger:true}]);break;
-   case 'deleteMeGo':{if(needNet())break;const r=await sb.rpc('delete_me');if(r.error){hud('Erreur : '+r.error.message);break}
+   case 'deleteMeGo':{if(needNet())break;{const paths=notes().flatMap(n=>(n.media||[]).map(m=>m.path)).filter(Boolean);if(paths.length)try{await sb.storage.from(BRAIN_BUCKET).remove(paths)}catch(e){}}const r=await sb.rpc('delete_me');if(r.error){hud('Erreur : '+r.error.message);break}
      try{await sb.auth.signOut()}catch(e){}
      A.user=null;A.group=null;A.members=[];A.shares=[];A.dirty=false;clearTimeout(A.t);delete db.owner;writeLocal();try{localStorage.setItem(AK,'local')}catch(e){}
      refreshView();paintFriends();hud('Compte supprimé');break}
