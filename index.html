@@ -702,6 +702,21 @@ a.cell{text-decoration:none}
 .br-rt{font:600 34px var(--display);font-variant-numeric:tabular-nums}
 .br-rb{width:72px;height:72px;border-radius:50%;border:4px solid var(--label3);background:var(--red);cursor:pointer;transition:border-radius .2s,transform .2s}
 .br-rb.on{border-radius:14px;transform:scale(.7)}
+/* Apprentissage : barre d'outils d'écriture, menu d'insertion, médias dans le texte */
+.br-tools{display:flex!important;flex-wrap:nowrap;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.br-tools::-webkit-scrollbar{display:none}
+.br-tools button,.br-tools label{flex:none;font-size:13px;padding:6px 11px;border-radius:99px;background:var(--fill);color:var(--label);cursor:pointer;white-space:nowrap;border:0;font-family:inherit}
+#brb{min-height:200px}
+.br-pop-bg{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.25)}
+.br-pop{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateX(-50%);z-index:71;width:calc(100% - 32px);max-width:420px;max-height:70vh;overflow:auto;
+  background:var(--card);border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;padding:6px}
+.br-pop>button,.br-pop>label,.br-pl>button{display:block;width:100%;text-align:left;padding:13px 14px;border:0;background:none;color:var(--label);font:17px var(--font);border-radius:12px;cursor:pointer}
+.br-pop>button:active,.br-pop>label:active,.br-pl>button:active{background:var(--fill)}
+.br-pq{margin:6px;padding:11px 12px;border-radius:12px;border:0;background:var(--fill);color:var(--label);font:17px var(--font);outline:none}
+.br-pl{max-height:45vh;overflow:auto}
+.br-text h3{font:700 19px/1.3 var(--display);margin:.8em 0 .4em}
+.br-text h3:first-child{margin-top:0}
+.br-inl{margin:.6em 0;border-radius:14px}
 </style>
 
 </head><body>
@@ -1301,7 +1316,7 @@ document.addEventListener('click',ev=>{
   const is=ev.target.closest('[data-istep]');if(is){const h=$('#'+is.dataset.istep);const v=clamp((+h.value||0)+ +is.dataset.d,0,30);h.value=v;$('#o-'+is.dataset.istep).textContent=v;return}
   const sp=ev.target.closest('[data-step]');if(sp){const inp=$('#'+sp.dataset.step);const v=Math.max(0,(num(inp.value)||0)+ +sp.dataset.d);inp.value=String(Math.round(v*100)/100).replace('.',',');return}
   const el=ev.target.closest('[data-act]');if(!el)return;const act=el.dataset.act,id=el.dataset.id;
-  if(act==='closeSheet'){if(el.classList.contains('scrim')&&ev.target!==el)return;if(REC.mr&&REC.mr.state==='recording'){REC.cancel=true;REC.mr.stop()}closeSheet();return}
+  if(act==='closeSheet'){if(el.classList.contains('scrim')&&ev.target!==el)return;if(REC.mr&&REC.mr.state==='recording'){REC.cancel=true;REC.mr.stop()}if(S.brPend?.length&&$('#sf[data-form=brNote]')){const ps=S.brPend.map(m=>m.path);S.brPend=[];if(sb&&A.user)sb.storage.from(BRAIN_BUCKET).remove(ps).catch(()=>{})}closeSheet();return}
   if(el.closest('.asheet'))closeSheet(true);
   if(act==='agMorning'){morningSheet();return}
   if(act==='agEvening'){eveningSheet();return}
@@ -1374,6 +1389,7 @@ document.addEventListener('input',ev=>{const t=ev.target;
 document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.change==='jobImport'){jobImport(t.files[0]);t.value='';return}
   if(t.dataset.change==='brFile'){brainFiles(t.files,t.dataset.kind);t.value='';return}
+  if(t.dataset.change==='brIns'){brInsFile(t.files[0],t.dataset.kind);t.value='';return}
   if(t.id==='tdcs'){const w=$('#tdcnw');w.hidden=t.value!=='__new';if(!w.hidden)$('#tdcn').focus();return}
   if(t.id==='imp'){const f=t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importJSON(r.result);r.readAsText(f);return}
   if(t.dataset.change==='name'){st().name=t.value.trim()||'toi';save();hud('Prénom enregistré');return}
@@ -1700,15 +1716,23 @@ const BRAIN_BUCKET='brain',BR_MAX=50*1024*1024;
 const notes=()=>db.notes||(db.notes=[]);
 const brNorm=x=>normH(x).replace(/\s+/g,' ');
 const brByTitle=t=>notes().find(n=>brNorm(n.title)===brNorm(t));
-const brOut=n=>[...new Set([...(n.body||'').matchAll(/\[\[([^\]\n]{1,120})\]\]/g)].map(m=>m[1].trim()))];
+const brOut=n=>[...new Set([...(n.body||'').matchAll(/(?<!!)\[\[([^\]\n]{1,120})\]\]/g)].map(m=>m[1].trim()))];
 const brBack=n=>notes().filter(x=>x.id!==n.id&&brOut(x).some(t=>brNorm(t)===brNorm(n.title)));
 const brUrls=new Map();
 async function brUrl(path){const c=brUrls.get(path);if(c&&c.exp>Date.now())return c.url;
   const r=await sb.storage.from(BRAIN_BUCKET).createSignedUrl(path,3600);if(r.error)throw r.error;brUrls.set(path,{url:r.data.signedUrl,exp:Date.now()+3500e3});return r.data.signedUrl}
-function brText(n){const lines=esc(n.body||'').split('\n');
-  return lines.map(l=>{let h=l.replace(/\[\[([^\]\n]{1,120})\]\]/g,(m,t)=>{const x=brByTitle(t.replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&amp;/g,'&'));return `<button type="button" class="br-ln${x?'':' new'}" data-act="brGoTitle" data-t="${t}">${t}</button>`})
-     .replace(/(https?:\/\/[^\s<]+)/g,u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\/(www\.)?/,'').slice(0,40)}${u.length>48?'…':''}</a>`)
+function brText(n){const media=id=>(n.media||[]).find(m=>m.id===id);
+  const mEl=m=>`<div class="br-m br-inl" data-path="${esc(m.path)}" data-type="${m.type}">${m.type==='image'?'<div class="br-img"></div>':m.type==='audio'?'<audio controls preload="none"></audio>':'<video controls playsinline preload="metadata"></video>'}${m.type==='image'?'':`<div class="br-mf"><span class="fn">${esc(BR_ICON[m.type])}${m.name?' · '+esc(m.name):''}</span></div>`}</div>`;
+  const dec=t=>t.replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&amp;/g,'&');
+  const lines=esc(n.body||'').split('\n');
+  return lines.map(l=>{
+    const only=l.match(/^\s*!\[\[media:([a-z0-9]+)\]\]\s*$/);if(only){const m=media(only[1]);return m?mEl(m):''}
+    let h=l.replace(/!\[\[media:([a-z0-9]+)\]\]/g,(x,id)=>{const m=media(id);return m?mEl(m):''})
+     .replace(/(?<!!)\[\[([^\]\n]{1,120})\]\]/g,(m,t)=>{const x=brByTitle(dec(t));return `<button type="button" class="br-ln${x?'':' new'}" data-act="brGoTitle" data-t="${t}">${t}</button>`})
+     .replace(/\[([^\]\n]{1,120})\]\((https?:\/\/[^\s)]+)\)/g,(m,t,u)=>`<a href="${u}" target="_blank" rel="noopener">${t}</a>`)
+     .replace(/(?<![">=])(https?:\/\/[^\s<"]+)/g,u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\/(www\.)?/,'').slice(0,40)}${u.length>48?'…':''}</a>`)
      .replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+    if(/^#{1,3}\s+/.test(l))return `<h3>${h.replace(/^#{1,3}\s+/,'')}</h3>`;
     return /^\s*[-•]\s+/.test(l)?`<li>${h.replace(/^\s*[-•]\s+/,'')}</li>`:h?`<p>${h}</p>`:''}).join('').replace(/(<li>.*?<\/li>)+/g,m=>`<ul>${m}</ul>`)}
 const BR_ICON={image:'Photo',audio:'Audio',video:'Vidéo'};
 function paintBrain(){const v=$('#area');const n=S.note&&notes().find(x=>x.id===S.note);
@@ -1719,14 +1743,16 @@ function brList(){const tag=S.brTag||'';
    <div class="br-search"><input type="search" id="brq" placeholder="Rechercher dans tes notes" value="${esc(S.brQ||'')}" autocomplete="off" enterkeyhint="search"></div>
    ${tags.length?`<div class="foods br-tags"><button type="button" data-act="brTag" data-t="" class="${tag?'':'on'}">Toutes</button>${tags.map(t=>`<button type="button" data-act="brTag" data-t="${esc(t)}" class="${t===tag?'on':''}">#${esc(t)}</button>`).join('')}</div>`:''}
    ${sec('',addCell('Nouvelle note','brNew'))}
-   <div id="brres">${brResults()}</div>`}
+   <div id="brres">${brResults()}</div>
+   ${notes().length?sec('',`<button class="cell tap link" data-act="brExport">Exporter mes notes</button>`,'Un fichier .zip avec toutes tes notes en Markdown (lisibles partout, compatibles Obsidian) et leurs médias.','notile'):''}`}
 function brResults(){const q=brNorm(S.brQ||''),tag=S.brTag||'';
   const list=notes().filter(n=>(!tag||(n.tags||[]).includes(tag))&&(!q||brNorm([n.title,n.body,(n.tags||[]).join(' ')].join(' ')).includes(q))).sort((a,b)=>(b.updated||0)-(a.updated||0));
   const cell=n=>{const kinds=[...new Set((n.media||[]).map(m=>m.type))],nl=new Set([...brOut(n).map(brNorm),...brBack(n).map(x=>brNorm(x.title))]).size;
     return `<button class="cell tap" data-act="brOpen" data-id="${n.id}"><span class="body"><span>${esc(n.title)}</span><span class="fn clamp2">${esc((n.body||'').replace(/\[\[|\]\]/g,'').slice(0,140))||'—'}</span><span class="fn">${[...kinds.map(k=>BR_ICON[k]),(n.links||[]).length?(n.links.length+' lien'+(n.links.length>1?'s':'')):null,nl?nl+' connexion'+(nl>1?'s':''):null,(n.tags||[]).map(t=>'#'+esc(t)).join(' ')||null].filter(Boolean).join(' · ')}</span></span>${I.chev}</button>`};
   return `${sec(list.length?`${list.length} note${list.length>1?'s':''}`:'',list.length?list.map(cell).join(''):`<div class="cell"><span class="body fn">${notes().length?'Aucune note ne correspond.':'Ton deuxième cerveau est vide. Note une idée, un résumé de lecture, une photo de tableau, un mémo vocal… et relie les notes entre elles avec [[Titre]].'}</span></div>`,'','notile')}`}
 function brNoteView(n){const out=brOut(n),back=brBack(n),signed=!!(sb&&A.user);
-  const media=(n.media||[]).map(m=>`<div class="br-m" data-path="${esc(m.path)}" data-type="${m.type}">${m.type==='image'?'<div class="br-img"></div>':m.type==='audio'?'<audio controls preload="none"></audio>':'<video controls playsinline preload="metadata"></video>'}<div class="br-mf"><span class="fn">${esc(BR_ICON[m.type])}${m.name?' · '+esc(m.name):''}</span><button type="button" class="link" data-act="brDelMedia" data-id="${n.id}" data-m="${m.id}">Retirer</button></div></div>`).join('');
+  const inl=new Set([...(n.body||'').matchAll(/!\[\[media:([a-z0-9]+)\]\]/g)].map(x=>x[1]));
+  const media=(n.media||[]).filter(m=>!inl.has(m.id)).map(m=>`<div class="br-m" data-path="${esc(m.path)}" data-type="${m.type}">${m.type==='image'?'<div class="br-img"></div>':m.type==='audio'?'<audio controls preload="none"></audio>':'<video controls playsinline preload="metadata"></video>'}<div class="br-mf"><span class="fn">${esc(BR_ICON[m.type])}${m.name?' · '+esc(m.name):''}</span><button type="button" class="link" data-act="brDelMedia" data-id="${n.id}" data-m="${m.id}">Retirer</button></div></div>`).join('');
   return `<div class="a-head"><button type="button" class="link br-back" data-act="brBackList">‹ Toutes les notes</button><h1 class="br-title">${esc(n.title)}</h1>${(n.tags||[]).length?`<p class="l2">${n.tags.map(t=>'#'+esc(t)).join(' ')}</p>`:''}</div>
    ${sec('',`<div class="cell br-text">${brText(n)||'<p class="fn">Pas encore de texte.</p>'}</div><button class="cell tap link" data-act="brEdit" data-id="${n.id}">Modifier la note</button>`,'','notile')}
    ${media?`<div class="br-media">${media}</div>`:''}
@@ -1743,12 +1769,14 @@ function brNoteView(n){const out=brOut(n),back=brBack(n),signed=!!(sb&&A.user);
    ${sec('',`<button type="button" class="cell tap danger center" data-act="brAskDel" data-id="${n.id}">Supprimer la note</button>`,'','notile')}`}
 async function brHydrate(){if(!sb||!A.user)return;for(const el of document.querySelectorAll('#area .br-m[data-path]')){try{const u=await brUrl(el.dataset.path);
   if(el.dataset.type==='image')el.querySelector('.br-img').innerHTML=`<img src="${u}" alt="" loading="lazy">`;else{const m=el.querySelector('audio,video');if(m&&!m.src)m.src=u}}catch(e){el.querySelector('.fn').textContent+=' · indisponible hors connexion'}}}
-function brSheet(n,o={}){const isNew=!n;n=n||{title:o.title||'',body:'',tags:[]};
-  const others=notes().filter(x=>x.id!==n.id).sort((a,b)=>a.title.localeCompare(b.title,'fr'));
+function brSheet(n,o={}){const isNew=!n;n=n||{title:o.title||'',body:'',tags:[]};const signed=!!(sb&&A.user);
+  S.brPend=[];S.brNid=n.id||uid();S.brSel=null;
+  const tool=(act,label,cls='')=>`<button type="button" class="${cls}" data-act="${act}">${label}</button>`;
+  const file=(kind,accept,label)=>signed?`<label>${label}<input type="file" accept="${accept}" data-change="brIns" data-kind="${kind}" hidden></label>`:tool('brNeedAcct',label);
   sheet(isNew?'Nouvelle note':'Modifier la note',`<form id="sf" data-form="brNote" data-id="${n.id||''}">
    ${sec('',`<label class="cell field" for="brt"><span>Titre</span><input id="brt" name="title" value="${esc(n.title)}" required placeholder="Idée, livre, concept…" autocomplete="off"></label>`)}
-   ${sec('Texte',`<div class="cell"><textarea id="brb" name="body" rows="9" placeholder="Écris librement. Pour relier une note : [[Titre de la note]]. Liste : commence la ligne par « - ».">${esc(n.body||'')}</textarea></div>
-     ${others.length?`<label class="cell field" for="brl"><span>Lier une note</span><select id="brl" data-change="brInsLink"><option value="">Choisir…</option>${others.map(x=>`<option>${esc(x.title)}</option>`).join('')}</select></label>`:''}`,'Le lien [[Titre]] est inséré à l’endroit du curseur. Un titre qui n’existe pas encore crée une note à remplir plus tard.')}
+   ${sec('Texte',`<div class="cell br-tools">${tool('brTNote','[[ Note ]]')}${tool('brTBold','<b>Gras</b>')}${tool('brTHead','Titre')}${tool('brTList','• Liste')}${file('image','image/*','Image')}${file('file','audio/*,video/*','Fichier')}${tool('brTLink','Lien web')}</div>
+     <div class="cell"><textarea id="brb" name="body" rows="10" placeholder="Écris librement. Appui long dans le texte pour insérer une note, du gras, une image, un fichier ou un lien.">${esc(n.body||'')}</textarea></div>`,'Appui long dans le texte, ou barre ci-dessus. Les images et fichiers insérés apparaissent à leur place dans la note.')}
    ${sec('',`<label class="cell field" for="brg"><span>Étiquettes</span><input id="brg" name="tags" value="${esc((n.tags||[]).join(', '))}" placeholder="lecture, finance, idée" autocomplete="off"></label>`)}
   </form>`)}
 function brLinkSheet(id){sheet('Ajouter un lien',`<form id="sf" data-form="brLink" data-id="${id}">
@@ -1759,7 +1787,8 @@ function brainSubmit(f,v){
   const title=String(v.title||'').replace(/\s+/g,' ').trim();if(!title)return;
   let n=notes().find(x=>x.id===f.dataset.id);const isNew=!n;
   const dup=notes().find(x=>x.id!==f.dataset.id&&brNorm(x.title)===brNorm(title));if(dup){hud('Une note porte déjà ce titre');return}
-  if(isNew){n={id:uid(),created:Date.now(),media:[],links:[]};notes().push(n)}
+  if(isNew){n={id:S.brNid||uid(),created:Date.now(),media:[],links:[]};notes().push(n)}
+  if(S.brPend?.length){(n.media||(n.media=[])).push(...S.brPend);S.brPend=[]}
   const old=n.title;Object.assign(n,{title,body:String(v.body||'').replace(/\s+$/,''),tags:[...new Set(String(v.tags||'').split(/[,#]/).map(x=>x.trim().toLowerCase()).filter(Boolean))],updated:Date.now()});
   /* renommer une note met à jour les liens [[ancien titre]] des autres notes */
   if(old&&brNorm(old)!==brNorm(title)){const re=new RegExp('\\[\\['+old.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\]\\]','gi');notes().forEach(x=>{if(x.id!==n.id&&re.test(x.body||'')){x.body=x.body.replace(re,'[['+title+']]');x.updated=Date.now()}})}
@@ -1769,20 +1798,74 @@ async function brShrink(file){if(!/^image\//.test(file.type)||/gif|svg/.test(fil
   try{const url=URL.createObjectURL(file);const img=await new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ko;i.src=url});
     const k=Math.min(1,2048/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);
     c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);const b=await new Promise(ok=>c.toBlob(ok,'image/jpeg',.82));return b&&b.size<file.size?b:file}catch(e){return file}}
-async function brUpload(n,blob,type,name){if(!sb||!A.user){hud('Connecte-toi pour ajouter des médias');return false}if(needNet())return false;
+async function brUpload(n,blob,type,name,pending){if(!sb||!A.user){hud('Connecte-toi pour ajouter des médias');return false}if(needNet())return false;
   if(blob.size>BR_MAX){hud('Fichier trop lourd (50 Mo max) : ajoute plutôt un lien');return false}
   const id=uid(),ext=((blob.type||'').split('/')[1]||'bin').replace(/[^a-z0-9]/gi,'').slice(0,5)||'bin',path=`${A.user.id}/${n.id}/${id}.${ext}`;
   const r=await sb.storage.from(BRAIN_BUCKET).upload(path,blob,{contentType:blob.type||'application/octet-stream',upsert:false});
   if(r.error){hud(/bucket|not found/i.test(r.error.message)?'Espace médias pas encore créé dans Supabase':'Envoi impossible : '+r.error.message);return false}
-  (n.media||(n.media=[])).push({id,type,path,name:name||'',size:blob.size,at:Date.now()});n.updated=Date.now();save();return true}
+  const m={id,type,path,name:name||'',size:blob.size,at:Date.now()};if(pending){S.brPend.push(m);return m}
+  (n.media||(n.media=[])).push(m);n.updated=Date.now();save();return m}
 async function brainFiles(files,kind){const n=notes().find(x=>x.id===S.note);if(!n||!files?.length)return;let ok=0;
   for(const f of files){hud(`Envoi ${ok+1}/${files.length}…`);const b=kind==='image'?await brShrink(f):f;if(await brUpload(n,b,kind,f.name))ok++}
   if(ok){paintBrain();hud(ok>1?ok+' médias ajoutés':'Média ajouté')}}
 /* mémo vocal enregistré dans l'app */
+/* ---------- écriture : barre d'outils et appui long dans le texte ---------- */
+const brTa=()=>$('#brb');
+const brSp=p=>p&&!/\s$/.test(p)?' ':'';
+function brKeepSel(){const t=brTa();if(t&&document.activeElement===t)S.brSel={a:t.selectionStart,b:t.selectionEnd}}
+document.addEventListener('selectionchange',brKeepSel);
+function brInsert(f){const t=brTa();if(!t)return;const len=t.value.length,a=Math.min(S.brSel?.a??len,len),b=Math.min(S.brSel?.b??a,len);
+  const r=f(t.value.slice(0,a),t.value.slice(a,b),t.value.slice(b));t.value=r[0]+r[1]+r[2];const pos=(r[0]+r[1]).length;
+  S.brSel={a:pos,b:pos};t.focus();t.setSelectionRange(pos,pos)}
+const brLineStart=(pre,sel,post,mark)=>{const i=pre.lastIndexOf('\n')+1;const line=pre.slice(i);return [pre.slice(0,i)+(line.startsWith(mark)?line.slice(mark.length):mark+line),sel,post]};
+function brPop(html){brPopClose();const sh=$('#layer .sheet');if(!sh)return;sh.insertAdjacentHTML('beforeend',`<div class="br-pop-bg" data-act="brPopClose"></div><div class="br-pop" role="menu">${html}</div>`)}
+function brPopClose(){document.querySelectorAll('.br-pop,.br-pop-bg').forEach(e=>e.remove())}
+function brMenu(){const signed=!!(sb&&A.user);const it=(act,l)=>`<button type="button" data-act="${act}">${l}</button>`;
+  const fl=(kind,acc,l)=>signed?`<label>${l}<input type="file" accept="${acc}" data-change="brIns" data-kind="${kind}" hidden></label>`:it('brNeedAcct',l);
+  brPop(`${it('brTNote','Insérer un titre de note')}${it('brTBold','Mettre en gras')}${it('brTHead','Titre de partie')}${it('brTList','Liste à puces')}${fl('image','image/*','Insérer une image')}${fl('file','audio/*,video/*','Insérer un fichier (audio, vidéo)')}${it('brTLink','Insérer un lien web')}${it('brPopClose','Annuler')}`)}
+function brNotePicker(q=''){const qq=brNorm(q),cur=$('#brt')?.value||'';
+  const list=notes().filter(x=>brNorm(x.title)!==brNorm(cur)&&(!qq||brNorm(x.title).includes(qq))).sort((a,b)=>a.title.localeCompare(b.title,'fr')).slice(0,30);
+  return list.map(x=>`<button type="button" data-act="brTPick" data-t="${esc(x.title)}">${esc(x.title)}</button>`).join('')+(q.trim()&&!brByTitle(q)?`<button type="button" data-act="brTPick" data-t="${esc(q.trim())}">Nouvelle note : « ${esc(q.trim())} »</button>`:'')+(list.length||q.trim()?'':'<p class="fn" style="padding:8px 12px">Aucune autre note. Tape un titre pour en créer une.</p>')}
+(function(){let tm=0,x0=0,y0=0;
+  document.addEventListener('touchstart',e=>{const t=e.target;if(t.id!=='brb'||e.touches.length!==1)return;x0=e.touches[0].clientX;y0=e.touches[0].clientY;clearTimeout(tm);
+    tm=setTimeout(()=>{S.brSel={a:t.selectionStart,b:t.selectionEnd};t.blur();haptic(10);brMenu()},560)},{passive:true});
+  document.addEventListener('touchmove',e=>{if(!tm)return;const p=e.touches[0];if(Math.abs(p.clientX-x0)>8||Math.abs(p.clientY-y0)>8){clearTimeout(tm);tm=0}},{passive:true});
+  document.addEventListener('touchend',()=>{clearTimeout(tm);tm=0},{passive:true});
+  document.addEventListener('contextmenu',e=>{if(e.target.id==='brb'){e.preventDefault();S.brSel={a:e.target.selectionStart,b:e.target.selectionEnd};brMenu()}});
+  document.addEventListener('input',e=>{if(e.target.id==='brpq'){const l=$('#brpl');if(l)l.innerHTML=brNotePicker(e.target.value)}});
+})();
+async function brInsFile(file,kind){if(!file)return;brPopClose();const type=kind==='image'?'image':/^video\//.test(file.type)?'video':/^audio\//.test(file.type)?'audio':null;
+  if(!type){hud('Fichier non pris en charge : image, audio ou vidéo');return}
+  hud('Envoi…');const b=type==='image'?await brShrink(file):file;const m=await brUpload({id:S.brNid},b,type,file.name,true);
+  if(m){brInsert((pre,sel,post)=>[pre+(pre&&!pre.endsWith('\n')?'\n':''),`![[media:${m.id}]]`,'\n'+post.replace(/^\n/,'')]);hud(type==='image'?'Image insérée':'Fichier inséré')}}
+/* ---------- export : notes en Markdown (compatible Obsidian) + médias, dans un fichier .zip ---------- */
+let ZIPp=null;
+const loadZip=()=>ZIPp||(ZIPp=new Promise((ok,ko)=>{if(window.JSZip)return ok(window.JSZip);const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';sc.onload=()=>ok(window.JSZip);sc.onerror=()=>{ZIPp=null;ko(new Error('Connexion nécessaire'))};document.head.appendChild(sc)}));
+const fileSafe=t=>String(t).replace(/[\\/:*?"<>|#^[\]]/g,' ').replace(/\s+/g,' ').trim().slice(0,100)||'Sans titre';
+async function brExport(){if(!notes().length){hud('Aucune note à exporter');return}if(needNet())return;
+  hud('Préparation de l’export…');
+  try{const Z=await loadZip(),zip=new Z(),root='Deuxième cerveau',used=new Set(),names=new Map();let nm=0,miss=0;
+    notes().forEach(n=>{const f=fileSafe(n.title);let k=f,i=2;while(used.has(k.toLowerCase()))k=f+' '+i++;used.add(k.toLowerCase());names.set(n.id,k)});
+    for(const n of notes()){const mfile=m=>`${names.get(n.id)} - ${m.id}.${m.path.split('.').pop()}`;
+      let body=(n.body||'').replace(/(?<!!)\[\[([^\]\n]{1,120})\]\]/g,(x,t)=>{const y=brByTitle(t);const f=y&&names.get(y.id);return f&&f!==t?`[[${f}|${t}]]`:x})
+        .replace(/!\[\[media:([a-z0-9]+)\]\]/g,(x,id)=>{const m=(n.media||[]).find(y=>y.id===id);return m?`![[${mfile(m)}]]`:''});
+      const inl=new Set([...(n.body||'').matchAll(/!\[\[media:([a-z0-9]+)\]\]/g)].map(x=>x[1]));const rest=(n.media||[]).filter(m=>!inl.has(m.id));
+      const d=x=>x?new Date(x).toISOString().slice(0,10):'';
+      const md=`---\ntitle: "${n.title.replace(/"/g,'\\"')}"\n${(n.tags||[]).length?`tags: [${n.tags.join(', ')}]\n`:''}created: ${d(n.created)}\nupdated: ${d(n.updated)}\n---\n\n${body.trim()}\n`
+        +(rest.length?`\n## Médias\n\n${rest.map(m=>`![[${mfile(m)}]]`).join('\n')}\n`:'')
+        +((n.links||[]).length?`\n## Liens\n\n${n.links.map(l=>`- [${(l.title||l.url).replace(/[\[\]]/g,'')}](${l.url})`).join('\n')}\n`:'');
+      zip.file(`${root}/${names.get(n.id)}.md`,md);
+      for(const m of n.media||[]){try{if(!sb||!A.user)throw 0;const r=await fetch(await brUrl(m.path));if(!r.ok)throw 0;zip.file(`${root}/Médias/${mfile(m)}`,await r.blob());nm++}catch(e){miss++}}}
+    const blob=await zip.generateAsync({type:'blob'});
+    S.brZip=new File([blob],`Luckin-deuxieme-cerveau-${TODAY()}.zip`,{type:'application/zip'});
+    sheet('Export prêt',sec('',`<div class="cell"><span class="body"><span>${notes().length} note${notes().length>1?'s':''}${nm?` · ${nm} média${nm>1?'s':''}`:''}</span><span class="fn">${blob.size<1048576?Math.max(1,Math.round(blob.size/1024))+' Ko':(blob.size/1048576).toLocaleString('fr-FR',{maximumFractionDigits:1})+' Mo'}${miss?` · ${miss} média${miss>1?'s':''} non récupéré${miss>1?'s':''}`:''}</span></span></div>
+      <button type="button" class="cell tap link center" data-act="brSaveZip">Enregistrer le fichier</button>`,'Un dossier « Deuxième cerveau » : une note = un fichier .md (texte lisible partout, liens [[ ]] reconnus par Obsidian), médias dans « Médias ». Enregistre-le dans Fichiers ou iCloud Drive.'),{save:''})}
+  catch(e){hud('Export impossible : '+(e?.message||e))}}
+async function brSaveZip(){const f=S.brZip;if(!f)return;
+  try{if(navigator.canShare?.({files:[f]})){await navigator.share({files:[f],title:f.name});return}}catch(e){if(e?.name==='AbortError')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
 const REC={};
 document.addEventListener('input',ev=>{if(ev.target.id!=='brq')return;S.brQ=ev.target.value;const r=$('#brres');if(r)r.innerHTML=brResults()});
-document.addEventListener('change',ev=>{const t=ev.target;if(t.id!=='brl'||!t.value)return;const ta=$('#brb'),ins='[['+t.value+']]';
-  const a=ta.selectionStart??ta.value.length,b=ta.selectionEnd??a;ta.value=ta.value.slice(0,a)+ins+ta.value.slice(b);ta.focus();ta.selectionStart=ta.selectionEnd=a+ins.length;t.value=''});
 function brRecordSheet(){sheet('Mémo vocal',`${sec('',`<div class="cell br-rec"><span class="br-rt" id="brrt">0:00</span><button type="button" class="br-rb" data-act="brRecGo" id="brrb" aria-label="Enregistrer"></button><span class="fn" id="brrs">Touche le rond pour enregistrer.</span></div>`,'','notile')}`,{save:''})}
 async function brRecToggle(){const b=$('#brrb');
   if(REC.mr&&REC.mr.state==='recording'){REC.mr.stop();return}
@@ -1814,6 +1897,16 @@ function brainAct(act,id,el){const n=notes().find(x=>x.id===id);
    case 'brDel':{if(!n)break;const paths=(n.media||[]).map(m=>m.path);db.notes=notes().filter(x=>x.id!==id);S.note=null;save();paintBrain();
      if(paths.length&&sb&&A.user)sb.storage.from(BRAIN_BUCKET).remove(paths).catch(()=>{});hud('Note supprimée');break}
    case 'brRecord':brRecordSheet();break;
+   case 'brTBold':brPopClose();brInsert((p,s,q)=>[p,'**'+(s||'texte')+'**',q]);break;
+   case 'brTHead':brPopClose();brInsert((p,s,q)=>brLineStart(p,s,q,'## '));break;
+   case 'brTList':brPopClose();brInsert((p,s,q)=>brLineStart(p,s,q,'- '));break;
+   case 'brTNote':brPop(`<input id="brpq" class="br-pq" placeholder="Chercher ou créer une note" autocomplete="off"><div id="brpl" class="br-pl">${brNotePicker()}</div>`);setTimeout(()=>$('#brpq')?.focus(),50);break;
+   case 'brTPick':brPopClose();brInsert((p,s,q)=>[p+brSp(p),'[['+el.dataset.t+']]',q]);break;
+   case 'brTLink':brPop(`<input id="brpu" class="br-pq" inputmode="url" autocapitalize="off" placeholder="Adresse (https://…)" autocomplete="off"><input id="brpt" class="br-pq" placeholder="Texte affiché (facultatif)" autocomplete="off"><button type="button" data-act="brTLinkGo"><b>Insérer le lien</b></button><button type="button" data-act="brPopClose">Annuler</button>`);setTimeout(()=>$('#brpu')?.focus(),50);break;
+   case 'brTLinkGo':{const u=($('#brpu')?.value||'').trim(),tx=($('#brpt')?.value||'').trim().replace(/[\[\]]/g,'');if(!u){hud('Indique une adresse');break}const url=safeUrl(u);brPopClose();brInsert((p,s,q)=>[p+(s?'':brSp(p)),tx||s?`[${tx||s}](${url})`:url,q]);break}
+   case 'brPopClose':brPopClose();break;
+   case 'brExport':brExport();break;
+   case 'brSaveZip':brSaveZip();break;
    case 'brRecGo':brRecToggle();break;
    case 'brNeedAcct':hud('Connecte-toi dans Réglages pour ajouter des médias');break;
    default:return false}

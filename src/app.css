@@ -489,3 +489,18 @@ a.cell{text-decoration:none}
 .br-rt{font:600 34px var(--display);font-variant-numeric:tabular-nums}
 .br-rb{width:72px;height:72px;border-radius:50%;border:4px solid var(--label3);background:var(--red);cursor:pointer;transition:border-radius .2s,transform .2s}
 .br-rb.on{border-radius:14px;transform:scale(.7)}
+/* Apprentissage : barre d'outils d'écriture, menu d'insertion, médias dans le texte */
+.br-tools{display:flex!important;flex-wrap:nowrap;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.br-tools::-webkit-scrollbar{display:none}
+.br-tools button,.br-tools label{flex:none;font-size:13px;padding:6px 11px;border-radius:99px;background:var(--fill);color:var(--label);cursor:pointer;white-space:nowrap;border:0;font-family:inherit}
+#brb{min-height:200px}
+.br-pop-bg{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.25)}
+.br-pop{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);transform:translateX(-50%);z-index:71;width:calc(100% - 32px);max-width:420px;max-height:70vh;overflow:auto;
+  background:var(--card);border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;padding:6px}
+.br-pop>button,.br-pop>label,.br-pl>button{display:block;width:100%;text-align:left;padding:13px 14px;border:0;background:none;color:var(--label);font:17px var(--font);border-radius:12px;cursor:pointer}
+.br-pop>button:active,.br-pop>label:active,.br-pl>button:active{background:var(--fill)}
+.br-pq{margin:6px;padding:11px 12px;border-radius:12px;border:0;background:var(--fill);color:var(--label);font:17px var(--font);outline:none}
+.br-pl{max-height:45vh;overflow:auto}
+.br-text h3{font:700 19px/1.3 var(--display);margin:.8em 0 .4em}
+.br-text h3:first-child{margin-top:0}
+.br-inl{margin:.6em 0;border-radius:14px}
