@@ -621,17 +621,6 @@ a.cell{text-decoration:none}
 #home .h-quote p{font:italic 400 17px/1.45 ui-serif,"New York",Georgia,serif;color:var(--h-2);text-wrap:pretty}
 #home .h-quote cite{font:500 13px/1 var(--font);letter-spacing:0;text-transform:none;color:var(--h-2);opacity:.75}
 #home .h-quote cite::before{content:"— "}
-.orbit{display:flex;flex-direction:column;margin-top:30px;background:var(--h-card);border-radius:20px;overflow:hidden}
-.planet{position:relative;display:flex;align-items:center;gap:14px;width:100%;padding:13px 16px;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
-.planet+.planet::before{content:"";position:absolute;top:0;left:64px;right:0;height:.5px;background:var(--h-line)}
-.planet:active{background:var(--h-line)}
-.p-ring{width:34px;height:34px;flex:none;border-radius:50%;background:var(--c);display:grid;place-items:center}
-.p-ring svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.planet.soon .p-ring{background:color-mix(in srgb,var(--c) 45%,var(--h-card))}
-.p-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.p-name{font:600 17px/1.2 var(--display)}
-.p-meta{font-size:13px;line-height:1.3;color:var(--h-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.planet .chev{width:8px;height:13px;flex:none;color:var(--h-2);opacity:.6}
 #home .fr-card{margin:16px auto 0;background:var(--h-card);border:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:20px}
 .cell>textarea{flex:1;width:100%}
 /* Carrière : barre d'onglets propre à la section */
@@ -639,12 +628,6 @@ a.cell{text-decoration:none}
 #area{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 110px)}
 #area .a-head .l2{font-weight:600;font-size:14px}
 .ct-av{width:34px;height:34px;flex:none;border-radius:50%;display:grid;place-items:center;font:700 14px var(--font);color:#fff;background:hsl(var(--h) 52% 50%)}
-/* Accueil : la liste des sections occupe l'espace libre, le groupe se pose en bas */
-.orbit{flex:1 1 auto;max-height:480px;min-height:280px;margin-top:clamp(24px,4vh,44px)}
-.planet{flex:1 1 0;min-height:64px}
-.p-ring{width:40px;height:40px}.p-ring svg{width:20px;height:20px}
-.p-name{font-size:18px}.p-meta{font-size:14px}
-#friends{margin-top:auto!important;padding-top:16px}
 /* Tâches : cercle à cocher coloré selon la priorité */
 .td{gap:12px}
 .td-check{width:26px;height:26px;flex:none;border-radius:50%;border:2px solid var(--pc);background:transparent;color:#fff;display:grid;place-items:center;padding:0;cursor:pointer}
@@ -672,7 +655,30 @@ a.cell{text-decoration:none}
 /* iPhone : les champs date et heure ont leur propre alignement interne ; on les cale à droite comme les autres valeurs */
 .cell.field input[type=date],.cell.field input[type=time]{-webkit-appearance:none;appearance:none;display:block;min-width:0;text-align:right;background:transparent}
 .cell.field input[type=date]::-webkit-date-and-time-value,.cell.field input[type=time]::-webkit-date-and-time-value{text-align:right;margin:0}
-</style>
+
+/* Accueil : agenda du jour au centre, barre des 5 sections en bas */
+#home{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 104px)}
+#home .h-quote{margin-top:10px}#home .h-quote p{font-size:15px}
+#agenda{margin-top:22px;display:flex;flex-direction:column;gap:18px}
+#agenda .sec{margin:0}
+#agenda .sec-h{color:var(--h-2);padding:0 6px 6px}
+#agenda .group{background:var(--h-card);border-radius:20px;overflow:hidden}
+#agenda .cell{gap:12px;background:none}
+.ag .ag-dot{width:12px;height:12px;margin:0 7px;border-radius:50%;background:var(--c);flex:none}
+.ag-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:left;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer}
+.ag-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ag .fn{color:var(--h-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#friends{margin-top:18px}
+.hbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 10px);width:calc(100% - 32px)!important;max-width:440px;z-index:2;
+  padding:8px 6px;border-radius:28px;background:var(--h-card);box-shadow:0 8px 28px rgba(0,0,0,.12)}
+.hbar .in{display:grid;grid-template-columns:repeat(5,1fr)}
+.planet{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;padding:2px 0;color:inherit;font:inherit;cursor:pointer}
+.p-ring{width:40px;height:40px;border-radius:50%;background:var(--c);display:grid;place-items:center;transition:transform .15s}
+.p-ring svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.planet:active .p-ring{transform:scale(.9)}
+.planet.soon .p-ring{background:color-mix(in srgb,var(--c) 45%,var(--h-card))}
+.p-name{font:600 11px/1 var(--font);color:var(--h-2)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .hbar{box-shadow:0 8px 28px rgba(0,0,0,.5)}}</style>
 
 </head><body>
 <div id="splash" class="lk-sp" aria-hidden="true"><svg class="lk" viewBox="0 0 571 200" role="img" aria-label="Luck’In"><g transform="translate(0 5) scale(1.583)"><circle class="lk-ghost" cx="42" cy="28" r="10"/><path class="lk-chair" pathLength="1" d="M28 40 C24 70 32 90 58 94 L86 94"/><g transform="translate(54 84)"><g class="lk-body"><path class="lk-torso" d="M0 0 L20 -32"/><circle class="lk-head" cx="30" cy="-48" r="10"/></g></g></g><path class="lk-w1" d="M234.256 132.0V71.904H227.728V61.92H247.6V132.0Z M277.744 133.632Q268.72 133.632 263.776 127.68Q258.832 121.728 258.832 110.01599999999999V79.776H272.176V111.168Q272.176 115.968 274.86400000000003 118.80000000000001Q277.552 121.632 282.16 121.632Q286.76800000000003 121.632 289.696 118.656Q292.624 115.68 292.624 110.592V79.776H305.968V132.0H295.408V119.904Q295.024 121.536 294.448 122.976Q292.432 128.256 288.4 130.94400000000002Q284.368 133.632 278.32 133.632Z M341.58400000000006 133.824Q334.76800000000003 133.824 329.82400000000007 131.52Q324.88000000000005 129.216 321.56800000000004 125.376Q318.25600000000003 121.536 316.624 116.736Q314.992 111.936 314.992 106.944V105.12Q314.992 99.84 316.672 94.992Q318.35200000000003 90.144 321.71200000000005 86.352Q325.07200000000006 82.56 330.0160000000001 80.304Q334.96000000000004 78.048 341.48800000000006 78.048Q348.30400000000003 78.048 353.68000000000006 80.688Q359.05600000000004 83.328 362.27200000000005 88.032Q365.48800000000006 92.73599999999999 365.872 98.976H352.91200000000003Q352.432 94.944 349.504 92.256Q346.576 89.568 341.48800000000006 89.568Q337.07200000000006 89.568 334.144 91.68Q331.216 93.792 329.776 97.488Q328.336 101.184 328.336 105.984Q328.336 110.592 329.728 114.336Q331.12 118.08 334.048 120.19200000000001Q336.97600000000006 122.304 341.58400000000006 122.304Q345.04 122.304 347.53600000000006 121.056Q350.03200000000004 119.80799999999999 351.52000000000004 117.6Q353.00800000000004 115.392 353.39200000000005 112.608H366.35200000000003Q365.968 118.944 362.65600000000006 123.696Q359.34400000000005 128.448 353.9200000000001 131.13600000000002Q348.49600000000004 133.824 341.58400000000006 133.824Z M410.60800000000006 132.0 393.136 107.616H387.47200000000004V132.0H374.12800000000004V61.92H387.47200000000004V104.928L407.53600000000006 79.872H421.456L403.696 102.048L425.68000000000006 132.0Z"/><path class="lk-w2" d="M483.37600000000003 132.0V89.856H476.08000000000004V79.872H496.72V132.0ZM488.27200000000005 73.632Q484.33600000000007 73.632 482.46400000000006 71.568Q480.59200000000004 69.50399999999999 480.59200000000004 66.33599999999998Q480.59200000000004 63.16799999999999 482.46400000000006 61.151999999999994Q484.33600000000007 59.135999999999996 488.27200000000005 59.135999999999996Q492.208 59.135999999999996 494.03200000000004 61.151999999999994Q495.85600000000005 63.16799999999999 495.85600000000005 66.33599999999998Q495.85600000000005 69.50399999999999 494.03200000000004 71.568Q492.208 73.632 488.27200000000005 73.632Z M509.20000000000005 132.0V79.872H519.76V92.73599999999999Q520.24 90.72 520.912 88.896Q523.024 83.616 527.2 80.928Q531.3760000000001 78.24000000000001 537.616 78.24000000000001H538.192Q547.504 78.24000000000001 552.3040000000001 84.24000000000001Q557.104 90.24000000000001 557.104 102.144V132.0H543.76V100.992Q543.76 96.19200000000001 541.024 93.21600000000001Q538.288 90.24000000000001 533.488 90.24000000000001Q528.5920000000001 90.24000000000001 525.5680000000001 93.26400000000001Q522.5440000000001 96.288 522.5440000000001 101.376V132.0Z"/><g class="lk-arrow" transform="translate(424.82 56.16) scale(1.9000)"><path class="lk-a1" pathLength="1" d="M3 15 Q11 3 21 9"/><path class="lk-a2" pathLength="1" d="M21 3 L22 10 L15 11"/></g></svg></div>
@@ -690,7 +696,7 @@ a.cell{text-decoration:none}
   <button data-view="settings" aria-label="Réglages Forme" title="Réglages Forme"><svg class="o" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8l1.6 2.4 2.8-.7.7 2.8 2.4 1.6-1.3 2.6 1.3 2.6-2.4 1.6-.7 2.8-2.8-.7L12 21.2l-1.6-2.4-2.8.7-.7-2.8-2.4-1.6L5.8 12 4.5 9.5l2.4-1.6.7-2.8 2.8.7Z"/></svg><svg class="f" viewBox="0 0 24 24"><path class="fill" d="M12 2.8l1.6 2.4 2.8-.7.7 2.8 2.4 1.6-1.3 2.6 1.3 2.6-2.4 1.6-.7 2.8-2.8-.7L12 21.2l-1.6-2.4-2.8.7-.7-2.8-2.4-1.6L5.8 12 4.5 9.5l2.4-1.6.7-2.8 2.8.7Z"/><circle cx="12" cy="12" r="3.2" fill="var(--pill-bg,#fff)" stroke="none"/></svg></button>
 </div></nav>
 <div id="layer"></div>
-<section id="home" aria-label="Accueil"><button type="button" class="h-me" data-act="openPrefs" aria-label="Réglages" id="hMe"></button><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote"><p>« Dans la vie, rien n’est à craindre, tout est à comprendre. »</p><cite>Marie Curie</cite></blockquote></div><div class="orbit" id="orbit"></div><div id="friends"></div></section>
+<section id="home" aria-label="Accueil"><button type="button" class="h-me" data-act="openPrefs" aria-label="Réglages" id="hMe"></button><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote"><p>« Dans la vie, rien n’est à craindre, tout est à comprendre. »</p><cite>Marie Curie</cite></blockquote></div><div id="agenda"></div><div id="friends"></div><nav class="hbar" id="orbit" aria-label="Sections"></nav></section>
 <section id="area" hidden></section>
 <div id="bloom" hidden></div>
 
@@ -1272,7 +1278,11 @@ document.addEventListener('click',ev=>{
   const el=ev.target.closest('[data-act]');if(!el)return;const act=el.dataset.act,id=el.dataset.id;
   if(act==='closeSheet'){if(el.classList.contains('scrim')&&ev.target!==el)return;closeSheet();return}
   if(el.closest('.asheet'))closeSheet(true);
-  if(jobAct(act,id,el)||todoAct(act,id,el))return; /* actions des sections Carrière et Tâches */
+  if(act==='agMorning'){morningSheet();return}
+  if(act==='agEvening'){eveningSheet();return}
+  if(act==='agWeekly'){weeklySheet();return}
+  if(act==='agWorkout'){S.tab='workout';openArea('forme');return}
+  if(jobAct(act,id,el)||todoAct(act,id,el)){if(!$('#home').hidden)paintAgenda();return} /* actions des sections Carrière et Tâches */
   switch(act){
    case 'sugarInfo':{const n=sugarStreak(),b=sugarBest();asheet(`Série sans sucre ajouté : ${n} jour${n>1?'s':''} · record ${b} jour${b>1?'s':''}. Une journée compte une fois la fiche du soir validée sans sucre ajouté (repas et hors repas).`,[{label:'Ouvrir la fiche du soir',act:'evening'}]);break}
    case 'morning':morningSheet();break;
@@ -1349,6 +1359,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(!t.closest('form')&&t.closest('.seg')){if(t.name==='model'){st().model=t.value;save();hud('Modèle mis à jour')}if(t.name==='countMode'){st().countMode=t.value;save();hud(t.value==='mains'?'Portions de main activées':'Calories activées')}if(t.name==='muscleUnit'){st().muscleUnit=t.value;save()}return}
 });
 function importJSON(s){try{const d=JSON.parse(s);if(!d.days||!d.settings)throw 0;db=d;save();closeSheet(true);render({top:true});hud('Données importées')}catch(e){hud('Ce n’est pas une sauvegarde Luck’In Forme valide')}}
+document.addEventListener('submit',()=>{if(!$('#home').hidden)setTimeout(paintAgenda,30)});
 document.addEventListener('submit',ev=>{
   const f=ev.target;if(!f.dataset.form)return;ev.preventDefault();const fd=new FormData(f);const v=Object.fromEntries(fd);const t=TODAY();
   if(f.dataset.form==='job'||f.dataset.form==='jobGoal'){jobSubmit(f,v);return}
@@ -1655,21 +1666,47 @@ function todoAct(act,id,el){const x=todos().find(y=>y.id===id);
    case 'tdDel':db.todos=todos().filter(y=>y.id!==id);save();paintTodos();hud('Tâche supprimée');break;
    default:return false}
   return true}
+/* ================= accueil : ce qui est à faire aujourd'hui et bientôt, toutes sections confondues ================= */
+const AG_SOON=7;
+function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntries(AREAS.map(a=>[a.id,a.color])),out=[];
+  const add=o=>out.push(Object.assign({time:'',late:false},o));
+  // Forme : rituels du jour encore à faire
+  if(!morningDone(t))add({day:t,area:'forme',title:'Réveil',meta:'Poids et sommeil',act:'agMorning'});
+  const active=db.active&&db.workouts.find(w=>w.id===db.active.id);
+  if(active)add({day:t,area:'forme',title:'Séance en cours',meta:esc(active.name),act:'agWorkout'});
+  else if(isTrainingDay(t)&&!workoutsOn(t).length){const tp=nextTemplate();add({day:t,area:'forme',title:'Séance',meta:tp?esc(tp.name):'Jour d’entraînement',act:'agWorkout'})}
+  if(dow(t)===6&&!db.weekly[t]?.done)add({day:t,area:'forme',title:'Bilan du dimanche',meta:'Mensurations et bilan',act:'agWeekly'});
+  if(!eveningDone(t))add({day:t,area:'forme',title:'Soir',meta:'Clôturer la journée',act:'agEvening'});
+  // Carrière : entretiens, événements, relances, contacts
+  jobs().filter(jobOpen).forEach(j=>(j.interviews||[]).forEach(i=>{if(i.date>=t&&i.date<=end)add({day:i.date,time:i.time||'',area:'carriere',title:'Entretien · '+esc(j.company),meta:[(IVKIND.find(k=>k[0]===i.kind)||[])[1],j.role&&esc(j.role)].filter(Boolean).join(' · '),act:'jobEdit',id:j.id})}));
+  events().forEach(e=>{if(e.date>=t&&e.date<=end)add({day:e.date,time:e.time||'',area:'carriere',title:esc(e.title),meta:[(EVKIND.find(k=>k[0]===e.kind)||[])[1],e.place&&esc(e.place)].filter(Boolean).join(' · '),act:'evEdit',id:e.id})});
+  jobs().filter(relanceDue).forEach(j=>add({day:t,area:'carriere',title:'Relancer '+esc(j.company),meta:'Sans nouvelles depuis '+diff(lastContact(j),t)+' jours',act:'jobMenu',id:j.id}));
+  contacts().filter(x=>x.next&&x.next<=end).forEach(x=>add({day:x.next<t?t:x.next,late:x.next<t,area:'carriere',title:'Recontacter '+esc(x.name),meta:[x.role&&esc(x.role),x.company&&esc(x.company)].filter(Boolean).join(' · '),act:'ctEdit',id:x.id}));
+  // Tâches : en retard, du jour et des 7 prochains jours
+  todos().filter(x=>!x.done&&x.due&&x.due<=end).forEach(x=>add({day:x.due<t?t:x.due,late:x.due<t,time:x.time||'',area:'taches',title:esc(x.title),meta:[x.rep?'↻ '+REP_SHORT[x.rep]:null,x.cat&&esc(x.cat)].filter(Boolean).join(' · '),act:'tdEdit',id:x.id,todo:x}));
+  const rank=o=>(o.late?'0':'1')+(o.time||'99:99')+(o.todo?prioRank(o.todo.prio):3);
+  out.forEach(o=>o.c=C[o.area]);
+  return {today:out.filter(o=>o.day===t).sort((a,b)=>rank(a).localeCompare(rank(b))),soon:out.filter(o=>o.day>t).sort((a,b)=>(a.day+(a.time||'99')).localeCompare(b.day+(b.time||'99')))}}
+function paintAgenda(){const el=$('#agenda');if(!el)return;const {today,soon}=agendaItems(),t=TODAY();
+  const row=o=>`<div class="cell ag" style="--c:${o.c};--pc:${o.todo?PRIO_C[o.todo.prio]||PRIO_C.moyenne:o.c}">${o.todo?`<button type="button" class="td-check" data-act="tdToggle" data-id="${o.id}" aria-label="Marquer comme faite"></button>`:'<span class="ag-dot"></span>'}
+    <button type="button" class="ag-body" data-act="${o.act}" ${o.id?`data-id="${o.id}"`:''}><span class="ag-t">${o.title}</span><span class="fn">${[o.day!==t?whenDay(o.day):null,o.time?esc(o.time):null,o.meta||null].filter(Boolean).join(' · ')}</span></button>${o.late?'<span class="pill late">En retard</span>':''}</div>`;
+  el.innerHTML=`<section class="sec"><div class="sec-h">Aujourd’hui${today.length?` · ${today.length}`:''}</div><div class="group">${today.length?today.map(row).join(''):`<div class="cell"><span class="body fn">Rien de prévu aujourd’hui. Profite !</span></div>`}</div></section>
+   ${soon.length?`<section class="sec"><div class="sec-h">Bientôt</div><div class="group">${soon.map(row).join('')}</div></section>`:''}`}
 /* ================= accueil : cercles des aspects de vie ================= */
 const AREAS=[
  {id:'forme',name:'Forme',sub:'Sport & nutrition',color:'#F2994A',size:128,ready:true},
  {id:'carriere',name:'Carrière',sub:'Candidatures & entretiens',color:'#3E6FD8',size:112,paint:()=>paintCareer()},
  {id:'taches',name:'Tâches',sub:'To-do, échéances & priorités',color:'#D94F70',size:110,paint:()=>paintTodos()},
  {id:'finances',name:'Finances',sub:'Budget & épargne',color:'#2F9E6E',size:104,ideas:['Budget du mois et dépenses par catégorie','Objectifs d’épargne','Suivi des investissements']},
- {id:'savoir',name:'Apprentissage',sub:'Lectures & compétences',color:'#8E5CC9',size:126,ideas:['Livres en cours et notes de lecture','Formations et certifications','Temps d’étude par semaine']}];
+ {id:'savoir',name:'Apprentissage',short:'Savoir',sub:'Lectures & compétences',color:'#8E5CC9',size:126,ideas:['Livres en cours et notes de lecture','Formations et certifications','Temps d’étude par semaine']}];
 const H={angle:0,last:0,raf:0,open:true};
 const AREA_ICONS={"taches": "<rect x=\"3.5\" y=\"3.5\" width=\"17\" height=\"17\" rx=\"5\"/><path d=\"M8 12.3l2.8 2.7 5.4-5.5\"/>", "forme": "<path d=\"M2.6 12h18.8\"/><rect x=\"4\" y=\"7.5\" width=\"3.6\" height=\"9\" rx=\"1.4\"/><rect x=\"16.4\" y=\"7.5\" width=\"3.6\" height=\"9\" rx=\"1.4\"/>", "carriere": "<rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"3\"/><path d=\"M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7M3 12.5h18\"/>", "finances": "<path d=\"M4 19.5h16\"/><path d=\"M6.5 16v-4M11 16V8M15.5 16v-6M20 5.5l-4.5 3-4-2.5L6 9.5\"/>", "savoir": "<path d=\"M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5Z\"/><path d=\"M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5a1.5 1.5 0 0 1 1.5 1.5Z\"/>"};
 const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
-function areaMeta(a){if(a.id==='taches'){const t=TODAY(),o=todos().filter(x=>!x.done),late=o.filter(x=>x.due&&x.due<t).length,today=o.filter(x=>x.due===t).length;return late||today?[late?late+' en retard':null,today?today+' aujourd’hui':null].filter(Boolean).join(' · '):o.length?o.length+' à faire':'Rien à faire'}if(a.id==='carriere'){const d=jobs().filter(relanceDue).length;return `${weekApps()}/${car().goal} cette semaine`+(d?` · ${d} à relancer`:'')}if(a.id==='forme'){const n=sugarStreak();const a7=lastWeightAvg();return [a7!=null?fmt(a7)+' kg':null,n?n+' j sans sucre':null].filter(Boolean).join(' · ')||a.sub}return a.sub}
 function paintHome(){
   $('#hName').textContent='Bonjour '+st().name;$('#hMe').textContent=(st().name||'?').trim().charAt(0).toUpperCase();
   $('#hDate').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
-  $('#orbit').innerHTML=AREAS.map(a=>`<button class="planet${a.ready||a.paint?'':' soon'}" data-area="${a.id}" style="--c:${a.color};--s:${a.size}px" aria-label="${a.name}"><span class="p-ring"><svg viewBox="0 0 24 24" aria-hidden="true">${AREA_ICONS[a.id]}</svg></span><span class="p-txt"><span class="p-name">${a.name}</span><span class="p-meta">${esc(areaMeta(a))}</span></span>${I.chev}</button>`).join('');
+  $('#orbit').innerHTML=`<div class="in">`+AREAS.map(a=>`<button class="planet${a.ready||a.paint?'':' soon'}" data-area="${a.id}" style="--c:${a.color}" aria-label="${a.name}"><span class="p-ring"><svg viewBox="0 0 24 24" aria-hidden="true">${AREA_ICONS[a.id]}</svg></span><span class="p-name">${a.short||a.name}</span></button>`).join('')+`</div>`;
+  paintAgenda();
   placePlanets();paintFriends();loadGroup();
 }
 function placePlanets(){}
