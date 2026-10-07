@@ -508,12 +508,15 @@ function morningSheet(){const m=peekDay(TODAY()).morning||{};const s=st();
    ${s.reading?.on?sec(esc(s.reading.label||'Lecture'),`<button type="button" class="cell tap" data-act="bibleStart"><span class="ico" style="background:#A2845E">${I.book}</span><span class="body"><span>${m.bible?'Lecture faite · relancer':'Démarrer · '+(s.reading.min||10)+' min'}</span></span>${m.bible?state(true):`<span class="plus" style="background:#A2845E">▶</span>`}</button>`):''}
    ${sec('',`<button type="button" class="cell tap link" data-act="importHealth">Importer depuis le presse-papiers (Raccourci Santé)</button>`)}
   </form>`)}
-function mealSheet(m){const isNew=!m;const s=st();m=m||{type:defaultMealType(),foods:'',source:'maison',speed:'pose',time:nowHM()};
+function mealSheet(m){const isNew=!m;const s=st();S.mealImg=null;m=m||{type:defaultMealType(),foods:'',source:'maison',speed:'pose',time:nowHM()};
   const recent=db.foods.slice(0,14);
   const hands=m.hands||{p:0,c:0,f:0,v:0};
   const hand=(k,l,h)=>`<div class="cell"><span class="body"><span>${l}</span><span class="fn">${h}</span></span><div class="stepper"><button type="button" data-hstep="${k}" data-d="-0.5" aria-label="Moins">−</button><output id="h-${k}">${fmt(hands[k]||0)}</output><button type="button" data-hstep="${k}" data-d="0.5" aria-label="Plus">+</button></div><input type="hidden" id="hi-${k}" name="h_${k}" value="${hands[k]||0}"></div>`;
   sheet(isNew?'Nouveau repas':'Modifier le repas',`<form id="sf" data-form="meal" data-id="${m.id||''}">
    ${sec('',`<div class="cell">${seg('type',MEALTYPES,m.type)}</div><label class="cell field" for="mtime"><span>Heure</span><input id="mtime" name="time" type="time" value="${m.time||''}"></label>`)}
+   ${sec('Photo du repas',`<div class="cell mp-row"><label class="mp-btn">Analyser une photo<input type="file" accept="image/*" capture="environment" data-change="mealPhoto" hidden></label><button type="button" class="mp-again" data-act="mealPhotoAgain" hidden>Recalculer</button></div>
+     <label class="cell field" for="mph"><span>Poids, précision</span><input id="mph" placeholder="350 g, riz complet…" autocomplete="off"></label>
+     <div class="cell mp-res" id="mpres" hidden></div><input type="hidden" name="ai_kcal" id="aik"><input type="hidden" name="ai_prot" id="aip">`,'L’app estime aliments, calories et protéines (≈ 1 centime par photo, avec ta clé Anthropic). La photo n’est pas gardée. Indique le poids pour plus de précision.')}
    ${sec('Aliments principaux',`<div class="cell"><textarea id="foods" name="foods" rows="2" placeholder="Ex. poulet, riz, brocolis">${esc(m.foods)}</textarea></div>${recent.length?`<div class="cell"><div class="foods">${recent.map(f=>`<button type="button" data-food="${esc(f)}">${esc(f)}</button>`).join('')}</div></div>`:''}`)}
    ${sec('',`<div class="cell block"><span>Provenance</span>${seg('source',SOURCES,m.source)}</div><div class="cell block"><span>Vitesse du repas</span>${seg('speed',[['rapide','Rapide'],['pose','Posé']],m.speed)}</div><label class="cell" for="msugar"><span class="body"><span>Contient du sucre ajouté</span><span class="fn">Dessert, soda, sauce sucrée, produit transformé sucré…</span></span><input id="msugar" name="sugar" type="checkbox" class="switch" ${m.sugar?'checked':''}></label>`)}
    ${s.countMode==='mains'?sec('Portions de main',hand('p','Paumes de protéines','viande, poisson, œufs, tofu')+hand('c','Mains creuses de féculents','riz, pâtes, pain, fruits')+hand('f','Pouces de matières grasses','huile, noix, avocat')+hand('v','Poings de légumes','crudités, légumes cuits'),'Estimation automatique des calories et protéines.')
@@ -544,6 +547,32 @@ function eveningSheet(){const t=TODAY(),D=peekDay(t),e=D.evening||{},tt=totals(t
    ${sec('Douleurs (s’il y en a)',`<div id="pains">${pains}</div>`+addCell('Ajouter une douleur','addPain'))}
    ${sec('',`<div class="cell"><textarea id="enote" name="note" rows="2" placeholder="Note libre (facultatif)">${esc(e.note||'')}</textarea></div>`)}
   </form>`)}
+/* ---------- repas : estimation des calories et protéines à partir d'une photo (Claude, avec la clé de l'utilisateur) ---------- */
+const MEAL_MODEL='claude-sonnet-5-5';
+const MEAL_SCHEMA={type:'object',additionalProperties:false,required:['aliments','kcal','kcal_min','kcal_max','proteines','confiance','remarque'],
+  properties:{aliments:{type:'string'},kcal:{type:'integer'},kcal_min:{type:'integer'},kcal_max:{type:'integer'},proteines:{type:'integer'},confiance:{type:'string',enum:['faible','moyenne','bonne']},remarque:{type:'string'}}};
+async function mealImg(file){const url=URL.createObjectURL(file);try{const img=await new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ko;i.src=url});
+  const k=Math.min(1,1024/Math.max(img.naturalWidth,img.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.8).split(',')[1]}finally{URL.revokeObjectURL(url)}}
+async function mealAnalyze(){const res=$('#mpres'),b64=S.mealImg;if(!res||!b64)return;
+  if(!st().apiKey){res.hidden=false;res.innerHTML=`<span class="body fn">Ajoute ta clé Anthropic dans Réglages › Coach IA pour analyser les photos.</span>`;return}
+  if(needNet())return;res.hidden=false;res.innerHTML=`<span class="body fn">Analyse en cours…</span>`;
+  const hint=($('#mph')?.value||'').trim(),type=document.querySelector('#sf [name=type]:checked')?.value;
+  const prompt=`Tu es nutritionniste. Estime le contenu de ce repas photographié${type?` (${(MEALTYPES.find(x=>x[0]===type)||[])[1]})`:''}.${hint?` Précision de l'utilisateur : « ${hint} ». Tiens-en compte en priorité (poids, ingrédients).`:' Estime les portions à partir de la taille visible de l’assiette et des couverts.'}
+Réponds en français. « aliments » : liste courte séparée par des virgules (ex. « poulet, riz, brocolis »). « kcal » et « proteines » (en grammes) : ta meilleure estimation pour tout ce qui est visible ; « kcal_min » et « kcal_max » : fourchette réaliste. « remarque » : une phrase utile au plus (ex. sauce ou huile à vérifier), sinon chaîne vide. Si ce n'est pas un repas, mets 0 partout et explique-le dans « remarque ».`;
+  try{const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':st().apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','anthropic-beta':'server-side-fallback-2026-07-01'},
+      body:JSON.stringify({model:MEAL_MODEL,max_tokens:2000,fallbacks:'default',output_config:{effort:'low',format:{type:'json_schema',schema:MEAL_SCHEMA}},
+        messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:prompt}]}]})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(r.status===401?'Clé API invalide : vérifie-la dans Réglages.':/credit/i.test(j.error?.message||'')?'Crédit API épuisé : recharge ton compte sur console.anthropic.com.':r.status===429?'Trop de demandes, réessaie dans un instant.':(j.error?.message||'Erreur '+r.status));
+    if(j.stop_reason==='refusal')throw new Error('Analyse refusée pour cette photo. Saisis le repas à la main.');
+    const txt=(j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('');const a=JSON.parse(txt);
+    if(!a.kcal){res.innerHTML=`<span class="body fn">${esc(a.remarque||'Pas de repas reconnu sur la photo.')}</span>`;return}
+    const ta=$('#foods');if(ta&&a.aliments)ta.value=a.aliments;
+    const k=$('#kcal'),p=$('#prot');if(k)k.value=a.kcal;if(p)p.value=a.proteines;$('#aik').value=a.kcal;$('#aip').value=a.proteines;
+    res.innerHTML=`<span class="body"><span><b>${fmt(a.kcal,0)} kcal</b> · ${fmt(a.proteines,0)} g de protéines</span><span class="fn">Fourchette ${fmt(a.kcal_min,0)}–${fmt(a.kcal_max,0)} kcal · confiance ${esc(a.confiance)}${a.remarque?' · '+esc(a.remarque):''}</span><span class="fn">Aliments et valeurs remplis ci-dessous : corrige-les si besoin.</span></span>`;
+    const ag=document.querySelector('.mp-again');if(ag)ag.hidden=false}
+  catch(e){res.innerHTML=`<span class="body fn">${esc(e?.message||'Analyse impossible.')}</span>`}}
 function painRow(p={zone:'',intensity:3}){return `<div class="cell block" data-pain><div class="mini"><label>Zone<input name="pz" value="${esc(p.zone)}" placeholder="genou droit, bas du dos…"></label><label>Intensité <output>${p.intensity}</output>/10<input type="range" class="range" name="pi" min="0" max="10" value="${p.intensity}" style="--c:var(--red);--p:${p.intensity*10}%"></label></div></div>`}
 function weeklySheet(){const t=TODAY();const sunday=addDays(weekStart(t),6);const w=db.weekly[sunday]||{};const W=weekStats(t);
   sheet('Bilan du dimanche',`<form id="sf" data-form="weekly" data-d="${sunday}">
@@ -605,6 +634,7 @@ document.addEventListener('click',ev=>{
   switch(act){
    case 'sugarInfo':{const n=sugarStreak(),b=sugarBest();asheet(`Série sans sucre ajouté : ${n} jour${n>1?'s':''} · record ${b} jour${b>1?'s':''}. Une journée compte une fois la fiche du soir validée sans sucre ajouté (repas et hors repas).`,[{label:'Ouvrir la fiche du soir',act:'evening'}]);break}
    case 'morning':morningSheet();break;
+   case 'mealPhotoAgain':mealAnalyze();break;
    case 'bibleStart':{unlockAudio();const mn=Math.max(1,+st().reading?.min||10);db.reading={end:Date.now()+mn*60000,total:mn*60,fired:false};save();const go=()=>{closeSheet(true);paintReading()};if(document.querySelector('#bloom'))bloomFrom(el.querySelector('.ico')||el,'#A2845E',go);else go();try{if('wakeLock' in navigator&&!wakeLock)navigator.wakeLock.request('screen').then(w=>{wakeLock=w}).catch(()=>{})}catch(e){}break}
    case 'bibleStop':{const r=$('#reader');r.classList.add('closing');db.reading=null;save();setTimeout(()=>{r.hidden=true;r.classList.remove('closing');r.dataset.mode=''},450);break}
    case 'bibleAdd':if(db.reading){db.reading.end+=60000;db.reading.total+=60;save();paintReading()}break;
@@ -666,6 +696,7 @@ document.addEventListener('input',ev=>{const t=ev.target;
   if(t.name&&t.name.startsWith('b_')){const box=document.querySelector(`[data-bdet="${t.name.slice(2)}"]`);if(box)box.hidden=+t.value===0}
 });
 document.addEventListener('change',ev=>{const t=ev.target;
+  if(t.dataset.change==='mealPhoto'){const f=t.files[0];t.value='';if(f)mealImg(f).then(b=>{S.mealImg=b;mealAnalyze()}).catch(()=>hud('Photo illisible'));return}
   if(t.dataset.change==='jobImport'){jobImport(t.files[0]);t.value='';return}
   if(t.dataset.change==='brFile'){brainFiles(t.files,t.dataset.kind);t.value='';return}
   if(t.dataset.change==='brIns'){brInsFile(t.files[0],t.dataset.kind);t.value='';return}
@@ -694,7 +725,7 @@ document.addEventListener('submit',ev=>{
   switch(f.dataset.form){
    case 'morning':{const D=day(t);D.morning=Object.assign(D.morning||{},{weight:num(v.weight),fat:num(v.fat),muscle:num(v.muscle),visceral:num(v.visceral),time:v.time||nowHM(),sleepH:num(v.sleepH),sleepQ:v.sleepQ?+v.sleepQ:null});save();closeSheet();render();haptic();hud('Réveil enregistré');break}
    case 'meal':{const D=day(t);const o={type:v.type,time:v.time,foods:(v.foods||'').trim(),source:v.source,speed:v.speed,comment:(v.comment||'').trim(),supps:fd.getAll('msupp'),sugar:!!v.sugar};
-     if(st().countMode==='mains'){o.hands={p:num(v.h_p)||0,c:num(v.h_c)||0,f:num(v.h_f)||0,v:num(v.h_v)||0};o.kcal=null;o.prot=null}else{o.kcal=num(v.kcal);o.prot=num(v.prot)}
+     if(st().countMode==='mains'){o.hands={p:num(v.h_p)||0,c:num(v.h_c)||0,f:num(v.h_f)||0,v:num(v.h_v)||0};o.kcal=num(v.ai_kcal);o.prot=num(v.ai_prot)}else{o.kcal=num(v.kcal);o.prot=num(v.prot)}
      if(f.dataset.id)Object.assign(D.meals.find(m=>m.id===f.dataset.id),o);else D.meals.push(Object.assign({id:uid()},o));
      o.foods.split(/[,;]+/).map(x=>x.trim().toLowerCase()).filter(x=>x&&x.length<30).reverse().forEach(x=>{db.foods=[x,...db.foods.filter(y=>y!==x)]});db.foods=db.foods.slice(0,30);
      D.meals.sort((a,b)=>(a.time||'').localeCompare(b.time||''));save();closeSheet();render();haptic();hud('Repas enregistré');break}

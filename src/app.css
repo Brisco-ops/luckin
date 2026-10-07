@@ -519,3 +519,8 @@ a.cell{text-decoration:none}
 .br-gn text{font:600 13px var(--font);fill:var(--label);paint-order:stroke;stroke:var(--card);stroke-width:3px;stroke-linejoin:round}
 .br-gn.ghost text{fill:var(--label2);font-weight:500}
 .br-gfit{position:absolute;top:10px;right:10px;font:600 13px var(--font);padding:6px 11px;border-radius:99px;border:0;background:var(--fill);color:var(--label);cursor:pointer}
+/* Repas : analyse d'une photo */
+.mp-row{gap:10px}
+.mp-btn{flex:1;text-align:center;padding:11px 12px;border-radius:12px;background:var(--tint);color:#fff;font-weight:600;cursor:pointer}
+.mp-again{padding:11px 14px;border-radius:12px;background:var(--fill);color:var(--label);font:600 15px var(--font);border:0;cursor:pointer}
+.mp-res .body{gap:3px}
