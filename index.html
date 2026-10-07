@@ -1055,6 +1055,7 @@ function paintPrefs(){const s=st();
      <button class="cell tap link" data-act="copy">Copier les données</button>
      <label class="cell tap link" for="imp">Importer un fichier<input id="imp" type="file" accept="application/json,.json" hidden></label>
      <button class="cell tap link" data-act="pasteSheet">Coller une sauvegarde</button>
+     <button class="cell tap link" data-act="brExport">Exporter mes notes (Apprentissage)</button>
      <button class="cell tap danger" data-act="askReset">Tout effacer</button>`,A.user?'Tes données sont sauvegardées dans ton compte et sur ce téléphone.':'Les données restent sur ce téléphone. Exporte-les chaque semaine.')}
   ${deleteSec()}</div>`}
 /* ================= coach ================= */
@@ -1742,9 +1743,8 @@ function brList(){const tag=S.brTag||'';
   return `<div class="a-head"><p class="l2">Deuxième cerveau</p><h1>Apprentissage</h1></div>
    <div class="br-search"><input type="search" id="brq" placeholder="Rechercher dans tes notes" value="${esc(S.brQ||'')}" autocomplete="off" enterkeyhint="search"></div>
    ${tags.length?`<div class="foods br-tags"><button type="button" data-act="brTag" data-t="" class="${tag?'':'on'}">Toutes</button>${tags.map(t=>`<button type="button" data-act="brTag" data-t="${esc(t)}" class="${t===tag?'on':''}">#${esc(t)}</button>`).join('')}</div>`:''}
-   ${sec('',addCell('Nouvelle note','brNew'))}
-   <div id="brres">${brResults()}</div>
-   ${notes().length?sec('',`<button class="cell tap link" data-act="brExport">Exporter mes notes</button>`,'Un fichier .zip avec toutes tes notes en Markdown (lisibles partout, compatibles Obsidian) et leurs médias.','notile'):''}`}
+   ${sec('',addCell('Nouvelle note','brNew')+`<button class="cell tap link" data-act="brExport"><span class="plus">${I.up}</span><span>Exporter mes notes</span></button>`,'','notile')}
+   <div id="brres">${brResults()}</div>`}
 function brResults(){const q=brNorm(S.brQ||''),tag=S.brTag||'';
   const list=notes().filter(n=>(!tag||(n.tags||[]).includes(tag))&&(!q||brNorm([n.title,n.body,(n.tags||[]).join(' ')].join(' ')).includes(q))).sort((a,b)=>(b.updated||0)-(a.updated||0));
   const cell=n=>{const kinds=[...new Set((n.media||[]).map(m=>m.type))],nl=new Set([...brOut(n).map(brNorm),...brBack(n).map(x=>brNorm(x.title))]).size;
