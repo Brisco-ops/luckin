@@ -113,6 +113,15 @@ function totals(d){const ms=peekDay(d).meals;const k=ms.map(mealKcal).filter(x=>
   return {kcal:k.length?sum(k):null,prot:p.length?sum(p):null,off:ms.filter(m=>m.source&&m.source!=='maison').length,n:ms.length}}
 const morningDone=d=>{const m=peekDay(d).morning;return !!(m&&(m.weight!=null||m.sleepH!=null))};
 const eveningDone=d=>!!peekDay(d).evening?.done;
+/* « complet » (coche verte) : toutes les infos attendues sont remplies ; « commencé » sans être complet = cercle orange */
+function morningMissing(d){const m=peekDay(d).morning||{},s=st(),x=[];
+  if(m.weight==null)x.push('poids');if(m.fat==null)x.push('masse grasse');if(m.muscle==null)x.push('muscle');if(m.visceral==null)x.push('graisse viscérale');
+  if(m.sleepH==null)x.push('durée du sommeil');if(!m.sleepQ)x.push('qualité du sommeil');if(s.reading?.on&&!m.bible)x.push((s.reading.label||'lecture').toLowerCase());return x}
+function eveningMissing(d){const e=peekDay(d).evening||{},x=[];if(!e.done)x.push('fiche du soir');
+  if(e.water==null)x.push('eau');if(e.steps==null)x.push('pas');if(!e.energy)x.push('énergie');if(!e.hunger)x.push('faim');if(!e.stress)x.push('stress');return x}
+function weeklyMissing(d){const w=db.weekly[d]||{},x=[];if(w.waist==null)x.push('tour de taille');if(w.belt==null)x.push('trou de ceinture');if(!w.wins)x.push('victoires');if(!w.struggles)x.push('difficultés');return x}
+const morningFull=d=>!morningMissing(d).length,eveningFull=d=>!eveningMissing(d).length,weeklyFull=d=>!weeklyMissing(d).length;
+const stateP=(full,started)=>full?state(true):started?'<span class="state part" aria-label="À compléter"></span>':state(false);
 const isTrainingDay=d=>st().trainingDays.includes(dow(d));
 const workoutsOn=d=>db.workouts.filter(w=>w.date===d&&w.end);
 function weightSeries(){return Object.keys(db.days).sort().map(d=>({d,v:db.days[d].morning?.weight})).filter(x=>x.v!=null)}
@@ -188,14 +197,14 @@ function vToday(){
   const wo=workoutsOn(t),active=db.active&&db.workouts.find(w=>w.id===db.active.id);
   const tpl=nextTemplate();
   const rows=[];
-  rows.push(`<button class="cell tap" data-act="morning">${ico('sun','var(--orange)')}<span class="body"><span>Réveil</span><span class="fn">${m&&morningDone(t)?[m.weight!=null?fmt(m.weight)+' kg':null,m.fat!=null?fmt(m.fat)+' % MG':null,m.sleepH!=null?fmt(m.sleepH)+' h':null,m.sleepQ?'qualité '+m.sleepQ+'/5':null].filter(Boolean).join(' · '):'Poids, composition, sommeil · 1 min'}</span></span>${state(morningDone(t))}</button>`);
+  rows.push(`<button class="cell tap" data-act="morning">${ico('sun','var(--orange)')}<span class="body"><span>Réveil</span><span class="fn">${m&&morningDone(t)?[m.weight!=null?fmt(m.weight)+' kg':null,m.fat!=null?fmt(m.fat)+' % MG':null,m.sleepH!=null?fmt(m.sleepH)+' h':null,m.sleepQ?'qualité '+m.sleepQ+'/5':null].filter(Boolean).join(' · '):'Poids, composition, sommeil · 1 min'}</span></span>${stateP(morningFull(t),!!m)}</button>`);
   rows.push(`<button class="cell tap" data-act="newMeal">${ico('meal','var(--green)')}<span class="body"><span>Repas</span><span class="fn">${tt.n?`${tt.n} repas · ${tt.kcal!=null?fmt(tt.kcal,0)+' kcal · ':''}${tt.prot!=null?fmt(tt.prot,0)+' g prot.':''}`:'20 s par repas'}</span></span><span class="plus">${I.plus}</span></button>`);
   if(active)rows.push(`<button class="cell tap" data-act="goWorkout">${ico('dumb','#0A84FF')}<span class="body"><span>Séance en cours</span><span class="fn">${esc(active.name)} · reprendre</span></span>${I.chev}</button>`);
   else if(wo.length)rows.push(`<button class="cell tap" data-act="goWorkout">${ico('dumb','#0A84FF')}<span class="body"><span>Séance</span><span class="fn">${wo.map(w=>esc(w.name)+(w.duration?' · '+w.duration+' min':'')).join(' + ')}</span></span>${state(true)}</button>`);
   else if(isTrainingDay(t))rows.push(`<button class="cell tap" data-act="goWorkout">${ico('dumb','#0A84FF')}<span class="body"><span>Séance du jour</span><span class="fn">${tpl?'Prochaine : '+esc(tpl.name):'Jour d’entraînement'}</span></span>${state(false)}</button>`);
-  rows.push(`<button class="cell tap" data-act="evening">${ico('moon','#5856D6')}<span class="body"><span>Soir</span><span class="fn">${eveningDone(t)?[e.water!=null?fmt(e.water)+' L':null,e.steps!=null?fmt(e.steps,0)+' pas':null,e.energy?'énergie '+e.energy+'/5':null].filter(Boolean).join(' · '):'Ballonnements, eau, pas, ressentis · 1 min'}</span></span>${state(eveningDone(t))}</button>`);
+  rows.push(`<button class="cell tap" data-act="evening">${ico('moon','#5856D6')}<span class="body"><span>Soir</span><span class="fn">${eveningDone(t)?[e.water!=null?fmt(e.water)+' L':null,e.steps!=null?fmt(e.steps,0)+' pas':null,e.energy?'énergie '+e.energy+'/5':null].filter(Boolean).join(' · '):'Ballonnements, eau, pas, ressentis · 1 min'}</span></span>${stateP(eveningFull(t),!!e)}</button>`);
   const sun=dow(t)===6;const wk=db.weekly[t];
-  if(sun)rows.push(`<button class="cell tap" data-act="weekly">${ico('ruler','#30B0C7')}<span class="body"><span>Bilan du dimanche</span><span class="fn">${wk?.done?`Taille ${fmt(wk.waist)} cm${wk.belt!=null?' · cran '+fmt(wk.belt,0):''}`:'Mensurations et bilan de la semaine'}</span></span>${state(wk?.done)}</button>`);
+  if(sun)rows.push(`<button class="cell tap" data-act="weekly">${ico('ruler','#30B0C7')}<span class="body"><span>Bilan du dimanche</span><span class="fn">${wk?.done?`Taille ${fmt(wk.waist)} cm${wk.belt!=null?' · cran '+fmt(wk.belt,0):''}`:'Mensurations et bilan de la semaine'}</span></span>${stateP(weeklyFull(t),!!wk)}</button>`);
   const done=[morningDone(t),eveningDone(t)].filter(Boolean).length;
   const ws=weightSeries(),a7=lastWeightAvg(),last=ws[ws.length-1];
   return `
@@ -1082,6 +1091,14 @@ function brText(n){const media=id=>(n.media||[]).find(m=>m.id===id);
     if(/^#{1,3}\s+/.test(l))return `<h3>${h.replace(/^#{1,3}\s+/,'')}</h3>`;
     return /^\s*[-•]\s+/.test(l)?`<li>${h.replace(/^\s*[-•]\s+/,'')}</li>`:h?`<p>${h}</p>`:''}).join('').replace(/(<li>.*?<\/li>)+/g,m=>`<ul>${m}</ul>`)}
 const BR_ICON={image:'Photo',audio:'Audio',video:'Vidéo'};
+const brKind=f=>/^image\//.test(f.type)?'image':/^video\//.test(f.type)?'video':/^audio\//.test(f.type)?'audio':null;
+/* where : 'note' (page de la note) ou 'edit' (pendant l'écriture : le média est inséré au curseur) */
+function brMediaBtns(where,labels){const signed=!!(sb&&A.user),ch=where==='note'?'brFile':'brIns';
+  const L=labels||{photo:'Prendre une photo',gallery:'Photo de la galerie',rec:'Mémo vocal',film:'Filmer',file:'Importer un fichier'};
+  const inp=(k,acc,cap,multi,lab)=>signed?`<label>${lab}<input type="file" accept="${acc}"${cap?` capture="${cap}"`:''}${multi?' multiple':''} data-change="${ch}" data-kind="auto" hidden></label>`:`<button type="button" data-act="brNeedAcct">${lab}</button>`;
+  return inp('photo','image/*','environment',false,L.photo)+inp('gallery','image/*','',where==='note',L.gallery)
+    +(signed?`<button type="button" data-act="${where==='note'?'brRecord':'brRecIns'}">${L.rec}</button>`:`<button type="button" data-act="brNeedAcct">${L.rec}</button>`)
+    +inp('film','video/*','environment',false,L.film)+inp('file','image/*,audio/*,video/*','',where==='note',L.file)}
 function paintBrain(){const v=$('#area');const n=S.note&&notes().find(x=>x.id===S.note);
   v.innerHTML=`<div class="a-in br">${HOMEBTN}${n?brNoteView(n):brList()}</div>`;if(n)brHydrate()}
 function brList(){const tag=S.brTag||'';
@@ -1105,11 +1122,8 @@ function brNoteView(n){const out=brOut(n),back=brBack(n),signed=!!(sb&&A.user);
    ${media?`<div class="br-media">${media}</div>`:''}
    ${(n.links||[]).length?sec('Liens',n.links.map((l,i)=>`<div class="cell"><a class="body" href="${esc(safeUrl(l.url))}" target="_blank" rel="noopener"><span>${esc(l.title||l.url.replace(/^https?:\/\/(www\.)?/,''))}</span><span class="fn">${esc(l.url.replace(/^https?:\/\/(www\.)?/,'').split('/')[0])}</span></a><button type="button" class="link" data-act="brDelLink" data-id="${n.id}" data-i="${i}">Retirer</button></div>`).join(''),'','notile'):''}
    ${sec('Ajouter',`<div class="cell"><div class="foods br-add">
-      <label${signed?'':' data-act="brNeedAcct"'}>${signed?`<input type="file" accept="image/*" multiple data-change="brFile" data-kind="image" hidden>`:''}Photo</label>
-      <button type="button" data-act="${signed?'brRecord':'brNeedAcct'}">Mémo vocal</button>
-      <label${signed?'':' data-act="brNeedAcct"'}>${signed?`<input type="file" accept="audio/*" data-change="brFile" data-kind="audio" hidden>`:''}Fichier audio</label>
-      <label${signed?'':' data-act="brNeedAcct"'}>${signed?`<input type="file" accept="video/*" data-change="brFile" data-kind="video" hidden>`:''}Vidéo</label>
-      <button type="button" data-act="brLinkNew" data-id="${n.id}">Lien</button></div></div>`,signed?'Vidéos : un lien (YouTube, Drive…) est préférable à un fichier (50 Mo maximum). Les photos sont réduites automatiquement.':'Connecte-toi (Réglages) pour ajouter photos, audios et vidéos : ils sont rangés dans ton espace en ligne.','notile')}
+      ${brMediaBtns('note')}
+      <button type="button" data-act="brLinkNew" data-id="${n.id}">Lien</button></div></div>`,signed?'Vidéo filmée : 50 Mo maximum (environ 1 minute). Pour une vidéo plus longue, ajoute plutôt un lien (YouTube, Drive…). Les photos sont réduites automatiquement.':'Connecte-toi (Réglages) pour ajouter photos, audios et vidéos : ils sont rangés dans ton espace en ligne.','notile')}
    ${sec('Connexions',(out.length||back.length)?[...out.map(t=>{const x=brByTitle(t),both=x&&back.includes(x);return `<button class="cell tap" data-act="brGoTitle" data-t="${esc(t)}"><span class="body"><span>${esc(t)}</span><span class="fn">${!x?'Note pas encore créée · toucher pour la créer':both?'Liées dans les deux sens':'Liée depuis cette note'}</span></span>${I.chev}</button>`}),
       ...back.filter(x=>!out.some(t=>brNorm(t)===brNorm(x.title))).map(x=>`<button class="cell tap" data-act="brOpen" data-id="${x.id}"><span class="body"><span>${esc(x.title)}</span><span class="fn">Mentionne cette note</span></span>${I.chev}</button>`)].join('')
       :`<div class="cell"><span class="body fn">Aucune connexion. Dans le texte, écris [[Titre d’une note]] pour la relier.</span></div>`,'','notile')}
@@ -1119,10 +1133,9 @@ async function brHydrate(){if(!sb||!A.user)return;for(const el of document.query
 function brSheet(n,o={}){const isNew=!n;n=n||{title:o.title||'',body:'',tags:[]};const signed=!!(sb&&A.user);
   S.brPend=[];S.brNid=n.id||uid();S.brSel=null;
   const tool=(act,label,cls='')=>`<button type="button" class="${cls}" data-act="${act}">${label}</button>`;
-  const file=(kind,accept,label)=>signed?`<label>${label}<input type="file" accept="${accept}" data-change="brIns" data-kind="${kind}" hidden></label>`:tool('brNeedAcct',label);
   sheet(isNew?'Nouvelle note':'Modifier la note',`<form id="sf" data-form="brNote" data-id="${n.id||''}">
    ${sec('',`<label class="cell field" for="brt"><span>Titre</span><input id="brt" name="title" value="${esc(n.title)}" required placeholder="Idée, livre, concept…" autocomplete="off"></label>`)}
-   ${sec('Texte',`<div class="cell br-tools">${tool('brTNote','[[ Note ]]')}${tool('brTBold','<b>Gras</b>')}${tool('brTHead','Titre')}${tool('brTList','• Liste')}${file('image','image/*','Image')}${file('file','audio/*,video/*','Fichier')}${tool('brTLink','Lien web')}</div>
+   ${sec('Texte',`<div class="cell br-tools">${tool('brTNote','[[ Note ]]')}${tool('brTBold','<b>Gras</b>')}${tool('brTHead','Titre')}${tool('brTList','• Liste')}${brMediaBtns('edit',{photo:'Photo',gallery:'Galerie',rec:'Mémo vocal',film:'Filmer',file:'Fichier'})}${tool('brTLink','Lien web')}</div>
      <div class="cell"><textarea id="brb" name="body" rows="10" placeholder="Écris librement. Appui long dans le texte pour insérer une note, du gras, une image, un fichier ou un lien.">${esc(n.body||'')}</textarea></div>`,'Appui long dans le texte, ou barre ci-dessus. Les images et fichiers insérés apparaissent à leur place dans la note.')}
    ${sec('',`<label class="cell field" for="brg"><span>Étiquettes</span><input id="brg" name="tags" value="${esc((n.tags||[]).join(', '))}" placeholder="lecture, finance, idée" autocomplete="off"></label>`)}
   </form>`)}
@@ -1153,7 +1166,7 @@ async function brUpload(n,blob,type,name,pending){if(!sb||!A.user){hud('Connecte
   const m={id,type,path,name:name||'',size:blob.size,at:Date.now()};if(pending){S.brPend.push(m);return m}
   (n.media||(n.media=[])).push(m);n.updated=Date.now();save();return m}
 async function brainFiles(files,kind){const n=notes().find(x=>x.id===S.note);if(!n||!files?.length)return;let ok=0;
-  for(const f of files){hud(`Envoi ${ok+1}/${files.length}…`);const b=kind==='image'?await brShrink(f):f;if(await brUpload(n,b,kind,f.name))ok++}
+  for(const f of files){const k=kind==='auto'?brKind(f):kind;if(!k){hud('Fichier non pris en charge : image, audio ou vidéo');continue}hud(`Envoi ${ok+1}/${files.length}…`);const b=k==='image'?await brShrink(f):f;if(await brUpload(n,b,k,f.name))ok++}
   if(ok){paintBrain();hud(ok>1?ok+' médias ajoutés':'Média ajouté')}}
 /* mémo vocal enregistré dans l'app */
 /* ---------- carte des connexions : disposition par forces (calculée une fois, gardée tant que les liens ne changent pas) ---------- */
@@ -1217,10 +1230,9 @@ function brInsert(f){const t=brTa();if(!t)return;const len=t.value.length,a=Math
   S.brSel={a:pos,b:pos};t.focus();t.setSelectionRange(pos,pos)}
 const brLineStart=(pre,sel,post,mark)=>{const i=pre.lastIndexOf('\n')+1;const line=pre.slice(i);return [pre.slice(0,i)+(line.startsWith(mark)?line.slice(mark.length):mark+line),sel,post]};
 function brPop(html){brPopClose();const sh=$('#layer .sheet');if(!sh)return;sh.insertAdjacentHTML('beforeend',`<div class="br-pop-bg" data-act="brPopClose"></div><div class="br-pop" role="menu">${html}</div>`)}
-function brPopClose(){document.querySelectorAll('.br-pop,.br-pop-bg').forEach(e=>e.remove())}
+function brPopClose(){if(REC.mr&&REC.mr.state==='recording'&&REC.target==='edit'){REC.cancel=true;REC.mr.stop()}document.querySelectorAll('.br-pop,.br-pop-bg').forEach(e=>e.remove())}
 function brMenu(){const signed=!!(sb&&A.user);const it=(act,l)=>`<button type="button" data-act="${act}">${l}</button>`;
-  const fl=(kind,acc,l)=>signed?`<label>${l}<input type="file" accept="${acc}" data-change="brIns" data-kind="${kind}" hidden></label>`:it('brNeedAcct',l);
-  brPop(`${it('brTNote','Insérer un titre de note')}${it('brTBold','Mettre en gras')}${it('brTHead','Titre de partie')}${it('brTList','Liste à puces')}${fl('image','image/*','Insérer une image')}${fl('file','audio/*,video/*','Insérer un fichier (audio, vidéo)')}${it('brTLink','Insérer un lien web')}${it('brPopClose','Annuler')}`)}
+  brPop(`${it('brTNote','Insérer un titre de note')}${it('brTBold','Mettre en gras')}${it('brTHead','Titre de partie')}${it('brTList','Liste à puces')}${brMediaBtns('edit',{photo:'Prendre une photo',gallery:'Insérer une photo de la galerie',rec:'Enregistrer un mémo vocal',film:'Filmer une vidéo',file:'Insérer un fichier'})}${it('brTLink','Insérer un lien web')}${it('brPopClose','Annuler')}`)}
 function brNotePicker(q=''){const qq=brNorm(q),cur=$('#brt')?.value||'';
   const list=notes().filter(x=>brNorm(x.title)!==brNorm(cur)&&(!qq||brNorm(x.title).includes(qq))).sort((a,b)=>a.title.localeCompare(b.title,'fr')).slice(0,30);
   return list.map(x=>`<button type="button" data-act="brTPick" data-t="${esc(x.title)}">${esc(x.title)}</button>`).join('')+(q.trim()&&!brByTitle(q)?`<button type="button" data-act="brTPick" data-t="${esc(q.trim())}">Nouvelle note : « ${esc(q.trim())} »</button>`:'')+(list.length||q.trim()?'':'<p class="fn" style="padding:8px 12px">Aucune autre note. Tape un titre pour en créer une.</p>')}
@@ -1232,7 +1244,7 @@ function brNotePicker(q=''){const qq=brNorm(q),cur=$('#brt')?.value||'';
   document.addEventListener('contextmenu',e=>{if(e.target.id==='brb'){e.preventDefault();S.brSel={a:e.target.selectionStart,b:e.target.selectionEnd};brMenu()}});
   document.addEventListener('input',e=>{if(e.target.id==='brpq'){const l=$('#brpl');if(l)l.innerHTML=brNotePicker(e.target.value)}});
 })();
-async function brInsFile(file,kind){if(!file)return;brPopClose();const type=kind==='image'?'image':/^video\//.test(file.type)?'video':/^audio\//.test(file.type)?'audio':null;
+async function brInsFile(file,kind){if(!file)return;brPopClose();const type=brKind(file);
   if(!type){hud('Fichier non pris en charge : image, audio ou vidéo');return}
   hud('Envoi…');const b=type==='image'?await brShrink(file):file;const m=await brUpload({id:S.brNid},b,type,file.name,true);
   if(m){brInsert((pre,sel,post)=>[pre+(pre&&!pre.endsWith('\n')?'\n':''),`![[media:${m.id}]]`,'\n'+post.replace(/^\n/,'')]);hud(type==='image'?'Image insérée':'Fichier inséré')}}
@@ -1272,8 +1284,10 @@ async function brRecToggle(){const b=$('#brrb');
     const mr=new MediaRecorder(stream,type?{mimeType:type}:undefined);REC.mr=mr;REC.chunks=[];REC.t0=Date.now();
     mr.ondataavailable=e=>{if(e.data.size)REC.chunks.push(e.data)};
     mr.onstop=async()=>{clearInterval(REC.iv);stream.getTracks().forEach(t=>t.stop());if(REC.cancel){REC.cancel=false;return}const blob=new Blob(REC.chunks,{type:mr.mimeType||type||'audio/mp4'});
-      $('#brrs')&&($('#brrs').textContent='Envoi…');const n=notes().find(x=>x.id===S.note);
+      $('#brrs')&&($('#brrs').textContent='Envoi…');
       const name='Mémo du '+new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' · '+mmss((Date.now()-REC.t0)/1000);
+      if(REC.target==='edit'){const m=await brUpload({id:S.brNid},blob,'audio',name,true);if(m){brPopClose();brInsert((pre,sel,post)=>[pre+(pre&&!pre.endsWith('\n')?'\n':''),`![[media:${m.id}]]`,'\n'+post.replace(/^\n/,'')]);hud('Mémo inséré')}else if($('#brrs'))$('#brrs').textContent='Échec de l’envoi.';return}
+      const n=notes().find(x=>x.id===S.note);
       if(n&&await brUpload(n,blob,'audio',name)){closeSheet();paintBrain();hud('Mémo ajouté')}else if($('#brrs'))$('#brrs').textContent='Échec de l’envoi.'};
     mr.start(1000);b.classList.add('on');$('#brrs').textContent='Enregistrement… touche pour arrêter.';
     REC.iv=setInterval(()=>{const e=$('#brrt');if(e)e.textContent=mmss((Date.now()-REC.t0)/1000)},250)}
@@ -1294,7 +1308,8 @@ function brainAct(act,id,el){const n=notes().find(x=>x.id===id);
    case 'brAskDel':asheet('Supprimer cette note, ses photos et ses audios ?',[{label:'Supprimer la note',act:'brDel',data:{id},danger:true}]);break;
    case 'brDel':{if(!n)break;const paths=(n.media||[]).map(m=>m.path);db.notes=notes().filter(x=>x.id!==id);S.note=null;save();paintBrain();
      if(paths.length&&sb&&A.user)sb.storage.from(BRAIN_BUCKET).remove(paths).catch(()=>{});hud('Note supprimée');break}
-   case 'brRecord':brRecordSheet();break;
+   case 'brRecord':REC.target='note';brRecordSheet();break;
+   case 'brRecIns':REC.target='edit';brPop(`<div class="br-rec"><span class="br-rt" id="brrt">0:00</span><button type="button" class="br-rb" data-act="brRecGo" id="brrb" aria-label="Enregistrer"></button><span class="fn" id="brrs">Touche le rond pour enregistrer.</span></div><button type="button" data-act="brPopClose">Annuler</button>`);break;
    case 'brTBold':brPopClose();brInsert((p,s,q)=>[p,'**'+(s||'texte')+'**',q]);break;
    case 'brTHead':brPopClose();brInsert((p,s,q)=>brLineStart(p,s,q,'## '));break;
    case 'brTList':brPopClose();brInsert((p,s,q)=>brLineStart(p,s,q,'- '));break;
@@ -1315,12 +1330,13 @@ const AG_SOON=7;
 function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntries(AREAS.map(a=>[a.id,a.color])),out=[];
   const add=o=>out.push(Object.assign({time:'',late:false},o));
   // Forme : rituels du jour encore à faire
-  if(!morningDone(t))add({day:t,area:'forme',title:'Réveil',meta:'Poids et sommeil',act:'agMorning'});
+  const miss=(x,dflt)=>x.length?'À compléter : '+x.slice(0,4).join(', ')+(x.length>4?'…':''):dflt;
+  if(!morningFull(t))add({day:t,area:'forme',title:'Réveil',meta:peekDay(t).morning?miss(morningMissing(t)):'Poids et sommeil',act:'agMorning'});
   const active=db.active&&db.workouts.find(w=>w.id===db.active.id);
   if(active)add({day:t,area:'forme',title:'Séance en cours',meta:esc(active.name),act:'agWorkout'});
   else if(isTrainingDay(t)&&!workoutsOn(t).length){const tp=nextTemplate();add({day:t,area:'forme',title:'Séance',meta:tp?esc(tp.name):'Jour d’entraînement',act:'agWorkout'})}
-  if(dow(t)===6&&!db.weekly[t]?.done)add({day:t,area:'forme',title:'Bilan du dimanche',meta:'Mensurations et bilan',act:'agWeekly'});
-  if(!eveningDone(t))add({day:t,area:'forme',title:'Soir',meta:'Clôturer la journée',act:'agEvening'});
+  if(dow(t)===6&&!weeklyFull(t))add({day:t,area:'forme',title:'Bilan du dimanche',meta:db.weekly[t]?miss(weeklyMissing(t)):'Mensurations et bilan',act:'agWeekly'});
+  if(!eveningFull(t))add({day:t,area:'forme',title:'Soir',meta:peekDay(t).evening?miss(eveningMissing(t).filter(y=>y!=='fiche du soir')):'Clôturer la journée',act:'agEvening'});
   // Carrière : entretiens, événements, relances, contacts
   jobs().filter(jobOpen).forEach(j=>(j.interviews||[]).forEach(i=>{if(i.date>=t&&i.date<=end)add({day:i.date,time:i.time||'',area:'carriere',title:'Entretien · '+esc(j.company),meta:[(IVKIND.find(k=>k[0]===i.kind)||[])[1],j.role&&esc(j.role)].filter(Boolean).join(' · '),act:'jobEdit',id:j.id})}));
   events().forEach(e=>{if(e.date>=t&&e.date<=end)add({day:e.date,time:e.time||'',area:'carriere',title:esc(e.title),meta:[(EVKIND.find(k=>k[0]===e.kind)||[])[1],e.place&&esc(e.place)].filter(Boolean).join(' · '),act:'evEdit',id:e.id})});
