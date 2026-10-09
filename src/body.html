@@ -82,7 +82,7 @@ function seedTemplates(){
 function seed(){
   let old={};try{old=JSON.parse(localStorage.getItem('cap-objectifs-v1')||'{}').settings||{}}catch(e){}
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
-    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,restBetween:0,sound:true,failureBonus:true,
+    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
     apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',career:{goal:5,relance:7}},
     days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[],notes:[]};
 }
@@ -97,6 +97,7 @@ if(db.settings.onboarded==null){db.settings.onboarded=1;if(db.settings.reading==
 /* section Carrière : objectif hebdomadaire et liste des candidatures */
 if(!db.todos){db.todos=[];writeLocal()}
 /* repos lancé automatiquement : réglage absent des anciennes installations (donc éteint), on l'active une fois */
+if(db.settings.strictFrom==null){db.settings.strictFrom=TODAY();writeLocal()}
 if(!db.settings.autoFix){db.settings.autoTimer=true;db.settings.autoFix=1;if(db.settings.restBetween==null)db.settings.restBetween=0;writeLocal()}
 if(!db.notes){db.notes=[];writeLocal()}
 if(db.settings.career==null||!db.jobs||!db.events||!db.contacts){if(db.settings.career==null)db.settings.career={goal:5,relance:7};if(!db.jobs)db.jobs=[];if(!db.events)db.events=[];if(!db.contacts)db.contacts=[];writeLocal()}
@@ -111,8 +112,10 @@ function mealKcal(m){if(m.kcal!=null)return m.kcal;if(m.hands)return sum(Object.
 function mealProt(m){if(m.prot!=null)return m.prot;if(m.hands)return sum(Object.keys(HAND).map(k=>(m.hands[k]||0)*HAND[k].pr));return null}
 function totals(d){const ms=peekDay(d).meals;const k=ms.map(mealKcal).filter(x=>x!=null),p=ms.map(mealProt).filter(x=>x!=null);
   return {kcal:k.length?sum(k):null,prot:p.length?sum(p):null,off:ms.filter(m=>m.source&&m.source!=='maison').length,n:ms.length}}
-const morningDone=d=>{const m=peekDay(d).morning;return !!(m&&(m.weight!=null||m.sleepH!=null))};
-const eveningDone=d=>!!peekDay(d).evening?.done;
+/* « fait » pour les séries, le sans-sucre, les amis et les rappels : complet à partir de settings.strictFrom ; avant cette date, la règle d'origine (commencé) est gardée pour ne pas réécrire le passé */
+const strictDay=d=>d>=(st().strictFrom||'2000-01-01');
+const morningDone=d=>{if(strictDay(d))return morningFull(d);const m=peekDay(d).morning;return !!(m&&(m.weight!=null||m.sleepH!=null))};
+const eveningDone=d=>strictDay(d)?eveningFull(d):!!peekDay(d).evening?.done;
 /* « complet » (coche verte) : toutes les infos attendues sont remplies ; « commencé » sans être complet = cercle orange */
 function morningMissing(d){const m=peekDay(d).morning||{},s=st(),x=[];
   if(m.weight==null)x.push('poids');if(m.fat==null)x.push('masse grasse');if(m.muscle==null)x.push('muscle');if(m.visceral==null)x.push('graisse viscérale');
