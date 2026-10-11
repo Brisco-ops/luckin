@@ -13,7 +13,7 @@
   <button data-view="settings" aria-label="Réglages Forme" title="Réglages Forme"><svg class="o" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8l1.6 2.4 2.8-.7.7 2.8 2.4 1.6-1.3 2.6 1.3 2.6-2.4 1.6-.7 2.8-2.8-.7L12 21.2l-1.6-2.4-2.8.7-.7-2.8-2.4-1.6L5.8 12 4.5 9.5l2.4-1.6.7-2.8 2.8.7Z"/></svg><svg class="f" viewBox="0 0 24 24"><path class="fill" d="M12 2.8l1.6 2.4 2.8-.7.7 2.8 2.4 1.6-1.3 2.6 1.3 2.6-2.4 1.6-.7 2.8-2.8-.7L12 21.2l-1.6-2.4-2.8.7-.7-2.8-2.4-1.6L5.8 12 4.5 9.5l2.4-1.6.7-2.8 2.8.7Z"/><circle cx="12" cy="12" r="3.2" fill="var(--pill-bg,#fff)" stroke="none"/></svg></button>
 </div></nav>
 <div id="layer"></div>
-<section id="home" aria-label="Accueil"><button type="button" class="h-me" data-act="openPrefs" aria-label="Réglages" id="hMe"></button><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote"><p>« Dans la vie, rien n’est à craindre, tout est à comprendre. »</p><cite>Marie Curie</cite></blockquote></div><button type="button" class="h-coach" data-act="openCoach"><span class="hc-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z"/></svg></span><span class="hc-txt"><b>Ton coach</b><span>Il voit tout, anticipe et s’appuie sur 5 coachs spécialisés</span></span></button><div id="agenda"></div><div id="friends"></div><nav class="hbar" id="orbit" aria-label="Sections"></nav></section>
+<section id="home" aria-label="Accueil"><button type="button" class="h-me" data-act="openPrefs" aria-label="Réglages" id="hMe"></button><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote"><p>« Dans la vie, rien n’est à craindre, tout est à comprendre. »</p><cite>Marie Curie</cite></blockquote></div><button type="button" class="h-coach" data-act="openCoach"><span class="hc-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z"/></svg></span><span class="hc-txt"><b>Ton coach</b><span id="hcSub">Il voit tout, anticipe et s’appuie sur tes coachs spécialisés</span></span></button><div id="agenda"></div><div id="friends"></div><nav class="hbar" id="orbit" aria-label="Sections"></nav></section>
 <section id="area" hidden></section>
 <div id="bloom" hidden></div>
 
@@ -82,7 +82,7 @@ function seedTemplates(){
 function seed(){
   let old={};try{old=JSON.parse(localStorage.getItem('cap-objectifs-v1')||'{}').settings||{}}catch(e){}
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
-    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
+    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
     apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',coachMode:'eq',career:{goal:5,relance:7}},
     days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[],notes:[],fin:{tx:[],plans:[],goals:[],inv:[],budget:null}};
 }
@@ -97,6 +97,7 @@ if(db.settings.onboarded==null){db.settings.onboarded=1;if(db.settings.reading==
 /* section Carrière : objectif hebdomadaire et liste des candidatures */
 if(!db.todos){db.todos=[];writeLocal()}
 /* repos lancé automatiquement : réglage absent des anciennes installations (donc éteint), on l'active une fois */
+if(!db.settings.areas){db.settings.areas=['forme','carriere','taches','finances','savoir'];writeLocal()}
 if(!db.settings.cmFix){db.settings.coachMode='eq';db.settings.cmFix=1;writeLocal()}
 if(db.settings.coachMode==null){db.settings.coachMode=/haiku/.test(db.settings.model||'')?'eco':/opus/.test(db.settings.model||'')?'max':'eq';writeLocal()}
 if(db.settings.strictFrom==null){db.settings.strictFrom=TODAY();writeLocal()}
@@ -349,7 +350,8 @@ function openPrefs(from){const go=()=>{H.cur='reglages';const r=document.documen
   if(from)bloomFrom(from,PREFS_C,go);else go()}
 function paintPrefs(){const s=st();
   $('#area').innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><p class="l2">Luck’In</p><h1>Réglages</h1></div>
-  ${sec('Profil',`<label class="cell field" for="pn"><span>Prénom</span><input id="pn" data-change="name" value="${esc(s.name||'')}" autocomplete="given-name"></label><button class="cell tap" data-act="reOnboard"><span class="body"><span>Mes infos de départ</span><span class="fn">Taille, poids, objectif, jours de séance, lecture, compléments${s.height==null||s.startWeight==null?' · à compléter':''}</span></span>${I.chev}</button>`,'Les réglages propres à une section (objectif de poids, programmes, objectif de candidatures…) restent dans la section.')}
+  ${sec('Profil',`<label class="cell field" for="pn"><span>Prénom</span><input id="pn" data-change="name" value="${esc(s.name||'')}" autocomplete="given-name"></label>`,'Les réglages propres à une section (objectif de poids, programmes, objectif de candidatures…) restent dans la section.')}
+  ${sec('Mes sections',AREA_PICK.map(([k,l,d])=>`<label class="cell" for="ra-${k}"><span class="body"><span>${l}</span><span class="fn">${d}</span></span><input id="ra-${k}" type="checkbox" class="switch" data-area-toggle="${k}" ${areaOn(k)?'checked':''}></label>`).join('')+(areaOn('forme')?`<button class="cell tap" data-act="formeSetup"><span class="body"><span>Profil Forme</span><span class="fn">Taille, poids, objectif, séances, lecture, compléments${s.height==null||s.startWeight==null?' · à compléter':''}</span></span>${I.chev}</button>`:''),'Les sections désactivées disparaissent de l’accueil, de la barre et du coach. Tes données sont conservées.')}
   ${accountSec()}
   ${sec('Coach IA',`<label class="cell field" for="ak"><span>Clé API</span><input id="ak" data-change="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(s.apiKey||'')}"></label>
      <div class="cell block"><span>Coachs</span>${seg('coachMode',COACH_MODES.map(m=>[m[0],m[1]]),s.coachMode||'eq')}</div><div class="cell"><span class="body fn">${esc((COACH_MODES.find(m=>m[0]===(s.coachMode||'eq'))||COACH_MODES[1])[2])}</span></div>`,
@@ -556,14 +558,17 @@ Placements : ${F.inv.map(a=>`${a.name} (${a.type}) valeur ${eur(invVal(a))}, ver
 Notes (récentes d’abord) : ${N.slice(0,60).map(n=>`« ${n.title} »${(n.tags||[]).length?' #'+n.tags.join(' #'):''} [liens vers : ${brOut(n).join(', ')||'-'} ; citée par : ${brBack(n).map(x=>x.title).join(', ')||'-'}${(n.media||[]).length?' ; '+n.media.length+' média(s)':''}] ${cut((n.body||'').replace(/!\[\[media:[a-z0-9]+\]\]/g,''),220)}`).join('\n')||'aucune'}`},
  central(){const t=TODAY(),{today,soon}=agendaItems(),strip=x=>String(x).replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
   const F=fin(),m=monthKey(t),out=sum(F.tx.filter(x=>monthKey(x.date)===m&&x.kind==='out').map(x=>x.amount)),a7=lastWeightAvg(),s=st();
-  return `Agenda d’aujourd’hui : ${today.map(o=>strip(o.title)+(o.time?' à '+o.time:'')+' ('+COACH_DOMS[o.area==='savoir'?'savoir':o.area]+(o.late?', en retard':'')+')').join(' ; ')||'rien'}
+  const txt=`Domaines suivis : ${AREA_PICK.filter(a=>areaOn(a[0])).map(a=>a[1]).join(', ')}.
+Agenda d’aujourd’hui : ${today.map(o=>strip(o.title)+(o.time?' à '+o.time:'')+' ('+COACH_DOMS[o.area==='savoir'?'savoir':o.area]+(o.late?', en retard':'')+')').join(' ; ')||'rien'}
 Prochains jours : ${soon.map(o=>o.day+' '+strip(o.title)+(o.time?' '+o.time:'')+' ('+COACH_DOMS[o.area]+')').join(' ; ')||'rien'}
 Forme : poids moyen 7 j ${a7!=null?fmt(a7)+' kg':'?'} (départ ${s.startWeight??'?'}, cible ${s.targetWeight??'?'}), série ${streak()} j, sans sucre ${sugarStreak()} j, réveil ${morningFull(t)?'complet':'à compléter'}, soir ${eveningFull(t)?'complet':'à compléter'}, jours d’entraînement ${s.trainingDays.map(d=>['lun','mar','mer','jeu','ven','sam','dim'][d]).join(' ')}.
 Carrière : ${weekApps()}/${car().goal} candidatures cette semaine, ${jobs().filter(jobOpen).length} en cours, ${jobs().filter(relanceDue).length} à relancer, ${ivUpcoming().length} entretien(s) à venir, ${events().filter(e=>e.date>=t).length} événement(s) à venir.
 Tâches : ${todos().filter(x=>!x.done&&x.due&&x.due<t).length} en retard, ${todos().filter(x=>!x.done&&x.due===t).length} aujourd’hui, ${todos().filter(x=>!x.done).length} ouvertes : ${todos().filter(x=>!x.done).slice(0,40).map(x=>`${x.title} [id ${x.id}, ${x.prio}${x.due?', '+x.due+(x.time?' '+x.time:''):''}]`).join(' ; ')}.
 Séances prévues : ${['lun','mar','mer','jeu','ven','sam','dim'].filter((_,k)=>st().trainingDays.includes(k)).join(', ')}.
 Finances : dépensé ce mois ${eur(out)}${F.budget?' sur '+eur(F.budget):''}, ${upcoming(t,addDays(t,14)).length} échéance(s) dans 14 j, épargne ${eur(sum(F.goals.map(g=>g.saved||0)))}, placements ${eur(sum(F.inv.map(invVal)))}.
-Savoir : ${notes().length} notes, dernières : ${notes().slice().sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,5).map(n=>n.title).join(', ')||'-'}.`}};
+Savoir : ${notes().length} notes, dernières : ${notes().slice().sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,5).map(n=>n.title).join(', ')||'-'}.`;
+  const pre={'Forme :':'forme','Séances prévues':'forme','Carrière :':'carriere','Tâches :':'taches','Finances :':'finances','Savoir :':'savoir'};
+  return txt.split('\n').filter(l=>{const k=Object.keys(pre).find(p=>l.startsWith(p));return !k||areaOn(pre[k])}).join('\n')}};
 function systemFor(d,forBoss){if(d==='forme')return rules()+(forBoss?'\n\nTu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui, sans bloc <programme>.':'');
   const wd=new Date().toLocaleDateString('fr-FR',{weekday:'long'});
   const allProf=d==='central'?Object.keys(PROF).filter(k=>k!=='central'&&profFilled(k)).map(k=>`${PROF[k].label} :\n${profText(k)}`).join('\n'):'';
@@ -640,7 +645,7 @@ async function coachSend(d,text){text=String(text||'').trim();if(!text||CC.busy|
     else{if(partial&&e?.code!=='refused')c.push({role:'assistant',content:partial});c.push({role:'assistant',err:true,content:errCopy[e?.code]||e?.message||'La connexion a échoué. Vérifie ta connexion et réessaie.'})}}
   Object.assign(CC,{busy:false,live:'',status:''});saveChatOf(d);coachRepaint()}
 function coachPage(d,o={}){const k=COACH[d],c=chatOf(d),b=backend();
-  const head=`<div class="a-head">${o.back?`<button type="button" class="link br-back" data-act="${o.back}">‹ ${o.backLabel}</button>`:`<p class="l2">${d==='central'?'Vue d’ensemble · 5 coachs spécialisés':'Spécialiste '+COACH_DOMS[d]}</p>`}<h1>${k.name}</h1></div>`;
+  const head=`<div class="a-head">${o.back?`<button type="button" class="link br-back" data-act="${o.back}">‹ ${o.backLabel}</button>`:`<p class="l2">${d==='central'?'Vue d’ensemble · '+AREA_PICK.filter(a=>areaOn(a[0])).length+' coach'+(AREA_PICK.filter(a=>areaOn(a[0])).length>1?'s spécialisés':' spécialisé'):'Spécialiste '+COACH_DOMS[d]}</p>`}<h1>${k.name}</h1></div>`;
   if(!b)return head+sec('',`<div class="cell"><span class="body"><span>Active ton coach</span><span class="fn">Le coach utilise Claude avec ta clé API Anthropic (Réglages › Coach IA), stockée uniquement sur ce téléphone.</span></span></div><button class="cell tap link" data-act="goKey">Saisir ma clé API</button>`,'','notile');
   const items=c.map((m,k)=>{if(m.role==='user')return `<div class="msg u">${esc(m.content)}</div>`;if(m.err)return `<div class="msg a err">${esc(m.content)}</div>`;const sp=splitPlan(m.content);
     return `${sp.text||m.via?`<div class="msg a">${md(sp.text)}${m.via?`<p class="cc-via">A consulté : ${m.via.map(esc).join(', ')}</p>`:''}</div>`:''}${sp.plan?planCard(sp.plan,d,k,m.applied):''}`}).join('');
@@ -984,6 +989,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.change==='brIns'){brInsFile(t.files[0],t.dataset.kind);t.value='';return}
   if(t.id==='tdcs'){const w=$('#tdcnw');w.hidden=t.value!=='__new';if(!w.hidden)$('#tdcn').focus();return}
   if(t.id==='imp'){const f=t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importJSON(r.result);r.readAsText(f);return}
+  if(t.dataset.areaToggle){const k=t.dataset.areaToggle,cur=new Set(st().areas||[]);t.checked?cur.add(k):cur.delete(k);if(!cur.size){t.checked=true;hud('Garde au moins une section');return}st().areas=AREA_PICK.map(a=>a[0]).filter(x=>cur.has(x));save();hud(t.checked?'Section activée':'Section masquée');return}
   if(t.dataset.change==='name'){st().name=t.value.trim()||'toi';save();hud('Prénom enregistré');return}
   if(t.dataset.change==='apikey'){st().apiKey=t.value.trim();save();hud(t.value.trim()?'Clé enregistrée':'Clé retirée');return}
   if(t.name==='type'&&t.closest('[data-form=meal]')){t.closest('form').querySelectorAll('#msupps [data-types]').forEach(l=>{const on=l.dataset.types.split(' ').includes(t.value);l.hidden=!on;if(!on)l.querySelector('input').checked=false});return}
@@ -1744,10 +1750,11 @@ function finAct(act,id,el){const F=fin();
   return true}
 /* ================= accueil : ce qui est à faire aujourd'hui et bientôt, toutes sections confondues ================= */
 const AG_SOON=7;
+const areaOn=id=>(st().areas||['forme','carriere','taches','finances','savoir']).includes(id);
 function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntries(AREAS.map(a=>[a.id,a.color])),out=[];
   const add=o=>out.push(Object.assign({time:'',late:false},o));
   // Infos de départ manquantes (taille, poids de départ) : on propose de les compléter
-  if(st().height==null||st().startWeight==null)add({day:t,area:'forme',title:'Compléter mes infos de départ',meta:'Taille, poids, objectif : pour suivre ta progression',act:'reOnboard'});
+  if(st().height==null||st().startWeight==null)add({day:t,area:'forme',title:'Compléter mon profil Forme',meta:'Taille, poids, objectif : pour suivre ta progression',act:'formeSetup'});
   // Forme : rituels du jour encore à faire
   const miss=(x,dflt)=>x.length?'À compléter : '+x.slice(0,4).join(', ')+(x.length>4?'…':''):dflt;
   if(!morningFull(t))add({day:t,area:'forme',title:'Réveil',meta:peekDay(t).morning?miss(morningMissing(t)):'Poids et sommeil',act:'agMorning'});
@@ -1768,6 +1775,7 @@ function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntri
   todos().filter(x=>!x.done&&x.due&&x.due<=end).forEach(x=>add({day:x.due<t?t:x.due,late:x.due<t,time:x.time||'',area:'taches',title:esc(x.title),meta:[x.rep?'↻ '+REP_SHORT[x.rep]:null,x.cat&&esc(x.cat)].filter(Boolean).join(' · '),act:'tdEdit',id:x.id,todo:x}));
   const rank=o=>(o.late?'0':'1')+(o.time||'99:99')+(o.todo?prioRank(o.todo.prio):3);
   out.forEach(o=>o.c=C[o.area]);
+  const kept=out.filter(o=>areaOn(o.area));out.length=0;out.push(...kept);
   return {today:out.filter(o=>o.day===t).sort((a,b)=>rank(a).localeCompare(rank(b))),soon:out.filter(o=>o.day>t).sort((a,b)=>(a.day+(a.time||'99')).localeCompare(b.day+(b.time||'99')))}}
 function paintAgenda(){const el=$('#agenda');if(!el)return;const {today,soon}=agendaItems(),t=TODAY();
   const row=o=>`<div class="cell ag" style="--c:${o.c};--pc:${o.todo?PRIO_C[o.todo.prio]||PRIO_C.moyenne:o.c}">${o.todo?`<button type="button" class="td-check" data-act="tdToggle" data-id="${o.id}" aria-label="Marquer comme faite"></button>`:'<span class="ag-dot"></span>'}
@@ -1787,7 +1795,8 @@ const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 function paintHome(){
   $('#hName').textContent='Bonjour '+st().name;$('#hMe').textContent=(st().name||'?').trim().charAt(0).toUpperCase();
   $('#hDate').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
-  $('#orbit').innerHTML=`<div class="in">`+AREAS.map(a=>`<button class="planet${a.ready||a.paint?'':' soon'}" data-area="${a.id}" style="--c:${a.color}" aria-label="${a.name}"><span class="p-ring"><svg viewBox="0 0 24 24" aria-hidden="true">${AREA_ICONS[a.id]}</svg></span><span class="p-name">${a.short||a.name}</span></button>`).join('')+`</div>`;
+  const on=AREAS.filter(a=>areaOn(a.id));
+  $('#orbit').innerHTML=`<div class="in" style="grid-template-columns:repeat(${on.length},1fr)">`+on.map(a=>`<button class="planet${a.ready||a.paint?'':' soon'}" data-area="${a.id}" style="--c:${a.color}" aria-label="${a.name}"><span class="p-ring"><svg viewBox="0 0 24 24" aria-hidden="true">${AREA_ICONS[a.id]}</svg></span><span class="p-name">${a.short||a.name}</span></button>`).join('')+`</div>`;
   paintAgenda();
   placePlanets();paintFriends();loadGroup();
 }
@@ -1811,7 +1820,7 @@ function bloomFrom(el,color,done){
   setTimeout(()=>{done();b.style.transition='opacity .35s ease';b.style.opacity='0';setTimeout(()=>{b.hidden=true},360)},560)}
 function openArea(id){const a=AREAS.find(x=>x.id===id);H.cur=id;const el=document.querySelector(`.planet[data-area="${id}"]`);H.hold=true;
   bloomFrom(el.querySelector('.p-ring'),a.color,()=>{document.documentElement.style.setProperty('--area',a.color);document.documentElement.classList.add('in-area');H.open=false;H.hold=false;setTimeout(paintReading,50);$('#home').hidden=true;
-    if(a.ready){$('#area').hidden=true;render({top:true})}
+    if(a.ready){$('#area').hidden=true;render({top:true});if(id==='forme'&&!st().formeSetup&&(st().height==null||st().startWeight==null))setTimeout(()=>showFormeSetup(),350)}
     else{const v=$('#area');v.hidden=false;v.style.setProperty('--c',a.color);v.scrollTop=0;if(a.paint){a.paint();return}
       v.innerHTML=`<div class="a-in">${HOMEBTN}
       <div class="a-head"><h1>${a.name}</h1><p class="l2">${a.sub}</p></div>
@@ -1929,10 +1938,27 @@ async function doAuth(f){const v=Object.fromEntries(new FormData(f));const email
   catch(e){b.disabled=false;msg(authErr(e))}}
 
 /* ---------- bienvenue (premier lancement) ---------- */
-function showOnboard(again){const s=st(),r=s.reading||{on:false,label:'Lecture',min:10};const g=$('#gate');g.hidden=false;g.dataset.mode='onboard';g.dataset.again=again?'1':'';
-  g.innerHTML=`<div class="g-in"><h1 class="g-h">${again?'Tes infos de départ':'Bienvenue'}</h1><p class="g-sub left">${again?'Complète ou corrige ce que tu veux. Seul le prénom est obligatoire.':'Quelques réglages pour démarrer. Seul le prénom est obligatoire : le reste peut se compléter plus tard (Réglages › Mes infos de départ).'}</p>
+/* écran de bienvenue général : prénom, sections suivies, objectif du moment */
+const AREA_PICK=[['forme','Forme','Sport, nutrition, sommeil'],['carriere','Carrière','Candidatures, entretiens, réseau'],['taches','Tâches','To-do, échéances, priorités'],['finances','Finances','Budget, épargne, placements'],['savoir','Savoir','Notes, apprentissage, deuxième cerveau']];
+function showOnboard(){const s=st(),g=$('#gate');g.hidden=false;g.dataset.mode='onboard';
+  g.innerHTML=`<div class="g-in"><h1 class="g-h">Bienvenue</h1><p class="g-sub left">Luck’In t’aide à piloter ta vie, domaine par domaine. Choisis ce que tu veux suivre : tu pourras changer à tout moment dans Réglages.</p>
   <form data-form="onboard" novalidate>
-   ${sec('Toi',`<label class="cell field" for="ob_name"><span>Prénom</span><input id="ob_name" name="ob_name" value="${esc(s.name)}" autocomplete="given-name" placeholder="Ton prénom"></label>${fieldNum('ob_height','Taille',s.height,'cm','175')}`)}
+   ${sec('Toi',`<label class="cell field" for="ob_name"><span>Prénom</span><input id="ob_name" name="ob_name" value="${esc(s.name)}" autocomplete="given-name" placeholder="Ton prénom"></label>`)}
+   ${sec('Ce que tu veux suivre',AREA_PICK.map(([k,l,d])=>`<label class="cell" for="oa-${k}"><span class="body"><span>${l}</span><span class="fn">${d}</span></span><input id="oa-${k}" name="ob_areas" value="${k}" type="checkbox" class="switch" ${areaOn(k)?'checked':''}></label>`).join(''))}
+   ${sec('Ton objectif du moment',`<div class="cell"><textarea name="ob_goal" rows="3" placeholder="Trouver un poste en audit d’ici 3 mois, perdre 5 kg, épargner pour un voyage… (facultatif)">${esc(prof('central').goals||'')}</textarea></div>`,'Ton coach s’en sert pour t’aider à prioriser.')}
+   <p class="g-msg" role="alert"></p>
+   <button class="btn-fill g-go">Commencer</button>
+  </form></div>`;g.scrollTop=0}
+function doOnboard(f){const fd=new FormData(f),v=Object.fromEntries(fd),s=st();
+  const name=String(v.ob_name||'').trim();if(!name){f.querySelector('.g-msg').textContent='Indique ton prénom.';$('#ob_name').focus();return}
+  const areas=fd.getAll('ob_areas');if(!areas.length){f.querySelector('.g-msg').textContent='Choisis au moins un domaine.';return}
+  s.name=name;s.areas=areas;const goal=String(v.ob_goal||'').trim();if(goal)s.prof=Object.assign({},s.prof,{central:Object.assign({},(s.prof||{}).central,{goals:goal})});
+  s.onboarded=1;save();hideGate();refreshAll();hud('C’est parti, '+name)}
+/* profil Forme (taille, poids, séances, lecture, compléments) : proposé à la première ouverture de Forme, modifiable ensuite */
+function showFormeSetup(again){const s=st(),r=s.reading||{on:false,label:'Lecture',min:10};const g=$('#gate');g.hidden=false;g.dataset.mode='formeSetup';
+  g.innerHTML=`<div class="g-in"><h1 class="g-h">Ton profil Forme</h1><p class="g-sub left">${again?'Complète ou corrige ce que tu veux.':'Quelques infos pour suivre ta progression. Tout est facultatif et modifiable ensuite.'}</p>
+  <form data-form="formeSetup" novalidate>
+   ${sec('Toi',`${fieldNum('ob_height','Taille',s.height,'cm','175')}`)}
    ${sec('Objectif',fieldNum('ob_start','Poids actuel',s.startWeight,'kg','0,0')+fieldNum('ob_target','Poids cible',s.targetWeight,'kg','facultatif'),'Tes amis voient seulement ta progression en %, jamais ton poids.')}
    ${sec('Entraînement',`<div class="cell block"><span>Jours de séance</span><div class="toggles">${DAYS.map((d,k)=>`<label><input type="checkbox" name="ob_days" value="${k}" ${s.trainingDays.includes(k)?'checked':''}><span>${d}</span></label>`).join('')}</div></div>`)}
    ${sec('Rituel du matin',`<label class="cell" for="ob_ron"><span class="body"><span>Lecture chronométrée</span><span class="fn">Bible, livre, méditation…</span></span><input id="ob_ron" name="ob_ron" type="checkbox" class="switch" ${r.on?'checked':''}></label>
@@ -1940,13 +1966,12 @@ function showOnboard(again){const s=st(),r=s.reading||{on:false,label:'Lecture',
    ${sec('Alimentation',`<label class="cell" for="ob_sup"><span class="body"><span>Suivre mes compléments</span><span class="fn">Vitamines, zinc, magnésium, créatine</span></span><input id="ob_sup" name="ob_sup" type="checkbox" class="switch" ${s.supps?'checked':''}></label>
      <label class="cell field" for="ob_diet"><span>Contraintes</span><input id="ob_diet" name="ob_diet" value="${esc(s.diet||'')}" placeholder="Aucune"></label>`)}
    <p class="g-msg" role="alert"></p>
-   <button class="btn-fill g-go">${again?'Enregistrer':'Commencer'}</button>
-  </form>${again?'<button type="button" class="g-link" data-act="onboardLater">Plus tard</button>':''}</div>`;g.scrollTop=0}
-function doOnboard(f){const fd=new FormData(f),v=Object.fromEntries(fd);const s=st();
-  const name=String(v.ob_name||'').trim();if(!name){f.querySelector('.g-msg').textContent='Indique ton prénom.';$('#ob_name').focus();return}
-  s.name=name;s.height=num(v.ob_height);s.startWeight=num(v.ob_start);s.targetWeight=num(v.ob_target);
+   <button class="btn-fill g-go">Enregistrer</button>
+  </form><button type="button" class="g-link" data-act="onboardLater">Plus tard</button></div>`;g.scrollTop=0}
+function doFormeSetup(f){const fd=new FormData(f),v=Object.fromEntries(fd);const s=st();
+  s.height=num(v.ob_height);s.startWeight=num(v.ob_start);s.targetWeight=num(v.ob_target);
   s.trainingDays=fd.getAll('ob_days').map(Number).sort();s.reading={on:!!v.ob_ron,label:String(v.ob_rl||'').trim()||'Lecture',min:Math.max(1,Math.round(num(v.ob_rm)||10))};
-  s.supps=!!v.ob_sup;s.diet=String(v.ob_diet||'').trim();const again=$('#gate').dataset.again==='1';s.onboarded=1;save();hideGate();refreshAll();if(prefsOn())paintPrefs();hud(again?'Infos enregistrées':'C’est parti, '+name)}
+  s.supps=!!v.ob_sup;s.diet=String(v.ob_diet||'').trim();s.formeSetup=1;save();hideGate();refreshAll();if(prefsOn())paintPrefs();hud('Profil Forme enregistré')}
 
 /* ---------- groupe d’amis ---------- */
 async function loadGroup(force){
@@ -2059,8 +2084,8 @@ document.addEventListener('click',async ev=>{const el=ev.target.closest('[data-a
      try{const r=await fnCall({kind:'cheer',to:id});if(r.already){hud('Déjà encouragé aujourd’hui');break}
        A.cheers.push({from_id:A.user.id,to_id:id,day:TODAY()});hud(r.sent?'🔥 Encouragement envoyé à '+nm:nm+' verra ton encouragement dans l’app')}
      catch(e){el.classList.remove('done');hud('Erreur : '+e.message)}break}
-   case 'reOnboard':showOnboard(true);break;
-   case 'onboardLater':hideGate();break;
+   case 'formeSetup':showFormeSetup(true);break;
+   case 'onboardLater':if($('#gate').dataset.mode==='formeSetup'){st().formeSetup=1;save()}hideGate();break;
    case 'gateSkip':try{localStorage.setItem(AK,'local')}catch(e){}hideGate();if(!st().onboarded)showOnboard();break;
    case 'gateOpen':showGate('login');break;
    case 'groupMenu':if(!A.group)asheet('Groupe d’amis',[{label:'Créer un groupe',act:'groupCreate'},{label:'Rejoindre avec un code',act:'groupJoin'}]);
@@ -2088,9 +2113,10 @@ document.addEventListener('click',async ev=>{const el=ev.target.closest('[data-a
   }});
 document.addEventListener('change',ev=>{const t=ev.target;if(t.dataset?.rd==null)return;const s=st();s.reading=s.reading||{on:false,label:'Lecture',min:10};const k=t.dataset.rd;
   if(k==='on')s.reading.on=t.checked;else if(k==='min'){s.reading.min=Math.max(1,Math.round(num(t.value)||10));t.value=s.reading.min}else s.reading.label=t.value.trim()||'Lecture';save()});
-document.addEventListener('submit',async ev=>{const f=ev.target;const k=f.dataset?.form;if(!['auth','onboard','gcreate','gjoin'].includes(k))return;ev.preventDefault();
+document.addEventListener('submit',async ev=>{const f=ev.target;const k=f.dataset?.form;if(!['auth','onboard','formeSetup','gcreate','gjoin'].includes(k))return;ev.preventDefault();
   if(k==='auth')return doAuth(f);
   if(k==='onboard')return doOnboard(f);
+  if(k==='formeSetup')return doFormeSetup(f);
   if(needNet())return;const btn=document.querySelector('.sheet-h .strong');if(btn)btn.disabled=true;
   try{
     if(k==='gcreate'){await groupCreate(String(new FormData(f).get('name')||'').trim());closeSheet();await loadGroup(true);refreshView();hud('Groupe créé · code '+A.group?.code)}
