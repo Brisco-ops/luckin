@@ -527,3 +527,19 @@ a.cell{text-decoration:none}
 /* Rituel commencé mais incomplet : cercle orange à moitié rempli */
 .state.part{border-color:var(--orange);background:linear-gradient(90deg,var(--orange) 50%,transparent 50%)}
 .br-pop .br-rec{display:flex;flex-direction:column;align-items:center;gap:14px;padding:22px 12px}
+/* Finances */
+.fin-month{display:flex;align-items:center;justify-content:space-between;padding:0 4px}
+.fin-month span{font:600 17px var(--display);text-transform:capitalize}
+.fin-month button{width:38px;height:38px;border-radius:50%;border:0;background:var(--glass);color:var(--label);font:600 20px var(--font);cursor:pointer}
+.fin-month button:disabled{opacity:.3}
+.fin-amt{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.fin-amt.in{color:var(--green)}
+.fin-v{min-width:70px;font-size:14px}
+.fin .st-row{grid-template-columns:minmax(0,38%) 1fr auto}
+.fin-amount input{font:600 22px var(--display)!important}
+.fin-prog{display:block;height:8px;border-radius:4px;background:var(--fill);overflow:hidden;margin:4px 0 2px}
+.fin-prog i{display:block;height:100%;background:var(--area);border-radius:4px}
+.fin-goal .body{gap:3px}
+.fin-inv{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-variant-numeric:tabular-nums}
+.fin-inv .fin-amt{font-size:13px}
+.fin .kpis .v{font-size:16px}
