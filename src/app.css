@@ -590,3 +590,10 @@ a.cell{text-decoration:none}
 .steps-help{padding:10px 12px;font-size:15px;line-height:1.5;color:var(--label)}
 .steps-help h3{font:700 18px var(--display);margin:4px 0 8px}
 .steps-help ol{padding-left:20px;margin:6px 0}.steps-help li{margin:4px 0}.steps-help p{margin:6px 0}
+/* Retour à la ligne des textes longs (Safari iPhone ne coupe pas toujours dans les boutons) */
+.td-body,.td-body>span,.ag-body,.cell .body,.cell .body>span{min-width:0;max-width:100%}
+.td-t,.td-body .fn,.cell .body>span,.ag .fn{overflow-wrap:anywhere;word-break:break-word;white-space:normal}
+.ag .ag-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.td{align-items:center}
+.kpis .k{overflow:hidden;text-overflow:ellipsis}
+#sf textarea,#sf input{max-width:100%;box-sizing:border-box}
