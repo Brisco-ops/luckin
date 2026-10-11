@@ -305,7 +305,7 @@ main{padding-top:calc(58px + env(safe-area-inset-top,0px))}
 @media (prefers-reduced-motion:reduce){.sp-word.fall{opacity:0;transition:opacity .4s}}
 
 /* Transition de balayage entre onglets */
-@media (prefers-reduced-motion:no-preference){main.sw-l{animation:swl .3s cubic-bezier(.2,.8,.2,1)}main.sw-r{animation:swr .3s cubic-bezier(.2,.8,.2,1)}
+@media (prefers-reduced-motion:no-preference){main.sw-l,.a-in.sw-l{animation:swl .3s cubic-bezier(.2,.8,.2,1)}main.sw-r,.a-in.sw-r{animation:swr .3s cubic-bezier(.2,.8,.2,1)}
  @keyframes swl{from{transform:translateX(26%);opacity:.2}}@keyframes swr{from{transform:translateX(-26%);opacity:.2}}}
 html,body{overscroll-behavior-x:none}
 
