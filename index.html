@@ -796,7 +796,7 @@ a.cell{text-decoration:none}
   <button data-view="settings" aria-label="Réglages Forme" title="Réglages Forme"><svg class="o" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8l1.6 2.4 2.8-.7.7 2.8 2.4 1.6-1.3 2.6 1.3 2.6-2.4 1.6-.7 2.8-2.8-.7L12 21.2l-1.6-2.4-2.8.7-.7-2.8-2.4-1.6L5.8 12 4.5 9.5l2.4-1.6.7-2.8 2.8.7Z"/></svg><svg class="f" viewBox="0 0 24 24"><path class="fill" d="M12 2.8l1.6 2.4 2.8-.7.7 2.8 2.4 1.6-1.3 2.6 1.3 2.6-2.4 1.6-.7 2.8-2.8-.7L12 21.2l-1.6-2.4-2.8.7-.7-2.8-2.4-1.6L5.8 12 4.5 9.5l2.4-1.6.7-2.8 2.8.7Z"/><circle cx="12" cy="12" r="3.2" fill="var(--pill-bg,#fff)" stroke="none"/></svg></button>
 </div></nav>
 <div id="layer"></div>
-<section id="home" aria-label="Accueil"><button type="button" class="h-me" data-act="openPrefs" aria-label="Réglages" id="hMe"></button><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote"><p>« Dans la vie, rien n’est à craindre, tout est à comprendre. »</p><cite>Marie Curie</cite></blockquote></div><button type="button" class="h-coach" data-act="openCoach"><span class="hc-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z"/></svg></span><span class="hc-txt"><b>Ton coach</b><span id="hcSub">Il voit tout, anticipe et s’appuie sur tes coachs spécialisés</span></span></button><div id="agenda"></div><div id="friends"></div><nav class="hbar" id="orbit" aria-label="Sections"></nav></section>
+<section id="home" aria-label="Accueil"><button type="button" class="h-me" data-act="openPrefs" aria-label="Réglages" id="hMe"></button><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote" id="hQuote" hidden></blockquote></div><button type="button" class="h-coach" data-act="openCoach"><span class="hc-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z"/></svg></span><span class="hc-txt"><b>Ton coach</b><span id="hcSub">Il voit tout, anticipe et s’appuie sur tes coachs spécialisés</span></span></button><div id="agenda"></div><div id="friends"></div><nav class="hbar" id="orbit" aria-label="Sections"></nav></section>
 <section id="area" hidden></section>
 <div id="bloom" hidden></div>
 
@@ -884,6 +884,7 @@ if(db.settings.suppList==null){const u=x=>Object.assign({id:uid(),dose:'',tip:''
   db.settings.suppList=db.settings.supps?[u({name:'Vitamine C',dose:'2 gélules',when:'repas',meals:['petitdej','dejeuner'],tip:'En fin de repas, matin ou midi'}),u({name:'Vitamine D',when:'repas',meals:['petitdej','dejeuner'],season:'winter',tip:'D’octobre à mars'}),
     u({name:'Zinc',dose:'1 gélule',when:'repas',meals:['diner'],tip:'En fin de dîner'}),u({name:'Créatine',dose:'1 dose / jour',when:'repas',meals:['petitdej','dejeuner','collation','diner'],daily:true,tip:'Une fois par jour, y compris les jours de repos'}),
     u({name:'Magnésium',dose:'2 gélules',when:'soir',tip:'Au coucher, au moins 1 h après le zinc'}),u({name:'Protéine végétale',when:'libre'})]:[];writeLocal()}
+if(db.settings.motto===undefined){db.settings.motto=db.settings.onboarded?{text:'Dans la vie, rien n’est à craindre, tout est à comprendre.',author:'Marie Curie'}:null;writeLocal()}
 if(!db.settings.areas){db.settings.areas=['forme','carriere','taches','finances','savoir'];writeLocal()}
 if(!db.settings.cmFix){db.settings.coachMode='eq';db.settings.cmFix=1;writeLocal()}
 if(db.settings.coachMode==null){db.settings.coachMode=/haiku/.test(db.settings.model||'')?'eco':/opus/.test(db.settings.model||'')?'max':'eq';writeLocal()}
@@ -1137,7 +1138,7 @@ function openPrefs(from){const go=()=>{H.cur='reglages';const r=document.documen
   if(from)bloomFrom(from,PREFS_C,go);else go()}
 function paintPrefs(){const s=st();
   $('#area').innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><p class="l2">Luck’In</p><h1>Réglages</h1></div>
-  ${sec('Profil',`<label class="cell field" for="pn"><span>Prénom</span><input id="pn" data-change="name" value="${esc(s.name||'')}" autocomplete="given-name"></label>`,'Les réglages propres à une section (objectif de poids, programmes, objectif de candidatures…) restent dans la section.')}
+  ${sec('Profil',`<label class="cell field" for="pn"><span>Prénom</span><input id="pn" data-change="name" value="${esc(s.name||'')}" autocomplete="given-name"></label><button class="cell tap" data-act="reWelcome"><span class="body"><span>Mon identité et ma phrase</span><span class="fn">Nom, sexe, naissance, phrase fétiche, sections, objectif</span></span>${I.chev}</button>`,'Les réglages propres à une section (objectif de poids, programmes, objectif de candidatures…) restent dans la section.')}
   ${sec('Mes sections',AREA_PICK.map(([k,l,d])=>`<label class="cell" for="ra-${k}"><span class="body"><span>${l}</span><span class="fn">${d}</span></span><input id="ra-${k}" type="checkbox" class="switch" data-area-toggle="${k}" ${areaOn(k)?'checked':''}></label>`).join('')+(areaOn('forme')?`<button class="cell tap" data-act="formeSetup"><span class="body"><span>Profil Forme</span><span class="fn">Taille, poids, objectif, séances, lecture, compléments${s.height==null||s.startWeight==null?' · à compléter':''}</span></span>${I.chev}</button>`:''),'Les sections désactivées disparaissent de l’accueil, de la barre et du coach. Tes données sont conservées.')}
   ${accountSec()}
   ${sec('Coach IA',`<label class="cell field" for="ak"><span>Clé API</span><input id="ak" data-change="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(s.apiKey||'')}"></label>
@@ -1364,7 +1365,7 @@ function systemFor(d,forBoss){if(d==='forme')return rules()+(forBoss?'\n\nTu ré
 ${PROF[d].label} de l’utilisateur :
 ${profText(d)}${allProf?'\n\nProfils des autres domaines :\n'+allProf:''}
 
-Nous sommes le ${wd} ${TODAY()}. L’utilisateur s’appelle ${st().name}. Réponds en français, en tutoyant, de façon concise et concrète (listes courtes, 1 à 3 actions prioritaires), en citant ses données.${forBoss?' Tu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui.':''}
+Nous sommes le ${wd} ${TODAY()}. L’utilisateur s’appelle ${st().name}${st().birth?', '+Math.floor(diff(st().birth,TODAY())/365.25)+' ans':''}${({f:', femme',h:', homme'})[st().sex]||''}. Réponds en français, en tutoyant, de façon concise et concrète (listes courtes, 1 à 3 actions prioritaires), en citant ses données.${forBoss?' Tu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui.':''}
 
 Données :
 ${CTX[d]()}`}
@@ -2598,6 +2599,7 @@ const H={angle:0,last:0,raf:0,open:true};
 const AREA_ICONS={"taches": "<rect x=\"3.5\" y=\"3.5\" width=\"17\" height=\"17\" rx=\"5\"/><path d=\"M8 12.3l2.8 2.7 5.4-5.5\"/>", "forme": "<path d=\"M2.6 12h18.8\"/><rect x=\"4\" y=\"7.5\" width=\"3.6\" height=\"9\" rx=\"1.4\"/><rect x=\"16.4\" y=\"7.5\" width=\"3.6\" height=\"9\" rx=\"1.4\"/>", "carriere": "<rect x=\"3\" y=\"7\" width=\"18\" height=\"13\" rx=\"3\"/><path d=\"M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7M3 12.5h18\"/>", "finances": "<path d=\"M4 19.5h16\"/><path d=\"M6.5 16v-4M11 16V8M15.5 16v-6M20 5.5l-4.5 3-4-2.5L6 9.5\"/>", "savoir": "<path d=\"M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5Z\"/><path d=\"M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5a1.5 1.5 0 0 1 1.5 1.5Z\"/>"};
 const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 function paintHome(){
+  {const q=st().motto,el=$('#hQuote');el.hidden=!q?.text;if(q?.text)el.innerHTML=`<p>« ${esc(q.text)} »</p>${q.author?`<cite>${esc(q.author)}</cite>`:''}`}
   $('#hName').textContent='Bonjour '+st().name;$('#hMe').textContent=(st().name||'?').trim().charAt(0).toUpperCase();
   $('#hDate').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
   const on=AREAS.filter(a=>areaOn(a.id));
@@ -2748,7 +2750,11 @@ const AREA_PICK=[['forme','Forme','Sport, nutrition, sommeil'],['carriere','Carr
 function showOnboard(){const s=st(),g=$('#gate');g.hidden=false;g.dataset.mode='onboard';
   g.innerHTML=`<div class="g-in"><h1 class="g-h">Bienvenue</h1><p class="g-sub left">Luck’In t’aide à piloter ta vie, domaine par domaine. Choisis ce que tu veux suivre : tu pourras changer à tout moment dans Réglages.</p>
   <form data-form="onboard" novalidate>
-   ${sec('Toi',`<label class="cell field" for="ob_name"><span>Prénom</span><input id="ob_name" name="ob_name" value="${esc(s.name)}" autocomplete="given-name" placeholder="Ton prénom"></label>`)}
+   ${sec('Toi',`<label class="cell field" for="ob_name"><span>Prénom</span><input id="ob_name" name="ob_name" value="${esc(s.name)}" autocomplete="given-name" placeholder="Ton prénom"></label>
+     <label class="cell field" for="ob_last"><span>Nom</span><input id="ob_last" name="ob_last" value="${esc(s.lastName||'')}" autocomplete="family-name" placeholder="Ton nom"></label>
+     <label class="cell field" for="ob_sex"><span>Sexe</span><select id="ob_sex" name="ob_sex">${[['','Ne pas préciser'],['f','Femme'],['h','Homme'],['x','Autre']].map(([k,l])=>`<option value="${k}" ${k===(s.sex||'')?'selected':''}>${l}</option>`).join('')}</select></label>
+     <label class="cell field" for="ob_birth"><span>Date de naissance</span><input id="ob_birth" name="ob_birth" type="date" value="${s.birth||''}"></label>`)}
+   ${sec('Ta phrase fétiche',`<div class="cell"><textarea name="ob_motto" rows="2" placeholder="Facultatif : elle s’affichera sur ton accueil">${esc(s.motto?.text||'')}</textarea></div><label class="cell field" for="ob_mauth"><span>Auteur</span><input id="ob_mauth" name="ob_mauth" value="${esc(s.motto?.author||'')}" placeholder="Facultatif" autocomplete="off"></label>`)}
    ${sec('Ce que tu veux suivre',AREA_PICK.map(([k,l,d])=>`<label class="cell" for="oa-${k}"><span class="body"><span>${l}</span><span class="fn">${d}</span></span><input id="oa-${k}" name="ob_areas" value="${k}" type="checkbox" class="switch" ${areaOn(k)?'checked':''}></label>`).join(''))}
    ${sec('Ton objectif du moment',`<div class="cell"><textarea name="ob_goal" rows="3" placeholder="Trouver un poste en audit d’ici 3 mois, perdre 5 kg, épargner pour un voyage… (facultatif)">${esc(prof('central').goals||'')}</textarea></div>`,'Ton coach s’en sert pour t’aider à prioriser.')}
    <p class="g-msg" role="alert"></p>
@@ -2757,7 +2763,7 @@ function showOnboard(){const s=st(),g=$('#gate');g.hidden=false;g.dataset.mode='
 function doOnboard(f){const fd=new FormData(f),v=Object.fromEntries(fd),s=st();
   const name=String(v.ob_name||'').trim();if(!name){f.querySelector('.g-msg').textContent='Indique ton prénom.';$('#ob_name').focus();return}
   const areas=fd.getAll('ob_areas');if(!areas.length){f.querySelector('.g-msg').textContent='Choisis au moins un domaine.';return}
-  s.name=name;s.areas=areas;const goal=String(v.ob_goal||'').trim();if(goal)s.prof=Object.assign({},s.prof,{central:Object.assign({},(s.prof||{}).central,{goals:goal})});
+  s.name=name;s.areas=areas;s.lastName=String(v.ob_last||'').trim();s.sex=v.ob_sex||'';s.birth=v.ob_birth||'';const mt=String(v.ob_motto||'').trim();s.motto=mt?{text:mt.replace(/^[«"\s]+|[»"\s]+$/g,''),author:String(v.ob_mauth||'').trim()}:null;const goal=String(v.ob_goal||'').trim();if(goal)s.prof=Object.assign({},s.prof,{central:Object.assign({},(s.prof||{}).central,{goals:goal})});
   s.onboarded=1;save();hideGate();refreshAll();hud('C’est parti, '+name)}
 /* profil Forme (taille, poids, séances, lecture, compléments) : proposé à la première ouverture de Forme, modifiable ensuite */
 function showFormeSetup(again){const s=st(),r=s.reading||{on:false,label:'Lecture',min:10};const g=$('#gate');g.hidden=false;g.dataset.mode='formeSetup';
@@ -2890,6 +2896,7 @@ document.addEventListener('click',async ev=>{const el=ev.target.closest('[data-a
        A.cheers.push({from_id:A.user.id,to_id:id,day:TODAY()});hud(r.sent?'🔥 Encouragement envoyé à '+nm:nm+' verra ton encouragement dans l’app')}
      catch(e){el.classList.remove('done');hud('Erreur : '+e.message)}break}
    case 'formeSetup':showFormeSetup(true);break;
+   case 'reWelcome':showOnboard();break;
    case 'onboardLater':if($('#gate').dataset.mode==='formeSetup'){st().formeSetup=1;save()}hideGate();break;
    case 'gateSkip':try{localStorage.setItem(AK,'local')}catch(e){}hideGate();if(!st().onboarded)showOnboard();break;
    case 'gateOpen':showGate('login');break;
