@@ -827,6 +827,92 @@ a.cell{text-decoration:none}
 "use strict";
 /* ================= utils ================= */
 const K='cap-fit-v1';
+/* ================= langue : français par défaut, anglais si le téléphone n'est pas en français (ou réglage « Langue ») ================= */
+/* Le code reste en français ; en anglais, chaque texte d'interface affiché est remplacé à l'écran via le dictionnaire EN (texte exact)
+   et EN_RX (textes avec une partie variable). Les contenus saisis par l'utilisateur (messages, notes, champs) ne sont pas traduits. */
+const LANG=(()=>{let p='auto';try{p=JSON.parse(localStorage.getItem(K)||'{}').settings?.lang||'auto'}catch(e){}return p!=='auto'?p:/^fr/i.test(navigator.language||'fr')?'fr':'en'})();
+const LOC=LANG==='en'?'en-GB':'fr-FR';
+const T=(fr,en)=>LANG==='en'?en:fr;
+const EN=new Map(Object.entries({
+ // accueil, barre, sections
+ 'Accueil':'Home','Bonjour':'Hello','Ton coach':'Your coach','Il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Sees everything, plans ahead and relies on your specialist coaches',
+ 'Aujourd’hui':'Today','Demain':'Tomorrow','Rien de prévu aujourd’hui. Profite !':'Nothing planned today. Enjoy!','En retard':'Overdue','Marquer comme faite':'Mark as done',
+ 'Forme':'Fitness','Carrière':'Career','Tâches':'Tasks','Finances':'Finances','Savoir':'Knowledge','Apprentissage':'Learning',
+ 'Sport, nutrition, sommeil':'Sport, nutrition, sleep','Candidatures, entretiens, réseau':'Applications, interviews, network','To-do, échéances, priorités':'To-dos, deadlines, priorities','Budget, épargne, placements':'Budget, savings, investments','Notes, apprentissage, deuxième cerveau':'Notes, learning, second brain',
+ 'Réveil':'Wake-up','Soir':'Evening','Séance':'Workout','Séance en cours':'Workout in progress','Jour d’entraînement':'Training day','Bilan du dimanche':'Sunday review','Poids et sommeil':'Weight and sleep','Clôturer la journée':'Wrap up the day','Mensurations et bilan':'Measurements and review',
+ 'Compléter mon profil Forme':'Complete my fitness profile','Taille, poids, objectif : pour suivre ta progression':'Height, weight, goal: to track your progress','Rattraper hier':'Catch up yesterday','Rattraper avant-hier':'Catch up the day before',
+ 'réveil et soir à compléter':'wake-up and evening to complete','réveil, soir à compléter':'wake-up, evening to complete','réveil à compléter':'wake-up to complete','soir à compléter':'evening to complete',
+ 'À payer':'To pay','chaque jour':'every day','en semaine':'on weekdays','chaque semaine':'every week','chaque mois':'every month','chaque année':'every year',
+ // bienvenue
+ 'Bienvenue':'Welcome','Commencer':'Get started','Suivant':'Next','Retour':'Back','Passer':'Skip','C’est parti':'Let’s go','Annuler':'Cancel','Enregistrer':'Save',
+ 'Luck’In t’aide à piloter ta vie, domaine par domaine : ta forme, ta carrière, tes tâches, tes finances et ce que tu apprends. Un coach t’accompagne sur tout.':'Luck’In helps you run your life, area by area: your fitness, your career, your tasks, your money and what you learn. A coach supports you on everything.',
+ 'Qui es-tu ?':'Who are you?','Pour personnaliser l’app et les conseils de ton coach.':'To personalise the app and your coach’s advice.','Prénom':'First name','Nom':'Last name','Sexe':'Gender','Date de naissance':'Date of birth','Ne pas préciser':'Prefer not to say','Femme':'Woman','Homme':'Man','Autre':'Other','Ton prénom':'Your first name','Ton nom':'Your last name',
+ 'Ton nom et ta date de naissance ne sont jamais montrés à tes amis.':'Your last name and date of birth are never shown to your friends.','Indique ton prénom.':'Enter your first name.','Indique ton nom.':'Enter your last name.','Choisis au moins un domaine.':'Choose at least one area.',
+ 'Ce qui t’intéresse':'What interests you','Choisis les domaines à suivre. Tu pourras en ajouter ou en retirer à tout moment dans Réglages.':'Choose the areas to track. You can add or remove some at any time in Settings.','Ce que tu veux suivre':'What you want to track',
+ 'Ta phrase fétiche':'Your motto','Une phrase qui te motive : elle s’affichera chaque jour sur ton accueil. Facultatif.':'A sentence that motivates you: it will show every day on your home screen. Optional.','Auteur':'Author','Facultatif':'Optional','Facultatif : elle s’affichera sur ton accueil':'Optional: it will show on your home screen',
+ '« Le succès, c’est d’aller d’échec en échec sans perdre son enthousiasme. »':'“Success is going from failure to failure without losing enthusiasm.”',
+ 'Ton objectif du moment':'Your current goal','Ce qui compte le plus pour toi en ce moment. Ton coach s’en sert pour t’aider à prioriser. Facultatif.':'What matters most to you right now. Your coach uses it to help you prioritise. Optional.','Ton coach s’en sert pour t’aider à prioriser.':'Your coach uses it to help you prioritise.',
+ 'Trouver un poste en audit d’ici 3 mois, perdre 5 kg, épargner pour un voyage…':'Land an audit job within 3 months, lose 5 kg, save for a trip…','Trouver un poste en audit d’ici 3 mois, perdre 5 kg, épargner pour un voyage… (facultatif)':'Land an audit job within 3 months, lose 5 kg, save for a trip… (optional)',
+ 'Ton app en 3 points :':'Your app in 3 points:','L’accueil':'Home','Ce que tu as à faire aujourd’hui et les jours suivants, toutes sections confondues.':'What you have to do today and in the coming days, across all areas.',
+ 'Il voit tout, anticipe et peut réorganiser tes tâches. Chaque section a aussi son coach spécialisé.':'Sees everything, plans ahead and can reorganise your tasks. Each area also has its own specialist coach.','La barre du bas':'The bottom bar','Tes sections. Le rond à ton initiale, en haut à droite, ouvre tes réglages.':'Your areas. The circle with your initial, top right, opens your settings.',
+ 'Toi':'You','Mon profil':'My profile','Modifie ce que tu veux : identité, phrase, sections suivies, objectif.':'Change whatever you want: identity, motto, tracked areas, goal.','Luck’In t’aide à piloter ta vie, domaine par domaine. Choisis ce que tu veux suivre : tu pourras changer à tout moment dans Réglages.':'Luck’In helps you run your life, area by area. Choose what you want to track: you can change it at any time in Settings.','Profil enregistré':'Profile saved',
+ 'Ton profil Forme':'Your fitness profile','Quelques infos pour suivre ta progression. Tout est facultatif et modifiable ensuite.':'A few details to track your progress. Everything is optional and can be changed later.','Complète ou corrige ce que tu veux.':'Complete or correct whatever you want.','Plus tard':'Later','Profil Forme enregistré':'Fitness profile saved',
+ // connexion
+ 'Crée ton compte : tes données sont sauvegardées et tu avances avec tes amis.':'Create your account: your data is backed up and you progress with your friends.','Content de te revoir.':'Good to see you again.','E-mail':'Email','Mot de passe':'Password','6 caractères minimum':'At least 6 characters','toi@exemple.com':'you@example.com',
+ 'Créer mon compte':'Create my account','Se connecter':'Sign in','J’ai déjà un compte':'I already have an account','Nouveau ? Créer un compte':'New? Create an account','Continuer sans compte':'Continue without an account','Création du compte…':'Creating account…','Connexion…':'Signing in…','Compte créé':'Account created','Connecté':'Signed in',
+ 'Adresse e-mail invalide.':'Invalid email address.','Mot de passe : 6 caractères minimum.':'Password: at least 6 characters.','E-mail ou mot de passe incorrect.':'Wrong email or password.','Ce compte existe déjà : touche « J’ai déjà un compte ».':'This account already exists: tap “I already have an account”.','Trop de tentatives. Réessaie dans quelques minutes.':'Too many attempts. Try again in a few minutes.','Pas de connexion. Vérifie ton réseau.':'No connection. Check your network.','Connexion impossible : vérifie ton réseau puis relance l’app.':'Can’t connect: check your network, then restart the app.',
+ // réglages
+ 'Réglages':'Settings','Profil':'Profile','Mon identité et ma phrase':'My identity and motto','Nom, sexe, naissance, phrase fétiche, sections, objectif':'Name, gender, birth date, motto, areas, goal','Prénom enregistré':'First name saved',
+ 'Mes sections':'My areas','Les sections désactivées disparaissent de l’accueil, de la barre et du coach. Tes données sont conservées. Les réglages propres à une section (profil Forme, objectif de candidatures…) se trouvent dans la section.':'Disabled areas disappear from home, the bar and the coach. Your data is kept. Settings specific to an area (fitness profile, application goal…) are inside that area.','Section activée':'Area enabled','Section masquée':'Area hidden','Garde au moins une section':'Keep at least one area',
+ 'Les réglages propres à une section (objectif de poids, programmes, objectif de candidatures…) restent dans la section.':'Settings specific to an area (weight goal, programmes, application goal…) stay inside that area.',
+ 'Langue':'Language','Automatique (langue du téléphone)':'Automatic (phone language)','Français':'Français','English':'English',
+ 'Compte et amis':'Account and friends','Compte':'Account','Se connecter ou créer un compte':'Sign in or create an account','Un compte sauvegarde tes données en ligne et te permet de rejoindre tes amis.':'An account backs up your data online and lets you join your friends.','Données sauvegardées en ligne':'Data backed up online',
+ 'Groupe d’amis':'Friends group','Inviter un ami':'Invite a friend','Quitter le groupe':'Leave the group','Créer un groupe':'Create a group','Rejoindre avec un code':'Join with a code','Nouveau groupe':'New group','Rejoindre un groupe':'Join a group','Rejoindre':'Join','Le code à 6 caractères envoyé par ton ami.':'The 6-character code your friend sent you.','Un code d’invitation est créé : partage-le à tes amis.':'An invitation code is created: share it with your friends.','Se déconnecter':'Sign out','Supprimer mon compte':'Delete my account',
+ 'Tes amis voient seulement si tu as fait ton réveil, ton soir et ta séance, et ta progression en % vers ton objectif. Jamais ton poids, tes repas ni tes mesures.':'Your friends only see whether you did your wake-up, evening and workout, and your progress in % towards your goal. Never your weight, meals or measurements.',
+ 'Efface ton compte et tes données en ligne. La copie de ce téléphone est conservée.':'Deletes your account and your online data. The copy on this phone is kept.',
+ 'Notifications':'Notifications','Rappels et encouragements':'Reminders and cheers','Activés sur ce téléphone':'On for this phone','Désactivés':'Off','Rappels d’entretien et d’événement':'Interview and event reminders','2 jours avant et la veille à 19:00, le matin même à 08:00':'2 days before and the day before at 19:00, the same morning at 08:00','Rappels de tâches':'Task reminders','Résumé à 08:00, et 15 min avant une tâche qui a une heure':'Summary at 08:00, and 15 min before a task with a time',
+ 'Un rappel n’arrive que si le rituel n’est pas encore fait. Les encouragements de tes amis arrivent aussi en notification.':'A reminder only arrives if the ritual isn’t done yet. Cheers from your friends also arrive as notifications.','Ouvre Luck’In depuis son icône sur l’écran d’accueil pour activer les rappels et les encouragements (iPhone avec iOS 16.4 ou plus).':'Open Luck’In from its home-screen icon to turn on reminders and cheers (iPhone with iOS 16.4 or later).','Notifications activées':'Notifications on','Notifications désactivées':'Notifications off','Rappels activés':'Reminders on','Rappels coupés':'Reminders off','Heure enregistrée':'Time saved',
+ 'Coach IA':'AI coach','Clé API':'API key','Coachs':'Coaches','Économique':'Economy','Équilibré':'Balanced','Expert':'Expert','Clé enregistrée':'Key saved','Clé retirée':'Key removed',
+ 'Clé Anthropic (console.anthropic.com › API Keys), stockée uniquement sur ce téléphone. Fixe une limite de dépense mensuelle sur la console.':'Anthropic key (console.anthropic.com › API Keys), stored only on this phone. Set a monthly spending limit in the console.',
+ 'Haiku 4.5 seul : le moins cher (≈ 0,5 centime par message), pour les questions simples.':'Haiku 4.5 only: the cheapest (≈ 0.5 cent per message), for simple questions.','Haiku 4.5 répond et consulte Opus 5.5 en conseiller seulement pour les questions difficiles (≈ 0,5 centime, ≈ 3 centimes quand il consulte).':'Haiku 4.5 answers and consults Opus 5.5 as an adviser only for hard questions (≈ 0.5 cent, ≈ 3 cents when it consults).','Sonnet 5.5 répond et consulte Opus 5.5 en conseiller pour les questions difficiles (≈ 1,5 centime, ≈ 4 centimes avec conseil).':'Sonnet 5.5 answers and consults Opus 5.5 as an adviser for hard questions (≈ 1.5 cents, ≈ 4 cents with advice).',
+ 'Données':'Data','Exporter une sauvegarde':'Export a backup','Copier les données':'Copy data','Importer un fichier':'Import a file','Coller une sauvegarde':'Paste a backup','Exporter mes notes (Apprentissage)':'Export my notes (Learning)','Tout effacer':'Erase everything','Les données restent sur ce téléphone. Exporte-les chaque semaine.':'Data stays on this phone. Export it every week.','Tes données sont sauvegardées dans ton compte et sur ce téléphone.':'Your data is backed up in your account and on this phone.',
+ // coachs
+ 'Coach':'Coach','Coach Carrière':'Career coach','Coach Tâches':'Tasks coach','Coach Finances':'Finance coach','Coach Savoir':'Knowledge coach','Active ton coach':'Activate your coach','Saisir ma clé API':'Enter my API key','Le coach utilise Claude avec ta clé API Anthropic (Réglages › Coach IA), stockée uniquement sur ce téléphone.':'The coach uses Claude with your Anthropic API key (Settings › AI coach), stored only on this phone.',
+ 'Nouvelle conversation':'New conversation','Effacer cette conversation ?':'Clear this conversation?','Je regarde l’ensemble…':'Looking at the big picture…','Je fais la synthèse…':'Summing up…','Planning proposé':'Proposed plan','Appliquer':'Apply','Appliqué à tes tâches':'Applied to your tasks','Préparation du planning…':'Preparing the plan…','Rien à appliquer':'Nothing to apply',
+ 'À propos de toi':'About you','Profil carrière':'Career profile','Profil finances':'Finance profile','Profil organisation':'Organisation profile','Profil apprentissage':'Learning profile','Modifier':'Edit','Remplir':'Fill in','à remplir pour des conseils vraiment personnalisés':'fill in for truly personal advice',
+ 'Rempli une fois, transmis au coach à chaque question. Reste sur ton téléphone et dans ton compte, jamais visible par tes amis.':'Filled in once, sent to the coach with every question. Stays on your phone and in your account, never visible to your friends.',
+ 'Qui tu es':'Who you are','Tes grands objectifs':'Your big goals','Comment le coach doit te parler':'How the coach should talk to you','Poste visé':'Target role','Secteurs':'Sectors','Où':'Where','Contrat recherché':'Contract sought','Formation':'Education','Expérience':'Experience','Compétences clés':'Key skills','Langues':'Languages','Ton CV (texte copié-collé)':'Your CV (pasted text)','Colle ici le texte de ton CV':'Paste the text of your CV here',
+ 'Revenus nets par mois':'Net monthly income','Situation':'Situation','Logement':'Housing','Épargne de précaution visée':'Target emergency fund','Horizon de placement':'Investment horizon','Rapport au risque':'Risk attitude','Crédits ou dettes':'Loans or debts','Projets financiers':'Financial plans',
+ 'Horaires habituels':'Usual hours','Moments où tu es le plus efficace':'When you are most productive','Contraintes':'Constraints','Ce qui compte en ce moment':'What matters right now','Sujets qui t’intéressent':'Topics you’re interested in','Objectifs d’apprentissage':'Learning goals','Temps disponible par semaine':'Time available per week','Comment tu apprends le mieux':'How you learn best',
+ '‹ Mes notes':'‹ My notes','‹ Mes tâches':'‹ My tasks','Arrêter':'Stop','Envoyer':'Send','Message':'Message',
+ // divers
+ 'Réglages Forme':'Fitness settings','Ma journée':'My day','Repas':'Meals','Tendance':'Trend','Poids moyen sur 7 jours':'7-day average weight','série':'streak','eau':'water','prot.':'protein','Suivi':'Progress','Bilan':'Stats','Candidatures':'Applications','Événements':'Events','Contacts':'Contacts','Budget':'Budget','À venir':'Upcoming','Épargne':'Savings','Placements':'Investments',
+ 'Poids, composition, sommeil · 1 min':'Weight, body composition, sleep · 1 min','20 s par repas':'20 s per meal','Ballonnements, eau, pas, ressentis · 1 min':'Bloating, water, steps, how you feel · 1 min','Mensurations et bilan de la semaine':'Measurements and weekly review','Pas de connexion':'No connection','Rien à rattraper':'Nothing to catch up',
+}));
+const EN_PART=new Map(Object.entries({'poids':'weight','masse grasse':'body fat','muscle':'muscle','graisse viscérale':'visceral fat','durée du sommeil':'sleep duration','qualité du sommeil':'sleep quality','lecture de la bible':'Bible reading','lecture':'reading','eau':'water','pas':'steps','énergie':'energy','faim':'hunger','stress':'stress','tour de taille':'waist','trou de ceinture':'belt notch','victoires':'wins','difficultés':'struggles','réveil':'wake-up','soir':'evening','fiche du soir':'evening log'}));
+const trList=x=>x.split(', ').map(p=>EN_PART.get(p)||p).join(', ');
+const EN_RX=[
+ [/^Bonjour (.+)$/,(m,a)=>'Hello '+a],[/^Aujourd’hui · (\d+)$/,(m,a)=>'Today · '+a],[/^Demain · (\d+)$/,(m,a)=>'Tomorrow · '+a],[/^C’est prêt, (.+) !$/,(m,a)=>`You’re all set, ${a}!`],[/^C’est prêt !$/,()=>'You’re all set!'],[/^C’est parti, (.+)$/,(m,a)=>`Let’s go, ${a}`],
+ [/^Étape (\d+) sur (\d+)$/,(m,a,b)=>`Step ${a} of ${b}`],[/^Sans nouvelles depuis (\d+) jours$/,(m,a)=>`No news for ${a} days`],[/^Relancer (.+)$/,(m,a)=>'Follow up with '+a],[/^Recontacter (.+)$/,(m,a)=>'Reach out to '+a],[/^Entretien · (.+)$/,(m,a)=>'Interview · '+a],
+ [/^Depuis le départ \((.+)\) · cible (.+)$/,(m,a,b)=>`Since start (${a}) · target ${b}`],[/^Vue d’ensemble · (\d+) coachs? spécialisés?$/,(m,a)=>`Overview · ${a} specialist coach${a>1?'es':''}`],[/^Spécialiste (.+)$/,(m,a)=>`${tr(a)} specialist`],
+ [/^À compléter : (.+)$/,(m,a)=>'To complete: '+trList(a)],[/^(\d+) j$/,(m,a)=>a+' d'],[/^↻ (.+)$/,(m,a)=>'↻ '+tr(a)],[/^Coachs : (.+)$/,(m,a)=>'Coaches: '+tr(a)],
+ [/^(.+) · (\d+)\/(\d+) renseignés?$/,(m,a,b,c)=>`${tr(a)} · ${b}/${c} filled in`],[/^A consulté : (.+)$/,(m,a)=>'Consulted: '+a.split(', ').map(tr).join(', ')],[/^Je consulte (?:le coach|les coachs) (.+)…$/,(m,a)=>'Consulting the '+a.replace(' et ',' and ').split(', ').map(x=>x.split(' and ').map(tr).join(' and ')).join(', ')+' coach…'],
+ [/^(\d+) changements? appliqués? à tes tâches$/,(m,a)=>`${a} change${a>1?'s':''} applied to your tasks`],[/^Écris à (.+)…$/,(m,a)=>'Write to '+a.replace('ton coach','your coach')+'…'],[/^(\d+) modif\. · (\d+) ajouts? ?(.*)$/,(m,a,b,c)=>`${a} change${a>1?'s':''} · ${b} new${c?' '+c.replace(/retraits?/,'removed'):''}`],
+ [/^Erreur : (.+)$/,(m,a)=>'Error: '+a]];
+function tr(t){const k=t.trim();if(!k)return t;let v=EN.get(k);
+  if(v==null)for(const [rx,f] of EN_RX){const m=k.match(rx);if(m){v=f(...m);break}}
+  if(v==null&&k.includes(' · ')){const parts=k.split(' · '),o=parts.map(p=>EN.get(p)??p);if(o.some((p,i)=>p!==parts[i]))v=o.join(' · ')}
+  return v==null?t:t.replace(k,v)}
+const NO_TR='textarea,script,style,.msg,.br-text,.td-t,.no-tr,[contenteditable]';
+function translateDOM(root){if(LANG!=='en'||!root)return;
+  if(root.nodeType===3){const p=root.parentElement;if(p&&!p.closest(NO_TR)){const v=tr(root.nodeValue);if(v!==root.nodeValue)root.nodeValue=v}return}
+  if(root.nodeType!==1)return;if(root.closest&&root.closest(NO_TR))return;
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){const p=n.parentElement;if(p&&p.closest(NO_TR))continue;const v=tr(n.nodeValue);if(v!==n.nodeValue)n.nodeValue=v}
+  const els=[root,...root.querySelectorAll('[placeholder],[aria-label],[title]')];els.forEach(el=>['placeholder','aria-label','title'].forEach(a=>{const x=el.getAttribute&&el.getAttribute(a);if(x){const v=tr(x);if(v!==x)el.setAttribute(a,v)}}))}
+if(LANG==='en'){document.documentElement.lang='en';
+  new MutationObserver(ms=>{for(const m of ms){if(m.type==='childList')m.addedNodes.forEach(translateDOM);else if(m.type==='characterData')translateDOM(m.target)}}).observe(document.body,{childList:true,subtree:true,characterData:true});
+  translateDOM(document.body)}
+
 const uid=()=>Math.random().toString(36).slice(2,9);
 const iso=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
 const TODAY=()=>iso(new Date());
@@ -836,9 +922,9 @@ const dow=s=>(new Date(s+'T12:00:00').getDay()+6)%7; // 0 = lundi
 const weekStart=s=>addDays(s,-dow(s));
 const nowHM=()=>{const d=new Date();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const fmt=(n,d=1)=>n==null||isNaN(n)?'–':Number(n).toLocaleString('fr-FR',{maximumFractionDigits:d});
-const fdate=s=>s?new Date(s+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
-const fday=s=>new Date(s+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+const fmt=(n,d=1)=>n==null||isNaN(n)?'–':Number(n).toLocaleString(LOC,{maximumFractionDigits:d});
+const fdate=s=>s?new Date(s+'T12:00:00').toLocaleDateString(LOC,{day:'numeric',month:'short'}):'';
+const fday=s=>new Date(s+'T12:00:00').toLocaleDateString(LOC,{weekday:'short',day:'numeric',month:'short'});
 const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
 const num=v=>{if(v==null||v==='')return null;const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?null:n};
 const mmss=s=>{s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
@@ -1013,7 +1099,7 @@ function barChart({days,vals,target,color='var(--tint)',h=130,fmtV=v=>fmt(v,0)})
 /* ================= views: today ================= */
 function vToday(){
   const t=TODAY(),D=peekDay(t),tt=totals(t),s=st();
-  const dateStr=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  const dateStr=new Date().toLocaleDateString(LOC,{weekday:'long',day:'numeric',month:'long'});
   const m=D.morning,e=D.evening;
   const kp=(v,target,label,unit)=>`<div class="${target?'ringed':''}" style="--p:${target?clamp((v||0)/target)*100:0}%"><span class="v">${v==null?'–':fmt(v,0)}${unit}</span><span class="k">${label}${target?' / '+fmt(target,0):''}</span></div>`;
   const wo=workoutsOn(t),active=db.active&&db.workouts.find(w=>w.id===db.active.id);
@@ -1161,6 +1247,7 @@ function paintPrefs(){const s=st();
   $('#area').innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><p class="l2">Luck’In</p><h1>Réglages</h1></div>
   ${sec('Profil',`<label class="cell field" for="pn"><span>Prénom</span><input id="pn" data-change="name" value="${esc(s.name||'')}" autocomplete="given-name"></label><button class="cell tap" data-act="reWelcome"><span class="body"><span>Mon identité et ma phrase</span><span class="fn">Nom, sexe, naissance, phrase fétiche, sections, objectif</span></span>${I.chev}</button>`,'Les réglages propres à une section (objectif de poids, programmes, objectif de candidatures…) restent dans la section.')}
   ${sec('Mes sections',AREA_PICK.map(([k,l,d])=>`<label class="cell" for="ra-${k}"><span class="body"><span>${l}</span><span class="fn">${d}</span></span><input id="ra-${k}" type="checkbox" class="switch" data-area-toggle="${k}" ${areaOn(k)?'checked':''}></label>`).join(''),'Les sections désactivées disparaissent de l’accueil, de la barre et du coach. Tes données sont conservées. Les réglages propres à une section (profil Forme, objectif de candidatures…) se trouvent dans la section.')}
+  ${sec(T('Langue','Language'),`<label class="cell field" for="lng"><span>${T('Langue','Language')}</span><select id="lng" data-change="lang">${[['auto',T('Automatique (langue du téléphone)','Automatic (phone language)')],['fr','Français'],['en','English']].map(([k,l])=>`<option value="${k}" ${k===(s.lang||'auto')?'selected':''}>${l}</option>`).join('')}</select></label>`)}
   ${accountSec()}
   ${sec('Coach IA',`<label class="cell field" for="ak"><span>Clé API</span><input id="ak" data-change="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(s.apiKey||'')}"></label>
      <div class="cell block"><span>Coachs</span>${seg('coachMode',COACH_MODES.map(m=>[m[0],m[1]]),s.coachMode||'eq')}</div><div class="cell"><span class="body fn">${esc((COACH_MODES.find(m=>m[0]===(s.coachMode||'eq'))||COACH_MODES[1])[2])}</span></div>`,
@@ -1211,7 +1298,7 @@ Derniers repas : ${meals.join(' ; ')||'(aucun)'}
 Dernières séances : ${wos.join(' ; ')||'(aucune)'}
 Bilans hebdomadaires : ${wk.join(' ; ')||'(aucun)'}`;
 }
-function rules(){return `Tu es le coach sport et nutrition intégré à Luck’In, l'application de ${st().name}. Nous sommes le ${TODAY()}. Réponds en français, en tutoyant, de façon concise et concrète. Au maximum 3 questions à la fois.
+function rules(){return `${LANG==='en'?'IMPORTANT : réponds en anglais (le téléphone de l’utilisateur est en anglais).\n':''}Tu es le coach sport et nutrition intégré à Luck’In, l'application de ${st().name}. Nous sommes le ${TODAY()}. Réponds en français, en tutoyant, de façon concise et concrète. Au maximum 3 questions à la fois.
 Objectif de l'utilisateur : recomposition corporelle (perdre du gras, silhouette plus athlétique) en conservant ou gagnant du muscle.
 Appuie-toi sur ses données ci-dessous : cite des chiffres, repère les tendances (moyenne de poids sur 7 jours, protéines, sommeil, repas hors plan, ballonnements par provenance ou vitesse de repas, progression des charges) et propose 1 à 3 actions prioritaires.
 Méthodes : surcharge progressive avec RIR 1 à 3, volume de 10 à 20 séries par groupe musculaire et par semaine selon le niveau, protéines autour de 1,6 à 2,2 g par kg, déficit modéré, perte de 0,5 à 1 % du poids par semaine, sommeil 7 à 9 h, indicateurs d'action (séances, protéines, pas) plutôt que le seul poids. Respecte ses contraintes alimentaires dans toute suggestion de repas.
@@ -1274,16 +1361,16 @@ async function send(text){
    Le coach central voit un résumé de tout ; avec la clé API, il interroge les spécialistes via l'outil consulter_coach. */
 const COACH_DOMS={forme:'Forme',carriere:'Carrière',taches:'Tâches',finances:'Finances',savoir:'Savoir'};
 const COACH={
- central:{name:'Coach',color:'#2B3FC4',hello:n=>`Salut ${n}. Je vois l’ensemble de ta vie dans Luck’In : forme, carrière, tâches, finances et savoir. Je travaille avec un coach spécialisé pour chaque domaine. Que veux-tu regarder ?`,
-  starters:['Fais-moi le point de ma journée et de ma semaine.','Qu’est-ce que je risque d’oublier dans les 7 prochains jours ?','Quelles sont mes 3 priorités cette semaine, tous domaines confondus ?','Aide-moi à organiser ma journée de demain.']},
- carriere:{name:'Coach Carrière',hello:n=>`Salut ${n}. Je connais tes candidatures, tes événements et tes contacts. On regarde quoi ?`,
-  starters:['Analyse mes candidatures : qu’est-ce qui bloque ?','Qui dois-je relancer ou recontacter cette semaine ?','Prépare-moi pour mon prochain entretien.','Quelles questions poser à mon prochain événement ?']},
- taches:{name:'Coach Tâches',hello:n=>`Salut ${n}. Je vois toutes tes tâches, leurs échéances et priorités. Par quoi on commence ?`,
-  starters:['Que dois-je faire en priorité aujourd’hui ?','Organise ma semaine à partir de mes tâches.','Quelles tâches puis-je reporter ou supprimer ?','Découpe ma tâche la plus lourde en étapes.']},
- finances:{name:'Coach Finances',hello:n=>`Salut ${n}. Je vois ton budget, tes échéances, ton épargne et tes placements. Que veux-tu savoir ?`,
-  starters:['Où part mon argent ce mois-ci ?','Est-ce que je vais boucler le mois ?','Combien puis-je épargner par mois de façon réaliste ?','Fais le point sur mes placements.']},
- savoir:{name:'Coach Savoir',hello:n=>`Salut ${n}. Je connais tes notes et leurs connexions. On approfondit quoi ?`,
-  starters:['Résume ce que j’ai appris récemment.','Quelles notes devrais-je relier entre elles ?','Quelles notes sont isolées ou à compléter ?','Pose-moi 5 questions pour réviser mes notes.']}};
+ central:{name:'Coach',color:'#2B3FC4',hello:n=>T(`Salut ${n}. Je vois l’ensemble de ta vie dans Luck’In : forme, carrière, tâches, finances et savoir. Je travaille avec un coach spécialisé pour chaque domaine. Que veux-tu regarder ?`,`Hi ${n}. I see your whole life in Luck’In: fitness, career, tasks, money and knowledge. I work with a specialist coach for each area. What would you like to look at?`),
+  starters:T(['Fais-moi le point de ma journée et de ma semaine.','Qu’est-ce que je risque d’oublier dans les 7 prochains jours ?','Quelles sont mes 3 priorités cette semaine, tous domaines confondus ?','Aide-moi à organiser ma journée de demain.'],['Give me an overview of my day and my week.','What might I forget in the next 7 days?','What are my 3 priorities this week, across all areas?','Help me organise tomorrow.'])},
+ carriere:{name:'Coach Carrière',hello:n=>T(`Salut ${n}. Je connais tes candidatures, tes événements et tes contacts. On regarde quoi ?`,`Hi ${n}. I know your applications, events and contacts. What shall we look at?`),
+  starters:T(['Analyse mes candidatures : qu’est-ce qui bloque ?','Qui dois-je relancer ou recontacter cette semaine ?','Prépare-moi pour mon prochain entretien.','Quelles questions poser à mon prochain événement ?'],['Analyse my applications: what is holding me back?','Who should I follow up with or contact this week?','Prepare me for my next interview.','What questions should I ask at my next event?'])},
+ taches:{name:'Coach Tâches',hello:n=>T(`Salut ${n}. Je vois toutes tes tâches, leurs échéances et priorités. Par quoi on commence ?`,`Hi ${n}. I see all your tasks, their deadlines and priorities. Where shall we start?`),
+  starters:T(['Que dois-je faire en priorité aujourd’hui ?','Organise ma semaine à partir de mes tâches.','Quelles tâches puis-je reporter ou supprimer ?','Découpe ma tâche la plus lourde en étapes.'],['What should I prioritise today?','Organise my week from my tasks.','Which tasks can I postpone or drop?','Break my biggest task into steps.'])},
+ finances:{name:'Coach Finances',hello:n=>T(`Salut ${n}. Je vois ton budget, tes échéances, ton épargne et tes placements. Que veux-tu savoir ?`,`Hi ${n}. I see your budget, upcoming payments, savings and investments. What would you like to know?`),
+  starters:T(['Où part mon argent ce mois-ci ?','Est-ce que je vais boucler le mois ?','Combien puis-je épargner par mois de façon réaliste ?','Fais le point sur mes placements.'],['Where is my money going this month?','Will I make it to the end of the month?','How much can I realistically save each month?','Review my investments.'])},
+ savoir:{name:'Coach Savoir',hello:n=>T(`Salut ${n}. Je connais tes notes et leurs connexions. On approfondit quoi ?`,`Hi ${n}. I know your notes and how they connect. What shall we dig into?`),
+  starters:T(['Résume ce que j’ai appris récemment.','Quelles notes devrais-je relier entre elles ?','Quelles notes sont isolées ou à compléter ?','Pose-moi 5 questions pour réviser mes notes.'],['Summarise what I learned recently.','Which notes should I link together?','Which notes are isolated or incomplete?','Ask me 5 questions to review my notes.'])}};
 /* consignes d'expert de chaque coach (le coach Forme a les siennes dans rules()) */
 const ROLE={
  central:`Tu es le coach principal de Luck’In, l’app où ${'${name}'} pilote sa vie. Tu es un chef d’orchestre : tu supervises 5 coachs spécialisés — Forme (sport, nutrition, sommeil), Carrière (candidatures, entretiens, événements, réseau), Tâches (organisation), Finances (budget, épargne, placements) et Savoir (deuxième cerveau).
@@ -1379,14 +1466,14 @@ Savoir : ${notes().length} notes, dernières : ${notes().slice().sort((a,b)=>(b.
   const pre={'Forme :':'forme','Séances prévues':'forme','Carrière :':'carriere','Tâches :':'taches','Finances :':'finances','Savoir :':'savoir'};
   return txt.split('\n').filter(l=>{const k=Object.keys(pre).find(p=>l.startsWith(p));return !k||areaOn(pre[k])}).join('\n')}};
 function systemFor(d,forBoss){if(d==='forme')return rules()+(forBoss?'\n\nTu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui, sans bloc <programme>.':'');
-  const wd=new Date().toLocaleDateString('fr-FR',{weekday:'long'});
+  const wd=new Date().toLocaleDateString(LOC,{weekday:'long'});
   const allProf=d==='central'?Object.keys(PROF).filter(k=>k!=='central'&&profFilled(k)).map(k=>`${PROF[k].label} :\n${profText(k)}`).join('\n'):'';
   return `${ROLE[d].replace('${name}',st().name)}${d==='taches'||d==='central'?PLAN_NOTE:''}
 
 ${PROF[d].label} de l’utilisateur :
 ${profText(d)}${allProf?'\n\nProfils des autres domaines :\n'+allProf:''}
 
-Nous sommes le ${wd} ${TODAY()}. L’utilisateur s’appelle ${st().name}${st().birth?', '+Math.floor(diff(st().birth,TODAY())/365.25)+' ans':''}${({f:', femme',h:', homme'})[st().sex]||''}. Réponds en français, en tutoyant, de façon concise et concrète (listes courtes, 1 à 3 actions prioritaires), en citant ses données.${forBoss?' Tu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui.':''}
+${LANG==='en'?'IMPORTANT : réponds en anglais (le téléphone de l’utilisateur est en anglais).\n':''}Nous sommes le ${wd} ${TODAY()}. L’utilisateur s’appelle ${st().name}${st().birth?', '+Math.floor(diff(st().birth,TODAY())/365.25)+' ans':''}${({f:', femme',h:', homme'})[st().sex]||''}. Réponds en français, en tutoyant, de façon concise et concrète (listes courtes, 1 à 3 actions prioritaires), en citant ses données.${forBoss?' Tu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui.':''}
 
 Données :
 ${CTX[d]()}`}
@@ -1652,7 +1739,7 @@ async function mealAnalyze(){const res=$('#mpres'),b64=S.mealImg;if(!res||!b64)r
   if(needNet())return;res.hidden=false;res.innerHTML=`<span class="body fn">Analyse en cours…</span>`;
   const hint=($('#mph')?.value||'').trim(),type=document.querySelector('#sf [name=type]:checked')?.value;
   const prompt=`Tu es nutritionniste. Estime le contenu de ce repas photographié${type?` (${(MEALTYPES.find(x=>x[0]===type)||[])[1]})`:''}.${hint?` Précision de l'utilisateur : « ${hint} ». Tiens-en compte en priorité (poids, ingrédients).`:' Estime les portions à partir de la taille visible de l’assiette et des couverts.'}
-Réponds en français. « aliments » : liste courte séparée par des virgules (ex. « poulet, riz, brocolis »). « kcal » et « proteines » (en grammes) : ta meilleure estimation pour tout ce qui est visible ; « kcal_min » et « kcal_max » : fourchette réaliste. « remarque » : une phrase utile au plus (ex. sauce ou huile à vérifier), sinon chaîne vide. Si ce n'est pas un repas, mets 0 partout et explique-le dans « remarque ».`;
+Réponds en ${LANG==='en'?'anglais':'français'}. « aliments » : liste courte séparée par des virgules (ex. « poulet, riz, brocolis »). « kcal » et « proteines » (en grammes) : ta meilleure estimation pour tout ce qui est visible ; « kcal_min » et « kcal_max » : fourchette réaliste. « remarque » : une phrase utile au plus (ex. sauce ou huile à vérifier), sinon chaîne vide. Si ce n'est pas un repas, mets 0 partout et explique-le dans « remarque ».`;
   try{const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':st().apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','anthropic-beta':'server-side-fallback-2026-07-01'},
       body:JSON.stringify({model:MEAL_MODEL,max_tokens:2000,fallbacks:'default',output_config:{effort:'low',format:{type:'json_schema',schema:MEAL_SCHEMA}},
         messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:prompt}]}]})});
@@ -1813,6 +1900,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.id==='tdcs'){const w=$('#tdcnw');w.hidden=t.value!=='__new';if(!w.hidden)$('#tdcn').focus();return}
   if(t.id==='imp'){const f=t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importJSON(r.result);r.readAsText(f);return}
   if(t.dataset.areaToggle){const k=t.dataset.areaToggle,cur=new Set(st().areas||[]);t.checked?cur.add(k):cur.delete(k);if(!cur.size){t.checked=true;hud('Garde au moins une section');return}st().areas=AREA_PICK.map(a=>a[0]).filter(x=>cur.has(x));save();hud(t.checked?'Section activée':'Section masquée');return}
+  if(t.dataset.change==='lang'){st().lang=t.value;writeLocal();save();setTimeout(()=>location.reload(),150);return}
   if(t.dataset.change==='name'){st().name=t.value.trim()||'toi';save();hud('Prénom enregistré');return}
   if(t.dataset.change==='apikey'){st().apiKey=t.value.trim();save();hud(t.value.trim()?'Clé enregistrée':'Clé retirée');return}
   if(t.name==='when'&&t.closest('[data-form=suppItem]')){const r=t.value==='repas';$('#spmeals').hidden=!r;$('#spdaily').hidden=!r;return}
@@ -1896,7 +1984,7 @@ const relanceDue=j=>j.status==='envoyee'&&diff(lastContact(j),TODAY())>=car().re
 const weekApps=(ref=TODAY())=>{const ws=weekStart(ref);return jobs().filter(j=>j.date>=ws&&j.date<=addDays(ws,6)).length};
 const ivUpcoming=()=>jobs().filter(jobOpen).flatMap(j=>(j.interviews||[]).filter(i=>i.date>=TODAY()).map(i=>({j,i}))).sort((a,b)=>(a.i.date+(a.i.time||'')).localeCompare(b.i.date+(b.i.time||'')));
 const jobPill=s=>`<span class="pill ${{entretien:'tint',offre:'ok',refus:'bad'}[s]||''}">${(JOBST.find(x=>x[0]===s)||[])[1]||''}</span>`;
-const whenDay=d=>{const n=diff(TODAY(),d);return n===0?'Aujourd’hui':n===1?'Demain':fday(d)};
+const whenDay=d=>{const n=diff(TODAY(),d);return n===0?T('Aujourd’hui','Today'):n===1?T('Demain','Tomorrow'):fday(d)};
 const safeUrl=u=>/^https?:\/\//i.test(u)?u:'https://'+u;
 const EVKIND=[['salon','Salon'],['masterclass','Masterclass'],['conf','Conférence'],['reseau','Rencontre réseau'],['webinaire','Webinaire'],['autre','Autre']];
 const events=()=>db.events||(db.events=[]);
@@ -1963,7 +2051,7 @@ function carStats(){const all=jobs();
   const pending=cnt('envoyee'),answered=cnt('refus')+cnt('entretien')+cnt('offre'),closed=n-pending;
   const reachedIv=all.filter(j=>(j.interviews||[]).length||j.status==='entretien'||j.status==='offre'||/entretien/i.test(j.stage||'')).length;
   const pct=(a,b)=>b?Math.round(a/b*100)+' %':'–';
-  const months=by(j=>j.date&&j.date.slice(0,7)).sort((a,b)=>a[0].localeCompare(b[0])).slice(-8).map(([m,v])=>[new Date(m+'-15T12:00:00').toLocaleDateString('fr-FR',{month:'short',year:'2-digit'}),v]);
+  const months=by(j=>j.date&&j.date.slice(0,7)).sort((a,b)=>a[0].localeCompare(b[0])).slice(-8).map(([m,v])=>[new Date(m+'-15T12:00:00').toLocaleDateString(LOC,{month:'short',year:'2-digit'}),v]);
   const top=by(j=>j.company.trim());
   return `<div class="kpis tilesrow"><div><span class="v">${n}</span><span class="k">envoyées</span></div><div><span class="v">${pct(answered,closed)}</span><span class="k">réponses</span></div><div><span class="v">${reachedIv}</span><span class="k">entretiens</span></div><div><span class="v">${cnt('offre')}</span><span class="k">offres</span></div></div>
    ${sec('Par statut',bars(JOBST.map(([k,l])=>[l,cnt(k)]).filter(r=>r[1]),n),`Taux de réponse : refus, entretiens et offres sur les candidatures closes ou avancées (${closed}). ${pending} en attente.`,'notile')}
@@ -2377,7 +2465,7 @@ async function brExport(){if(!notes().length){hud('Aucune note à exporter');ret
       for(const m of n.media||[]){try{if(!sb||!A.user)throw 0;const r=await fetch(await brUrl(m.path));if(!r.ok)throw 0;zip.file(`${root}/Médias/${mfile(m)}`,await r.blob());nm++}catch(e){miss++}}}
     const blob=await zip.generateAsync({type:'blob'});
     S.brZip=new File([blob],`Luckin-deuxieme-cerveau-${TODAY()}.zip`,{type:'application/zip'});
-    sheet('Export prêt',sec('',`<div class="cell"><span class="body"><span>${notes().length} note${notes().length>1?'s':''}${nm?` · ${nm} média${nm>1?'s':''}`:''}</span><span class="fn">${blob.size<1048576?Math.max(1,Math.round(blob.size/1024))+' Ko':(blob.size/1048576).toLocaleString('fr-FR',{maximumFractionDigits:1})+' Mo'}${miss?` · ${miss} média${miss>1?'s':''} non récupéré${miss>1?'s':''}`:''}</span></span></div>
+    sheet('Export prêt',sec('',`<div class="cell"><span class="body"><span>${notes().length} note${notes().length>1?'s':''}${nm?` · ${nm} média${nm>1?'s':''}`:''}</span><span class="fn">${blob.size<1048576?Math.max(1,Math.round(blob.size/1024))+' Ko':(blob.size/1048576).toLocaleString(LOC,{maximumFractionDigits:1})+' Mo'}${miss?` · ${miss} média${miss>1?'s':''} non récupéré${miss>1?'s':''}`:''}</span></span></div>
       <button type="button" class="cell tap link center" data-act="brSaveZip">Enregistrer le fichier</button>`,'Un dossier « Deuxième cerveau » : une note = un fichier .md (texte lisible partout, liens [[ ]] reconnus par Obsidian), médias dans « Médias ». Enregistre-le dans Fichiers ou iCloud Drive.'),{save:''})}
   catch(e){hud('Export impossible : '+(e?.message||e))}}
 async function brSaveZip(){const f=S.brZip;if(!f)return;
@@ -2394,7 +2482,7 @@ async function brRecToggle(){const b=$('#brrb');
     mr.ondataavailable=e=>{if(e.data.size)REC.chunks.push(e.data)};
     mr.onstop=async()=>{clearInterval(REC.iv);stream.getTracks().forEach(t=>t.stop());if(REC.cancel){REC.cancel=false;return}const blob=new Blob(REC.chunks,{type:mr.mimeType||type||'audio/mp4'});
       $('#brrs')&&($('#brrs').textContent='Envoi…');
-      const name='Mémo du '+new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'short'})+' · '+mmss((Date.now()-REC.t0)/1000);
+      const name='Mémo du '+new Date().toLocaleDateString(LOC,{day:'numeric',month:'short'})+' · '+mmss((Date.now()-REC.t0)/1000);
       if(REC.target==='edit'){const m=await brUpload({id:S.brNid},blob,'audio',name,true);if(m){brPopClose();brInsert((pre,sel,post)=>[pre+(pre&&!pre.endsWith('\n')?'\n':''),`![[media:${m.id}]]`,'\n'+post.replace(/^\n/,'')]);hud('Mémo inséré')}else if($('#brrs'))$('#brrs').textContent='Échec de l’envoi.';return}
       const n=notes().find(x=>x.id===S.note);
       if(n&&await brUpload(n,blob,'audio',name)){closeSheet();paintBrain();hud('Mémo ajouté')}else if($('#brrs'))$('#brrs').textContent='Échec de l’envoi.'};
@@ -2437,9 +2525,9 @@ function brainAct(act,id,el){const n=notes().find(x=>x.id===id);
 /* ================= section Finances : budget, dépenses à venir, épargne, investissements ================= */
 /* db.fin : tx (opérations), plans (dépenses prévues/récurrentes), goals (épargne), inv (comptes d'investissement), budget (budget mensuel) */
 const fin=()=>db.fin||(db.fin={tx:[],plans:[],goals:[],inv:[],budget:null});
-const eur=(n,sign)=>{if(n==null||isNaN(n))return '–';const v=Math.round(n*100)/100;return (sign&&v>0?'+':'')+v.toLocaleString('fr-FR',{style:'currency',currency:'EUR',minimumFractionDigits:v%1?2:0,maximumFractionDigits:2})};
+const eur=(n,sign)=>{if(n==null||isNaN(n))return '–';const v=Math.round(n*100)/100;return (sign&&v>0?'+':'')+v.toLocaleString(LOC,{style:'currency',currency:'EUR',minimumFractionDigits:v%1?2:0,maximumFractionDigits:2})};
 /* montant court pour les compteurs : arrondi à l'euro, en k€ au-delà de 10 000 € */
-const eurK=(n,sign)=>{if(n==null||isNaN(n))return '–';const a=Math.abs(n),t=a>=1e4?(a/1e3).toLocaleString('fr-FR',{maximumFractionDigits:1})+' k€':Math.round(a).toLocaleString('fr-FR')+' €';return (n<0?'−':sign&&n>0?'+':'')+t};
+const eurK=(n,sign)=>{if(n==null||isNaN(n))return '–';const a=Math.abs(n),t=a>=1e4?(a/1e3).toLocaleString(LOC,{maximumFractionDigits:1})+' k€':Math.round(a).toLocaleString(LOC)+' €';return (n<0?'−':sign&&n>0?'+':'')+t};
 const FCATS_OUT=['Logement','Courses','Restaurants','Transport','Abonnements','Loisirs','Shopping','Santé','Voyages','Impôts','Cadeaux','Autre'];
 const FCATS_IN=['Salaire','Prime','Remboursement','Vente','Autre revenu'];
 const FREP=[['','Une fois'],['month','Chaque mois'],['quarter','Chaque trimestre'],['year','Chaque année']];
@@ -2451,7 +2539,7 @@ const FTABS=[['budget','Budget','<rect x="3" y="6" width="18" height="13" rx="3"
  ['coach','Coach','<path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z"/>']];
 try{S.fin=localStorage.getItem(K+':fin')||'budget'}catch(e){S.fin='budget'}
 const monthKey=d=>d.slice(0,7);
-const monthName=m=>new Date(m+'-15T12:00:00').toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+const monthName=m=>new Date(m+'-15T12:00:00').toLocaleDateString(LOC,{month:'long',year:'numeric'});
 function addMonths(d,n,dom){const [y,m]=d.split('-').map(Number),k=m-1+n,ny=y+Math.floor(k/12),nm=k%12+1,last=new Date(ny,nm,0).getDate();return `${ny}-${String(nm).padStart(2,'0')}-${String(Math.min(dom||+d.slice(8),last)).padStart(2,'0')}`}
 /* échéances d'une dépense prévue entre deux dates (hors échéances déjà payées) */
 function planOcc(p,from,to){const out=[],step={month:1,quarter:3,year:12}[p.rep]||0;let d=p.date,k=0;
@@ -2497,8 +2585,8 @@ const invVal=a=>(a.vals||[]).length?a.vals[a.vals.length-1].v:sum((a.flows||[]).
 const invIn=a=>sum((a.flows||[]).map(f=>f.amt));
 function finInv(){const A=fin().inv,val=sum(A.map(invVal)),inn=sum(A.map(invIn)),pv=val-inn;
   const dates=[...new Set(A.flatMap(a=>(a.vals||[]).map(x=>x.d)))].sort(),pts=dates.map(d=>({d,v:sum(A.map(a=>{const vs=(a.vals||[]).filter(x=>x.d<=d);return vs.length?vs[vs.length-1].v:0}))}));
-  const cell=a=>{const v=invVal(a),i=invIn(a),g=v-i;return `<button class="cell tap" data-act="fiEditInv" data-id="${a.id}"><span class="body"><span>${esc(a.name)}</span><span class="fn">${esc(a.type)} · investi ${eur(i)}${(a.vals||[]).length?' · valeur au '+fdate(a.vals[a.vals.length-1].d):''}</span></span><span class="fin-inv"><b>${eur(v)}</b><span class="fin-amt ${g>=0?'in':'out'}">${eur(g,true)}${i?` (${(g/i*100).toLocaleString('fr-FR',{maximumFractionDigits:1})} %)`:''}</span></span></button>`};
-  return `<div class="kpis tilesrow"><div><span class="v">${eurK(val)}</span><span class="k">valeur</span></div><div><span class="v">${eurK(inn)}</span><span class="k">investi</span></div><div><span class="v">${eurK(pv,true)}</span><span class="k">plus-value</span></div><div><span class="v">${inn?(pv/inn*100).toLocaleString('fr-FR',{maximumFractionDigits:1})+' %':'–'}</span><span class="k">perf.</span></div></div>
+  const cell=a=>{const v=invVal(a),i=invIn(a),g=v-i;return `<button class="cell tap" data-act="fiEditInv" data-id="${a.id}"><span class="body"><span>${esc(a.name)}</span><span class="fn">${esc(a.type)} · investi ${eur(i)}${(a.vals||[]).length?' · valeur au '+fdate(a.vals[a.vals.length-1].d):''}</span></span><span class="fin-inv"><b>${eur(v)}</b><span class="fin-amt ${g>=0?'in':'out'}">${eur(g,true)}${i?` (${(g/i*100).toLocaleString(LOC,{maximumFractionDigits:1})} %)`:''}</span></span></button>`};
+  return `<div class="kpis tilesrow"><div><span class="v">${eurK(val)}</span><span class="k">valeur</span></div><div><span class="v">${eurK(inn)}</span><span class="k">investi</span></div><div><span class="v">${eurK(pv,true)}</span><span class="k">plus-value</span></div><div><span class="v">${inn?(pv/inn*100).toLocaleString(LOC,{maximumFractionDigits:1})+' %':'–'}</span><span class="k">perf.</span></div></div>
    ${sec('',addCell('Ajouter un compte ou un placement','fiNewInv'),'','notile')}
    ${A.length?sec('Mes placements',A.map(cell).join(''),'Mets à jour la valeur de temps en temps (une fois par mois suffit) : l’évolution se trace toute seule.','notile'):sec('',`<div class="cell"><span class="body fn">Ajoute ton PEA, ton assurance-vie, tes cryptos… avec ce que tu as versé et leur valeur actuelle : l’app suit la plus-value et l’évolution.</span></div>`,'','notile')}
    ${pts.length>1?sec('Évolution de la valeur totale',lineChart({series:[{pts,color:'var(--area)',end:true}],fmtY:v=>eurK(v)}),'','notile'):''}`}
@@ -2606,7 +2694,7 @@ function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntri
   return {today:out.filter(o=>o.day===t).sort((a,b)=>rank(a).localeCompare(rank(b))),soon:out.filter(o=>o.day>t).sort((a,b)=>(a.day+(a.time||'99')).localeCompare(b.day+(b.time||'99')))}}
 function paintAgenda(){const el=$('#agenda');if(!el)return;const {today,soon}=agendaItems(),t=TODAY();
   const row=o=>`<div class="cell ag" style="--c:${o.c};--pc:${o.todo?PRIO_C[o.todo.prio]||PRIO_C.moyenne:o.c}">${o.todo?`<button type="button" class="td-check" data-act="tdToggle" data-id="${o.id}" aria-label="Marquer comme faite"></button>`:'<span class="ag-dot"></span>'}
-    <button type="button" class="ag-body" data-act="${o.act}" ${o.id?`data-id="${o.id}"`:''}><span class="ag-t">${o.title}</span><span class="fn">${[o.time?esc(o.time):null,o.meta||null].filter(Boolean).join(' · ')}</span></button>${o.late?'<span class="pill late">En retard</span>':''}</div>`;
+    <button type="button" class="ag-body" data-act="${o.act}" ${o.id?`data-id="${o.id}"`:''}><span class="ag-t${o.todo?' no-tr':''}">${o.title}</span><span class="fn">${[o.time?esc(o.time):null,o.meta||null].filter(Boolean).join(' · ')}</span></button>${o.late?'<span class="pill late">En retard</span>':''}</div>`;
   el.innerHTML=`<section class="sec"><div class="sec-h">Aujourd’hui${today.length?` · ${today.length}`:''}</div><div class="group">${today.length?today.map(row).join(''):`<div class="cell"><span class="body fn">Rien de prévu aujourd’hui. Profite !</span></div>`}</div></section>
    ${[...new Set(soon.map(o=>o.day))].map(d=>{const xs=soon.filter(o=>o.day===d);return `<section class="sec"><div class="sec-h">${esc(whenDay(d))} · ${xs.length}</div><div class="group">${xs.map(row).join('')}</div></section>`}).join('')}`}
 /* ================= accueil : cercles des aspects de vie ================= */
@@ -2622,7 +2710,7 @@ const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 function paintHome(){
   {const q=st().motto,el=$('#hQuote');el.hidden=!q?.text;if(q?.text)el.innerHTML=`<p>« ${esc(q.text)} »</p>${q.author?`<cite>${esc(q.author)}</cite>`:''}`}
   $('#hName').textContent='Bonjour '+st().name;$('#hMe').textContent=(st().name||'?').trim().charAt(0).toUpperCase();
-  $('#hDate').textContent=new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  $('#hDate').textContent=new Date().toLocaleDateString(LOC,{weekday:'long',day:'numeric',month:'long'});
   const on=AREAS.filter(a=>areaOn(a.id));
   $('#orbit').innerHTML=`<div class="in" style="grid-template-columns:repeat(${on.length},1fr)">`+on.map(a=>`<button class="planet${a.ready||a.paint?'':' soon'}" data-area="${a.id}" style="--c:${a.color}" aria-label="${a.name}"><span class="p-ring"><svg viewBox="0 0 24 24" aria-hidden="true">${AREA_ICONS[a.id]}</svg></span><span class="p-name">${a.short||a.name}</span></button>`).join('')+`</div>`;
   paintAgenda();

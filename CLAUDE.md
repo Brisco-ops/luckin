@@ -5,6 +5,12 @@ PWA personnelle de Fabrice pour piloter sa vie par sections (Forme, Carrière, F
 - En ligne : https://brisco-ops.github.io/luckin/ (GitHub Pages, dépôt `Brisco-ops/luckin`, branche `main`, racine du dépôt).
 - Installée sur iPhone depuis Safari (« Sur l’écran d’accueil »). Toutes les décisions UI visent iOS en mode app installée.
 
+## Langues
+
+- Français (langue du code) et anglais. `LANG` = réglage `settings.lang` (auto|fr|en, Réglages › Langue, recharge l’app) ou, en auto, français si `navigator.language` commence par « fr », anglais sinon. `LOC` (fr-FR / en-GB) pour toutes les dates et nombres : ne jamais réécrire `'fr-FR'` en dur.
+- Traduction à l’affichage : en anglais, un `MutationObserver` remplace chaque texte d’interface via le dictionnaire `EN` (texte exact), `EN_RX` (textes avec partie variable) et la règle « segments séparés par · » (`tr`, `translateDOM`). Ne sont jamais traduits : `textarea`, `.msg`, `.br-text`, `.td-t`, `.no-tr` (contenus de l’utilisateur). Pour un texte composé dans le code, `T(fr, en)`.
+- Toute nouvelle phrase d’interface doit avoir son entrée dans `EN` (ou passer par `T`). Étape 1 faite : accueil, barre, bienvenue, connexion, Réglages généraux, pages et profils des coachs ; les coachs répondent dans la langue (`systemFor`, `rules`, analyse de repas). Étape 2 à faire : l’intérieur des sections (Forme, Carrière, Tâches, Finances, Savoir), leurs fiches et messages.
+
 ## Façon de travailler avec Fabrice
 
 - Réponses en français, directes, sans détour (« droit au but »). Phrases courtes et claires.
