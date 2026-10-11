@@ -3083,7 +3083,8 @@ function showFormeSetup(again){const s=st(),r=s.reading||{on:false,label:'Lectur
   <form data-form="formeSetup" novalidate>
    ${sec('Toi',`${fieldNum('ob_height','Taille',s.height,'cm','175')}`)}
    ${sec('Objectif',fieldNum('ob_start','Poids actuel',s.startWeight,'kg','0,0')+fieldNum('ob_target','Poids cible',s.targetWeight,'kg','facultatif'),'Tes amis voient seulement ta progression en %, jamais ton poids.')}
-   ${sec('Entraînement',`<div class="cell block"><span>Jours de séance</span><div class="toggles">${DAYS.map((d,k)=>`<label><input type="checkbox" name="ob_days" value="${k}" ${s.trainingDays.includes(k)?'checked':''}><span>${d}</span></label>`).join('')}</div></div>`)}
+   ${sec('Entraînement',`<div class="cell block"><span>Jours de séance</span><div class="toggles">${DAYS.map((d,k)=>`<label><input type="checkbox" name="ob_days" value="${k}" ${s.trainingDays.includes(k)?'checked':''}><span>${d}</span></label>`).join('')}</div></div>
+    <label class="cell field" for="ob_tt"><span>Heure habituelle de séance</span><input id="ob_tt" type="time" name="ob_tt" value="${esc(s.trainTime||'')}"></label>`)}
    ${sec('Rituel du matin',`<label class="cell" for="ob_ron"><span class="body"><span>Lecture chronométrée</span><span class="fn">Bible, livre, méditation…</span></span><input id="ob_ron" name="ob_ron" type="checkbox" class="switch" ${r.on?'checked':''}></label>
      <label class="cell field" for="ob_rl"><span>Intitulé</span><input id="ob_rl" name="ob_rl" value="${esc(r.label)}"></label>${fieldNum('ob_rm','Durée',r.min,'min','10')}`)}
    ${sec('Alimentation',`<label class="cell" for="ob_sup"><span class="body"><span>Suivre mes compléments</span><span class="fn">Vitamines, zinc, magnésium, créatine</span></span><input id="ob_sup" name="ob_sup" type="checkbox" class="switch" ${s.supps?'checked':''}></label>
@@ -3093,7 +3094,7 @@ function showFormeSetup(again){const s=st(),r=s.reading||{on:false,label:'Lectur
   </form><button type="button" class="g-link" data-act="onboardLater">Plus tard</button></div>`;g.scrollTop=0}
 function doFormeSetup(f){const fd=new FormData(f),v=Object.fromEntries(fd);const s=st();
   s.height=num(v.ob_height);s.startWeight=num(v.ob_start);s.targetWeight=num(v.ob_target);
-  s.trainingDays=fd.getAll('ob_days').map(Number).sort();s.reading={on:!!v.ob_ron,label:String(v.ob_rl||'').trim()||'Lecture',min:Math.max(1,Math.round(num(v.ob_rm)||10))};
+  s.trainingDays=fd.getAll('ob_days').map(Number).sort();s.trainTime=v.ob_tt||'';s.reading={on:!!v.ob_ron,label:String(v.ob_rl||'').trim()||'Lecture',min:Math.max(1,Math.round(num(v.ob_rm)||10))};
   s.supps=!!v.ob_sup;s.diet=String(v.ob_diet||'').trim();s.formeSetup=1;save();hideGate();refreshAll();if(prefsOn())paintPrefs();hud('Profil Forme enregistré')}
 
 /* ---------- groupe d’amis ---------- */
