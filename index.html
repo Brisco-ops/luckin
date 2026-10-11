@@ -2709,7 +2709,7 @@ function finAct(act,id,el){const F=fin();
 /* ================= agenda Google (ou iCloud, Outlook) en lecture : adresse secrète iCal, lue via la fonction push ================= */
 const GK=K+':gcal';
 let GCAL=(()=>{try{return JSON.parse(localStorage.getItem(GK)||'null')}catch(e){return null}})();
-const gcalUrls=()=>String(st().gcal||'').split(/\s+/).filter(u=>/^(https|webcal):\/\//i.test(u));
+const gcalUrls=()=>String(st().gcal||'').split(/\s+/).filter(u=>/^(https|webcal):\/\//i.test(u)).map(u=>u.replace(/[)>\].,;]+$/,''));
 const icsText=v=>v.replace(/\\n/gi,' ').replace(/\\([,;\\])/g,'$1').trim();
 function icsDate(v){const m=String(v).match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z?))?/);if(!m)return null;const [,Y,M,D,h='0',mi='0',sec='0',z]=m;
   return z?new Date(Date.UTC(+Y,M-1,+D,+h,+mi,+sec)):new Date(+Y,M-1,+D,+h,+mi,+sec)}
@@ -2745,7 +2745,7 @@ async function gcalRefresh(force){const urls=gcalUrls();if(!urls.length||gcalBus
   gcalBusy=true;try{const from=new Date();from.setDate(from.getDate()-1);from.setHours(0,0,0,0);const to=new Date();to.setDate(to.getDate()+31);let items=[],err='';
     for(const u of urls){try{const r=await fnCall({kind:'ical',url:u});items=items.concat(icsParse(r.ics||'',from,to))}catch(e){err=e?.message||'erreur'}}
     items.sort((a,b)=>(a.d+(a.time||'00:00')).localeCompare(b.d+(b.time||'00:00')));
-    if(!items.length&&err){if(force)hud(T('Agenda : ','Calendar: ')+err);return}
+    if(!items.length&&err){if(force){if(/\(40[34]\)/.test(err))asheet(T('Google ne reconnaît pas cette adresse. Utilise l’« Adresse secrète au format iCal » (elle contient « private- » et finit par « basic.ics »), pas l’adresse publique. Pour vérifier : colle-la dans Safari sur ton ordinateur, un fichier .ics doit se télécharger.','Google does not recognise this address. Use the “Secret address in iCal format” (it contains “private-” and ends with “basic.ics”), not the public address. To check: paste it into Safari on your computer, a .ics file should download.'),[{label:T('Modifier l’adresse','Change address'),act:'gcalSetup'}]);else hud(T('Agenda : ','Calendar: ')+err)}return}
     GCAL={at:Date.now(),key:urls.join(' '),items,err};try{localStorage.setItem(GK,JSON.stringify(GCAL))}catch(e){}
     if(!$('#home').hidden)paintAgenda();if(prefsOn())paintPrefs();if(force)hud(T(`Agenda à jour · ${items.length} rendez-vous`,`Calendar updated · ${items.length} events`))}
   finally{gcalBusy=false}}
