@@ -775,6 +775,9 @@ a.cell{text-decoration:none}
 .a-coach{top:8px;right:0}
 .cc-prof{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:12px 14px;margin-bottom:6px;border-radius:16px;border:1px solid var(--glass-line);background:var(--glass);color:var(--label);font:14px var(--font);text-align:left;cursor:pointer}
 .cc-prof b{font-weight:600}.cc-prof-go{color:var(--area);font-weight:600;white-space:nowrap}
+.plan.pl ul{margin:8px 0;padding-left:18px;font-size:15px;line-height:1.4}
+.plan.pl li{margin:4px 0}.plan.pl .pl-add b{color:var(--green)}.plan.pl .pl-rm b{color:var(--red)}
+.cc .plan{align-self:stretch}
 </style>
 
 </head><body>
@@ -1299,6 +1302,11 @@ const PROF={
  finances:{label:'Profil finances',f:[['income','Revenus nets par mois','text','2 400 € (salaire), variable…'],['situation','Situation','text','Seul, en couple, enfants…'],['home','Logement','text','Locataire, propriétaire, chez les parents…'],['safety','Épargne de précaution visée','text','3 mois de dépenses…'],['horizon','Horizon de placement','text','5 ans, 10 ans, retraite…'],['risk','Rapport au risque','text','Prudent, équilibré, dynamique'],['debts','Crédits ou dettes','text','Prêt étudiant 150 €/mois…'],['fgoals','Projets financiers','area','Achat immobilier, voyage, voiture…']]},
  taches:{label:'Profil organisation',f:[['hours','Horaires habituels','text','9 h–18 h en semaine…'],['energy','Moments où tu es le plus efficace','text','Le matin, après le sport…'],['constraints','Contraintes','area','Trajets, engagements fixes…'],['focus','Ce qui compte en ce moment','area','Trouver un emploi, finir un projet…']]},
  savoir:{label:'Profil apprentissage',f:[['topics','Sujets qui t’intéressent','area','Finance de marché, développement personnel…'],['lgoals','Objectifs d’apprentissage','area','Certification, langue, lectures…'],['time','Temps disponible par semaine','text','3 h, 30 min par jour…'],['how','Comment tu apprends le mieux','text','Lire, écouter, pratiquer, expliquer…']]}};
+const PLAN_NOTE=`
+
+Réorganiser l’emploi du temps : si l’utilisateur te demande d’organiser, planifier ou réorganiser (sa journée, sa semaine, ses tâches), propose un planning réaliste (tâches majeures sur ses créneaux d’énergie, marges, en tenant compte des séances, entretiens, événements et échéances), explique-le brièvement, puis termine ton message par UN SEUL bloc :
+<planning>{"changes":[{"id":"…","due":"AAAA-MM-JJ","time":"HH:MM","prio":"haute|moyenne|basse"}],"new":[{"title":"…","due":"AAAA-MM-JJ","time":"HH:MM","prio":"moyenne","cat":"…"}],"remove":["id"]}</planning>
+JSON valide uniquement. « changes » : seulement les tâches existantes à modifier, avec leur id exact (n’invente jamais d’id), et seulement les champs qui changent (time vide "" pour retirer l’heure). « new » : tâches ou créneaux à créer (ex. étapes d’une grosse tâche, « Préparer l’entretien »). « remove » : seulement si l’utilisateur l’accepte ou si c’est un doublon évident. L’utilisateur verra le détail et appliquera d’un bouton ; ne mets pas de bloc si on ne te demande pas de planifier.`;
 const prof=d=>(st().prof||{})[d]||{};
 const profFilled=d=>PROF[d].f.filter(([k])=>String(prof(d)[k]||'').trim()).length;
 function profText(d){const P=prof(d),r=PROF[d].f.filter(([k])=>String(P[k]||'').trim()).map(([k,l])=>`- ${l} : ${String(P[k]).trim().slice(0,k==='cv'?4000:600)}`);return r.length?r.join('\n'):'(non renseigné : si une information importante manque, pose une question et propose de compléter le profil du coach)'}
@@ -1315,7 +1323,7 @@ Closes récentes : ${closed.slice(-15).map(j=>`${j.company} – ${cut(j.role,50)
 Événements passés : ${events().filter(e=>e.date<t).slice(-5).map(e=>`${e.date} ${e.title} notes : ${cut(e.notes,200)||'-'}`).join(' ; ')||'aucun'}
 Contacts : ${contacts().slice(0,40).map(x=>`${x.name} (${[x.role,x.company].filter(Boolean).join(', ')||'?'}, rencontré : ${x.met||'?'}${x.next?', à recontacter le '+x.next:''}${x.last?', dernier contact '+x.last:''}${x.notes?', notes : '+cut(x.notes,100):''})`).join(' ; ')||'aucun'}`},
  taches(){const t=TODAY(),o=todos().filter(x=>!x.done);
-  return `Tâches à faire (${o.length}) : ${o.map(x=>`${x.title} [${x.prio}${x.due?', échéance '+x.due+(x.time?' '+x.time:''):', sans échéance'}${x.due&&x.due<t?', EN RETARD':''}${x.cat?', '+x.cat:''}${x.rep?', répétée '+REP_SHORT[x.rep]:''}]${x.note?' : '+cut(x.note,100):''}`).join(' ; ')||'aucune'}
+  return `Tâches à faire (${o.length}) : ${o.map(x=>`${x.title} [id ${x.id}, ${x.prio}${x.due?', échéance '+x.due+(x.time?' '+x.time:''):', sans échéance'}${x.due&&x.due<t?', EN RETARD':''}${x.cat?', '+x.cat:''}${x.rep?', répétée '+REP_SHORT[x.rep]:''}]${x.note?' : '+cut(x.note,100):''}`).join(' ; ')||'aucune'}
 Faites ces 14 derniers jours : ${todos().filter(x=>x.done&&(x.doneAt||0)>Date.now()-14*864e5).length + sum(todos().map(x=>(x.hist||[]).filter(h=>h>Date.now()-14*864e5).length))}.`},
  finances(){const F=fin(),t=TODAY(),m=monthKey(t),tx=F.tx.filter(x=>monthKey(x.date)===m),out=sum(tx.filter(x=>x.kind==='out').map(x=>x.amount)),inn=sum(tx.filter(x=>x.kind==='in').map(x=>x.amount));
   const cats={};tx.filter(x=>x.kind==='out').forEach(x=>cats[x.cat]=(cats[x.cat]||0)+x.amount);
@@ -1335,13 +1343,14 @@ Notes (récentes d’abord) : ${N.slice(0,60).map(n=>`« ${n.title} »${(n.tags|
 Prochains jours : ${soon.map(o=>o.day+' '+strip(o.title)+(o.time?' '+o.time:'')+' ('+COACH_DOMS[o.area]+')').join(' ; ')||'rien'}
 Forme : poids moyen 7 j ${a7!=null?fmt(a7)+' kg':'?'} (départ ${s.startWeight??'?'}, cible ${s.targetWeight??'?'}), série ${streak()} j, sans sucre ${sugarStreak()} j, réveil ${morningFull(t)?'complet':'à compléter'}, soir ${eveningFull(t)?'complet':'à compléter'}, jours d’entraînement ${s.trainingDays.map(d=>['lun','mar','mer','jeu','ven','sam','dim'][d]).join(' ')}.
 Carrière : ${weekApps()}/${car().goal} candidatures cette semaine, ${jobs().filter(jobOpen).length} en cours, ${jobs().filter(relanceDue).length} à relancer, ${ivUpcoming().length} entretien(s) à venir, ${events().filter(e=>e.date>=t).length} événement(s) à venir.
-Tâches : ${todos().filter(x=>!x.done&&x.due&&x.due<t).length} en retard, ${todos().filter(x=>!x.done&&x.due===t).length} aujourd’hui, ${todos().filter(x=>!x.done).length} ouvertes.
+Tâches : ${todos().filter(x=>!x.done&&x.due&&x.due<t).length} en retard, ${todos().filter(x=>!x.done&&x.due===t).length} aujourd’hui, ${todos().filter(x=>!x.done).length} ouvertes : ${todos().filter(x=>!x.done).slice(0,40).map(x=>`${x.title} [id ${x.id}, ${x.prio}${x.due?', '+x.due+(x.time?' '+x.time:''):''}]`).join(' ; ')}.
+Séances prévues : ${['lun','mar','mer','jeu','ven','sam','dim'].filter((_,k)=>st().trainingDays.includes(k)).join(', ')}.
 Finances : dépensé ce mois ${eur(out)}${F.budget?' sur '+eur(F.budget):''}, ${upcoming(t,addDays(t,14)).length} échéance(s) dans 14 j, épargne ${eur(sum(F.goals.map(g=>g.saved||0)))}, placements ${eur(sum(F.inv.map(invVal)))}.
 Savoir : ${notes().length} notes, dernières : ${notes().slice().sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,5).map(n=>n.title).join(', ')||'-'}.`}};
 function systemFor(d,forBoss){if(d==='forme')return rules()+(forBoss?'\n\nTu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui, sans bloc <programme>.':'');
   const wd=new Date().toLocaleDateString('fr-FR',{weekday:'long'});
   const allProf=d==='central'?Object.keys(PROF).filter(k=>k!=='central'&&profFilled(k)).map(k=>`${PROF[k].label} :\n${profText(k)}`).join('\n'):'';
-  return `${ROLE[d].replace('${name}',st().name)}
+  return `${ROLE[d].replace('${name}',st().name)}${d==='taches'||d==='central'?PLAN_NOTE:''}
 
 ${PROF[d].label} de l’utilisateur :
 ${profText(d)}${allProf?'\n\nProfils des autres domaines :\n'+allProf:''}
@@ -1416,7 +1425,8 @@ async function coachSend(d,text){text=String(text||'').trim();if(!text||CC.busy|
 function coachPage(d,o={}){const k=COACH[d],c=chatOf(d),b=backend();
   const head=`<div class="a-head">${o.back?`<button type="button" class="link br-back" data-act="${o.back}">‹ ${o.backLabel}</button>`:`<p class="l2">${d==='central'?'Vue d’ensemble · 5 coachs spécialisés':'Spécialiste '+COACH_DOMS[d]}</p>`}<h1>${k.name}</h1></div>`;
   if(!b)return head+sec('',`<div class="cell"><span class="body"><span>Active ton coach</span><span class="fn">Le coach utilise Claude avec ta clé API Anthropic (Réglages › Coach IA), stockée uniquement sur ce téléphone.</span></span></div><button class="cell tap link" data-act="goKey">Saisir ma clé API</button>`,'','notile');
-  const items=c.map(m=>m.role==='user'?`<div class="msg u">${esc(m.content)}</div>`:m.err?`<div class="msg a err">${esc(m.content)}</div>`:`<div class="msg a">${md(m.content)}${m.via?`<p class="cc-via">A consulté : ${m.via.map(esc).join(', ')}</p>`:''}</div>`).join('');
+  const items=c.map((m,k)=>{if(m.role==='user')return `<div class="msg u">${esc(m.content)}</div>`;if(m.err)return `<div class="msg a err">${esc(m.content)}</div>`;const sp=splitPlan(m.content);
+    return `${sp.text||m.via?`<div class="msg a">${md(sp.text)}${m.via?`<p class="cc-via">A consulté : ${m.via.map(esc).join(', ')}</p>`:''}</div>`:''}${sp.plan?planCard(sp.plan,d,k,m.applied):''}`}).join('');
   const nf=profFilled(d),nt=PROF[d].f.length;
   const profCell=`<button type="button" class="cc-prof" data-act="ccProfile" data-dom="${d}"><span><b>${PROF[d].label}</b> · ${nf?nf+'/'+nt+' renseigné'+(nf>1?'s':''):'à remplir pour des conseils vraiment personnalisés'}</span><span class="cc-prof-go">${nf?'Modifier':'Remplir'}</span></button>`;
   return `${head}${profCell}<div class="cc-msgs">${c.length?'':`<div class="msg a">${md(k.hello(st().name))}</div><div class="chips">${k.starters.map(x=>`<button class="chip-s" data-act="ccStarter" data-dom="${d}">${esc(x)}</button>`).join('')}</div>`}
@@ -1424,7 +1434,33 @@ function coachPage(d,o={}){const k=COACH[d],c=chatOf(d),b=backend();
    ${c.length&&!CC.busy?`<button class="note link" data-act="ccNew" data-dom="${d}" style="margin-top:6px">Nouvelle conversation</button>`:''}</div>
    <div class="composer cc-comp${o.tabs?' with-tabs':''}"><div class="in"><textarea id="ccin" rows="1" placeholder="Écris à ${esc(k.name.toLowerCase().replace('coach','ton coach'))}…" aria-label="Message"></textarea>
    <button class="send" data-act="${CC.busy?'ccStop':'ccSend'}" data-dom="${d}" aria-label="${CC.busy?'Arrêter':'Envoyer'}">${CC.busy?I.stop:I.up}</button></div></div>`}
-function ccLiveHTML(){return CC.live?`<div class="msg a">${md(CC.live)}</div>`:`<div class="msg a">${CC.status?`<p class="cc-via">${esc(CC.status)}</p>`:''}<span class="typing"><i></i><i></i><i></i></span></div>`}
+function splitPlan(t){const i=t.indexOf('<planning>');if(i<0)return {text:t,plan:null,pending:false};const j=t.indexOf('</planning>',i);
+  if(j<0)return {text:t.slice(0,i).trim(),plan:null,pending:true};let plan=null;
+  try{plan=JSON.parse(t.slice(i+10,j).trim().replace(/^```(json)?/,'').replace(/```$/,'').trim())}catch(e){plan='bad'}
+  return {text:(t.slice(0,i)+t.slice(j+11)).trim(),plan,pending:false}}
+const PDATE=/^\d{4}-\d{2}-\d{2}$/,PTIME=/^([01]\d|2[0-3]):[0-5]\d$/;
+/* ne garde que ce qui est applicable (ids existants, dates et heures valides) */
+function cleanPlan(p){if(!p||p==='bad')return null;const T=todos(),byId=new Map(T.map(x=>[x.id,x])),pr=x=>['haute','moyenne','basse'].includes(x)?x:null;
+  const changes=(p.changes||[]).map(c=>{const x=byId.get(c.id);if(!x||x.done)return null;const o={id:c.id};if(PDATE.test(c.due||''))o.due=c.due;if(c.time===''||PTIME.test(c.time||''))o.time=c.time;if(pr(c.prio))o.prio=c.prio;
+    return (o.due&&o.due!==x.due)||(o.time!=null&&o.time!==(x.time||''))||(o.prio&&o.prio!==x.prio)?o:null}).filter(Boolean);
+  const add=(p.new||[]).filter(n=>n&&String(n.title||'').trim()).map(n=>({title:String(n.title).trim().slice(0,140),due:PDATE.test(n.due||'')?n.due:'',time:PTIME.test(n.time||'')?n.time:'',prio:pr(n.prio)||'moyenne',cat:String(n.cat||'').trim().slice(0,30)}));
+  const remove=(p.remove||[]).filter(id=>byId.has(id)&&!byId.get(id).done);
+  return changes.length||add.length||remove.length?{changes,add,remove}:null}
+const pwhen=(d,t)=>d?(whenDay(d)+(t?' '+t:'')):(t||'sans échéance');
+function planCard(raw,d,idx,applied){if(raw==='bad')return `<div class="note">Le planning proposé est illisible. Demande au coach de le renvoyer.</div>`;
+  const p=cleanPlan(raw);if(!p)return applied?'':`<div class="note">Rien à appliquer dans ce planning (tâches introuvables ou déjà à jour).</div>`;const T=new Map(todos().map(x=>[x.id,x]));
+  const rows=[...p.changes.map(c=>{const x=T.get(c.id),moved=(c.due&&c.due!==x.due)||(c.time!=null&&c.time!==(x.time||'')),pri=c.prio&&c.prio!==x.prio;
+      return `<li><b>${esc(x.title)}</b> : ${[moved?esc(pwhen(x.due,x.time))+' → '+esc(pwhen(c.due??x.due,c.time??x.time)):null,pri?'priorité '+x.prio+' → '+c.prio:null].filter(Boolean).join(' · ')}</li>`}),
+    ...p.add.map(n=>`<li class="pl-add"><b>+ ${esc(n.title)}</b> : ${esc(pwhen(n.due,n.time))} · ${n.prio}</li>`),
+    ...p.remove.map(id=>`<li class="pl-rm"><b>− ${esc(T.get(id).title)}</b> : retirée</li>`)];
+  return `<div class="plan pl"><div class="ph"><b>Planning proposé</b><span class="l2" style="font-size:13px">${p.changes.length} modif. · ${p.add.length} ajout${p.add.length>1?'s':''}${p.remove.length?' · '+p.remove.length+' retrait'+(p.remove.length>1?'s':''):''}</span></div><ul>${rows.join('')}</ul>
+   <div class="pa">${applied?`<button class="btn-fill" disabled>Appliqué à tes tâches</button>`:`<button class="btn-fill" data-act="ccApplyPlan" data-dom="${d}" data-i="${idx}">Appliquer</button>`}</div></div>`}
+function applyPlan(raw){const p=cleanPlan(raw);if(!p)return 0;const T=new Map(todos().map(x=>[x.id,x]));
+  p.changes.forEach(c=>{const x=T.get(c.id);if(c.due)x.due=c.due;if(c.time!=null)x.time=c.time;if(c.prio)x.prio=c.prio;if(x.rep&&c.due)x.dom=+c.due.slice(8)});
+  p.add.forEach(n=>todos().push(Object.assign({id:uid(),created:Date.now(),done:false,note:'Ajoutée par le coach'},n)));
+  if(p.remove.length)db.todos=todos().filter(x=>!p.remove.includes(x.id));
+  save();return p.changes.length+p.add.length+p.remove.length}
+function ccLiveHTML(){if(CC.live){const sp=splitPlan(CC.live);return `${sp.text?`<div class="msg a">${md(sp.text)}</div>`:''}${sp.pending?'<div class="note">Préparation du planning…</div>':''}`}return CC.live?`<div class="msg a">${md(CC.live)}</div>`:`<div class="msg a">${CC.status?`<p class="cc-via">${esc(CC.status)}</p>`:''}<span class="typing"><i></i><i></i><i></i></span></div>`}
 function ccLive(){const el=$('#cclive');if(el){el.hidden=false;el.innerHTML=ccLiveHTML();const a=$('#area');a.scrollTop=a.scrollHeight}}
 function coachRepaint(){const d=CC.dom;if($('#area').hidden)return;
   if(H.cur==='coach'&&d==='central')paintCentral();else if(H.cur==='carriere')paintCareer();else if(H.cur==='finances')paintFinance();else if(H.cur==='taches')paintTodos();else if(H.cur==='savoir')paintBrain();
@@ -1440,6 +1476,7 @@ function coachAct(act,id,el){const d=el.dataset.dom;
    case 'ccStarter':coachSend(d,el.textContent);break;
    case 'ccStop':CC.ctl?.abort();break;
    case 'ccProfile':profSheet(d);break;
+   case 'ccApplyPlan':{const c=chatOf(d),m=c[+el.dataset.i];if(!m||m.applied)break;const n=applyPlan(splitPlan(m.content).plan);if(!n){hud('Rien à appliquer');break}m.applied=true;saveChatOf(d);CC.dom=d;coachRepaint();haptic(12);hud(n+' changement'+(n>1?'s':'')+' appliqué'+(n>1?'s':'')+' à tes tâches');break}
    case 'ccNew':asheet('Effacer cette conversation ?',[{label:'Nouvelle conversation',act:'ccNewGo',data:{dom:d},danger:true}]);break;
    case 'ccNewGo':chats[d]=[];saveChatOf(d);CC.dom=d;coachRepaint();break;
    case 'tdCoach':S.tdCoach=!S.tdCoach;paintTodos();if(S.tdCoach){const a=$('#area');a.scrollTop=a.scrollHeight}break;
