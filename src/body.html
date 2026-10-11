@@ -60,15 +60,14 @@ const I={
 const ico=(name,color)=>`<span class="ico" style="background:${color}">${I[name]}</span>`;
 
 /* ================= data ================= */
-const SUPPS=['Magnésium','Zinc','Vitamine C','Vitamine D','Créatine','Protéine végétale'];
-// Planning des compléments : vitamine C en fin de repas (matin ou midi), zinc en fin de dîner, magnésium au coucher (≥ 1 h après le zinc)
 const ALLM=['petitdej','dejeuner','collation','diner'];
 const inVitDSeason=()=>{const m=new Date().getMonth()+1;return m>=10||m<=3};
-const MEAL_SUPPS=()=>[{name:'Vitamine C',dose:'2 gélules',types:['petitdej','dejeuner']},
-  ...(inVitDSeason()?[{name:'Vitamine D',dose:'',types:['petitdej','dejeuner']}]:[]),
-  {name:'Zinc',dose:'1 gélule',types:['diner']},{name:'Créatine',dose:'1 dose / jour',types:ALLM}];
-const OTHER_SUPPS=['Protéine végétale'];
-function suppsTaken(d){const out=[];peekDay(d).meals.forEach(m=>(m.supps||[]).forEach(x=>out.push({name:x,time:m.time,type:m.type,id:m.id})));const e=peekDay(d).evening;(e?.supps||[]).forEach(x=>out.push({name:x,time:x==='Magnésium'?e.magTime:'',type:'soir'}));return out}
+/* compléments : liste personnelle (settings.suppList) — moment « repas » (repas choisis), « soir » (au coucher) ou « libre » (n'importe quand) */
+const SUPP_WHEN=[['repas','À un repas'],['soir','Le soir'],['libre','N’importe quand']];
+const suppList=()=>st().suppList||[];
+const suppActive=x=>x.season!=='winter'||inVitDSeason();
+const MEAL_SUPPS=()=>suppList().filter(x=>x.when==='repas'&&suppActive(x)).map(x=>({name:x.name,dose:x.dose,tip:x.tip,types:x.meals?.length?x.meals:ALLM}));
+function suppsTaken(d){const out=[];peekDay(d).meals.forEach(m=>(m.supps||[]).forEach(x=>out.push({name:x,time:m.time,type:m.type,id:m.id})));const e=peekDay(d).evening;(e?.supps||[]).forEach(x=>out.push({name:x,time:(e.suppT||{})[x]||(x==='Magnésium'?e.magTime:'')||'',type:'soir'}));return out}
 const addHour=t=>{if(!t)return '';const [h,m]=t.split(':').map(Number);const x=(h+1)%24;return String(x).padStart(2,'0')+':'+String(m).padStart(2,'0')};
 const SOURCES=[['maison','Maison'],['deliveroo','Deliveroo'],['fastfood','Fast-food'],['resto','Restaurant']];
 const MEALTYPES=[['petitdej','Petit-déj'],['dejeuner','Déjeuner'],['collation','Collation'],['diner','Dîner']];
@@ -82,7 +81,7 @@ function seedTemplates(){
 function seed(){
   let old={};try{old=JSON.parse(localStorage.getItem('cap-objectifs-v1')||'{}').settings||{}}catch(e){}
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
-    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
+    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
     apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',coachMode:'eq',career:{goal:5,relance:7}},
     days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[],notes:[],fin:{tx:[],plans:[],goals:[],inv:[],budget:null}};
 }
@@ -97,6 +96,11 @@ if(db.settings.onboarded==null){db.settings.onboarded=1;if(db.settings.reading==
 /* section Carrière : objectif hebdomadaire et liste des candidatures */
 if(!db.todos){db.todos=[];writeLocal()}
 /* repos lancé automatiquement : réglage absent des anciennes installations (donc éteint), on l'active une fois */
+/* compléments : l'ancienne liste fixe devient la liste personnelle de ceux qui suivaient déjà leurs compléments */
+if(db.settings.suppList==null){const u=x=>Object.assign({id:uid(),dose:'',tip:'',season:'all',daily:false,meals:[]},x);
+  db.settings.suppList=db.settings.supps?[u({name:'Vitamine C',dose:'2 gélules',when:'repas',meals:['petitdej','dejeuner'],tip:'En fin de repas, matin ou midi'}),u({name:'Vitamine D',when:'repas',meals:['petitdej','dejeuner'],season:'winter',tip:'D’octobre à mars'}),
+    u({name:'Zinc',dose:'1 gélule',when:'repas',meals:['diner'],tip:'En fin de dîner'}),u({name:'Créatine',dose:'1 dose / jour',when:'repas',meals:['petitdej','dejeuner','collation','diner'],daily:true,tip:'Une fois par jour, y compris les jours de repos'}),
+    u({name:'Magnésium',dose:'2 gélules',when:'soir',tip:'Au coucher, au moins 1 h après le zinc'}),u({name:'Protéine végétale',when:'libre'})]:[];writeLocal()}
 if(!db.settings.areas){db.settings.areas=['forme','carriere','taches','finances','savoir'];writeLocal()}
 if(!db.settings.cmFix){db.settings.coachMode='eq';db.settings.cmFix=1;writeLocal()}
 if(db.settings.coachMode==null){db.settings.coachMode=/haiku/.test(db.settings.model||'')?'eco':/opus/.test(db.settings.model||'')?'max':'eq';writeLocal()}
@@ -330,7 +334,7 @@ function vSettings(){
   ${sec('Rituels',`<label class="cell" for="sw-rd"><span class="body"><span>Lecture du matin chronométrée</span><span class="fn">Bible, livre, méditation…</span></span><input id="sw-rd" type="checkbox" class="switch" data-rd="on" ${s.reading?.on?'checked':''}></label>
    <label class="cell field" for="rd-l"><span>Intitulé</span><input id="rd-l" data-rd="label" value="${esc(s.reading?.label||'Lecture')}"></label>
    <label class="cell field" for="rd-m"><span>Durée</span><input id="rd-m" data-rd="min" inputmode="numeric" value="${s.reading?.min||10}"><span class="l2">min</span></label>
-   <label class="cell" for="sw-sp"><span class="body"><span>Suivre mes compléments</span><span class="fn">Vitamines, zinc, magnésium, créatine</span></span><input id="sw-sp" type="checkbox" class="switch" data-setting="supps" ${s.supps?'checked':''}></label>`,'La lecture apparaît dans la fiche du réveil. Les compléments, dans les fiches repas et soir.')}
+   <label class="cell" for="sw-sp"><span class="body"><span>Suivre mes compléments</span><span class="fn">Tes compléments : aux repas, le soir ou quand tu veux</span></span><input id="sw-sp" type="checkbox" class="switch" data-setting="supps" ${s.supps?'checked':''}></label>${s.supps?suppList().map(x=>`<button type="button" class="cell tap" data-act="suppEdit" data-id="${x.id}"><span class="body"><span>${esc(x.name)}${x.dose?' · '+esc(x.dose):''}</span><span class="fn">${(SUPP_WHEN.find(w=>w[0]===x.when)||[])[1]||''}${x.when==='repas'&&x.meals?.length&&x.meals.length<4?' : '+x.meals.map(k=>(MEALTYPES.find(m=>m[0]===k)||[])[1]).join(', '):''}${x.season==='winter'?' · octobre à mars':''}</span></span>${I.chev}</button>`).join('')+addCell('Ajouter un complément','suppNew'):''}`,'La lecture apparaît dans la fiche du réveil. Les compléments, dans les fiches repas et soir.')}
   ${sec('Chrono de repos',`<label class="cell" for="sw1"><span class="body">Démarrer après chaque série</span><input id="sw1" type="checkbox" class="switch" data-setting="autoTimer" ${s.autoTimer?'checked':''}></label>
    <label class="cell field" for="rbw"><span>Repos entre deux exercices</span><select id="rbw" data-change="restBetween">${[[0,'Comme les séries'],[60,'1:00'],[90,'1:30'],[120,'2:00'],[150,'2:30'],[180,'3:00']].map(([v,l])=>`<option value="${v}" ${+s.restBetween===v?'selected':''}>${l}</option>`).join('')}</select></label>
    <label class="cell" for="sw2"><span class="body">Son à la fin du repos</span><input id="sw2" type="checkbox" class="switch" data-setting="sound" ${s.sound?'checked':''}></label>
@@ -804,7 +808,7 @@ function mealSheet(m){const isNew=!m;const s=st();S.mealImg=null;m=m||{type:defa
    ${sec('',`<div class="cell block"><span>Provenance</span>${seg('source',SOURCES,m.source)}</div><div class="cell block"><span>Vitesse du repas</span>${seg('speed',[['rapide','Rapide'],['pose','Posé']],m.speed)}</div><label class="cell" for="msugar"><span class="body"><span>Contient du sucre ajouté</span><span class="fn">Dessert, soda, sauce sucrée, produit transformé sucré…</span></span><input id="msugar" name="sugar" type="checkbox" class="switch" ${m.sugar?'checked':''}></label>`)}
    ${s.countMode==='mains'?sec('Portions de main',hand('p','Paumes de protéines','viande, poisson, œufs, tofu')+hand('c','Mains creuses de féculents','riz, pâtes, pain, fruits')+hand('f','Pouces de matières grasses','huile, noix, avocat')+hand('v','Poings de légumes','crudités, légumes cuits'),'Estimation automatique des calories et protéines.')
      :sec('Apports',`${fieldNum('kcal','Calories',m.kcal,'kcal','0')}${fieldNum('prot','Protéines',m.prot,'g','0')}`)}
-   ${!s.supps?'':sec('Compléments en fin de repas',`<div class="cell"><div class="toggles" id="msupps">${MEAL_SUPPS().map((x,k)=>`<label data-types="${x.types.join(' ')}" ${x.types.includes(m.type)?'':'hidden'}><input type="checkbox" name="msupp" value="${x.name}" id="ms${k}" ${(m.supps||[]).includes(x.name)?'checked':''}><span>${x.name}${x.dose?' · '+x.dose:''}</span></label>`).join('')}</div></div>`,`Midi : vitamine C${inVitDSeason()?' + vitamine D (octobre à mars)':''}. Dîner : zinc. Créatine : une fois par jour, à n’importe quel repas, y compris les jours de repos.`)}
+   ${!s.supps?'':sec('Compléments en fin de repas',`<div class="cell"><div class="toggles" id="msupps">${MEAL_SUPPS().map((x,k)=>`<label data-types="${x.types.join(' ')}" ${x.types.includes(m.type)?'':'hidden'}><input type="checkbox" name="msupp" value="${esc(x.name)}" id="ms${k}" ${(m.supps||[]).includes(x.name)?'checked':''}><span>${esc(x.name)}${x.dose?' · '+esc(x.dose):''}</span></label>`).join('')||'<span class="fn">Aucun complément à prendre aux repas.</span>'}</div></div>`,`${MEAL_SUPPS().filter(x=>x.tip).map(x=>esc(x.name)+' : '+esc(x.tip)).join('. ')}${MEAL_SUPPS().some(x=>x.tip)?'. ':''}Ta liste se modifie dans Réglages Forme › Mes compléments.`)}
    ${sec('',`<div class="cell"><textarea id="mcom" name="comment" rows="2" placeholder="Commentaire (facultatif)">${esc(m.comment||'')}</textarea></div>`)}
    ${m.id?sec('',`<button type="button" class="cell tap danger center" data-act="delMeal" data-id="${m.id}">Supprimer le repas</button>`):''}
   </form>`)}
@@ -820,12 +824,13 @@ function eveningSheet(d=TODAY()){const t=d,D=peekDay(t),e=D.evening||{},tt=total
      <label class="cell" for="sx"><span class="body"><span>Sucre ajouté hors repas</span><span class="fn">Boisson sucrée, bonbon, grignotage…</span></span><input id="sx" name="sugarExtra" type="checkbox" class="switch" ${e.sugarExtra?'checked':''}></label>`,'La journée compte dans ta série si aucun repas n’a de sucre ajouté et que cet interrupteur reste éteint.')}
    ${sec('Activité',`${fieldNum('water','Eau',e.water,'L','2')}${fieldNum('steps','Pas',e.steps,'pas','8000')}`)}
    ${sec('Ressentis',`<div class="cell block"><span>Énergie</span>${scale('energy',1,5,e.energy)}</div><div class="cell block"><span>Faim</span>${scale('hunger',1,5,e.hunger)}</div><div class="cell block"><span>Stress</span>${scale('stress',1,5,e.stress)}</div>`)}
-   ${!st().supps?'':(()=>{const tk=suppsTaken(t).filter(x=>x.type!=='soir');const zinc=tk.find(x=>x.name==='Zinc');const from=zinc&&zinc.time?addHour(zinc.time):'';const creaMeal=tk.some(x=>x.name==='Créatine');
-     const others=(creaMeal?[]:['Créatine']).concat(OTHER_SUPPS);
+   ${!st().supps?'':(()=>{const tk=suppsTaken(t).filter(x=>x.type!=='soir'),L=suppList().filter(suppActive),soir=L.filter(x=>x.when==='soir');
+     const others=L.filter(x=>x.when==='libre'||(x.when==='repas'&&x.daily&&!tk.some(y=>y.name===x.name))).map(x=>x.name);
      return sec('Compléments',`${tk.length?tk.map(x=>`<div class="cell"><span class="body"><span>${x.name}</span><span class="fn">${(MEALTYPES.find(y=>y[0]===x.type)||[])[1]||''} ${esc(x.time||'')}</span></span>${state(true)}</div>`).join(''):'<div class="cell l2" style="font-size:15px">Aucun complément coché dans tes repas aujourd’hui.</div>'}
-     <label class="cell" for="mag"><span class="body"><span>Magnésium · 2 gélules au coucher</span><span class="fn">${from?'À partir de '+from+' (1 h après le zinc)':'Au moins 1 h après le zinc'}</span></span><input id="mag" type="checkbox" class="switch" name="supp" value="Magnésium" ${(e.supps||[]).includes('Magnésium')?'checked':''}></label>
-     <div class="cell block"><span>${creaMeal?'Autres compléments':'Créatine (si pas prise à un repas) et autres'}</span><div class="toggles">${others.map((x,k)=>`<label><input type="checkbox" name="supp" value="${x}" id="sp${k}" ${(e.supps||[]).includes(x)?'checked':''}><span>${x}</span></label>`).join('')}</div></div>`,
-     'Vitamine C, vitamine D, zinc et créatine se cochent dans le repas correspondant.')})()}
+     ${soir.map((x,k)=>`<label class="cell" for="sv${k}"><span class="body"><span>${esc(x.name)}${x.dose?' · '+esc(x.dose):''}</span>${x.tip?`<span class="fn">${esc(x.tip)}</span>`:''}</span><input id="sv${k}" type="checkbox" class="switch" name="supp" value="${esc(x.name)}" ${(e.supps||[]).includes(x.name)?'checked':''}></label>`).join('')}
+     ${others.length?`<div class="cell block"><span>Autres compléments</span><div class="toggles">${others.map((x,k)=>`<label><input type="checkbox" name="supp" value="${esc(x)}" id="sp${k}" ${(e.supps||[]).includes(x)?'checked':''}><span>${esc(x)}</span></label>`).join('')}</div></div>`:''}
+     ${!L.length?`<button type="button" class="cell tap link" data-act="suppNew">Ajouter mes compléments</button>`:''}`,
+     'Les compléments pris aux repas se cochent dans le repas. Ta liste se modifie dans Réglages Forme › Mes compléments.')})()}
    ${sec('',`<div class="cell"><span class="body">Alcool (verres)</span><div class="stepper"><button type="button" data-istep="alc" data-d="-1" aria-label="Moins">−</button><output id="o-alc">${e.alcohol||0}</output><button type="button" data-istep="alc" data-d="1" aria-label="Plus">+</button></div><input type="hidden" id="alc" name="alcohol" value="${e.alcohol||0}"></div>`)}
    ${sec('Douleurs (s’il y en a)',`<div id="pains">${pains}</div>`+addCell('Ajouter une douleur','addPain'))}
    ${sec('',`<div class="cell"><textarea id="enote" name="note" rows="2" placeholder="Note libre (facultatif)">${esc(e.note||'')}</textarea></div>`)}
@@ -856,6 +861,16 @@ Réponds en français. « aliments » : liste courte séparée par des virgules 
     res.innerHTML=`<span class="body"><span><b>${fmt(a.kcal,0)} kcal</b> · ${fmt(a.proteines,0)} g de protéines</span><span class="fn">Fourchette ${fmt(a.kcal_min,0)}–${fmt(a.kcal_max,0)} kcal · confiance ${esc(a.confiance)}${a.remarque?' · '+esc(a.remarque):''}</span><span class="fn">Aliments et valeurs remplis ci-dessous : corrige-les si besoin.</span></span>`;
     const ag=document.querySelector('.mp-again');if(ag)ag.hidden=false}
   catch(e){res.innerHTML=`<span class="body fn">${esc(e?.message||'Analyse impossible.')}</span>`}}
+function suppSheet(x){const isNew=!x;x=x||{name:'',dose:'',when:'repas',meals:['petitdej','dejeuner'],daily:false,season:'all',tip:''};
+  sheet(isNew?'Nouveau complément':'Complément',`<form id="sf" data-form="suppItem" data-id="${x.id||''}">
+   ${sec('',`<label class="cell field" for="spn"><span>Nom</span><input id="spn" name="name" value="${esc(x.name)}" required placeholder="Oméga 3, fer, magnésium…" autocomplete="off"></label><label class="cell field" for="spd"><span>Dose</span><input id="spd" name="dose" value="${esc(x.dose||'')}" placeholder="2 gélules" autocomplete="off"></label>`)}
+   ${sec('Quand',`<div class="cell block">${seg('when',SUPP_WHEN,x.when)}</div>
+     <div class="cell block" id="spmeals" ${x.when==='repas'?'':'hidden'}><span>À quels repas</span><div class="toggles">${MEALTYPES.map(([k,l])=>`<label><input type="checkbox" name="meals" value="${k}" ${(x.meals||[]).includes(k)?'checked':''}><span>${l}</span></label>`).join('')}</div></div>
+     <label class="cell" for="spy" id="spdaily" ${x.when==='repas'?'':'hidden'}><span class="body"><span>Une fois par jour</span><span class="fn">S’il n’est pris à aucun repas, il est proposé le soir</span></span><input id="spy" name="daily" type="checkbox" class="switch" ${x.daily?'checked':''}></label>
+     <label class="cell field" for="sps"><span>Période</span><select id="sps" name="season"><option value="all" ${x.season!=='winter'?'selected':''}>Toute l’année</option><option value="winter" ${x.season==='winter'?'selected':''}>D’octobre à mars</option></select></label>`)}
+   ${sec('',`<label class="cell field" for="spt"><span>Conseil de prise</span><input id="spt" name="tip" value="${esc(x.tip||'')}" placeholder="En fin de repas, 1 h après le zinc…" autocomplete="off"></label>`)}
+   ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="suppDel" data-id="${x.id}">Supprimer</button>`)}
+  </form>`)}
 function painRow(p={zone:'',intensity:3}){return `<div class="cell block" data-pain><div class="mini"><label>Zone<input name="pz" value="${esc(p.zone)}" placeholder="genou droit, bas du dos…"></label><label>Intensité <output>${p.intensity}</output>/10<input type="range" class="range" name="pi" min="0" max="10" value="${p.intensity}" style="--c:var(--red);--p:${p.intensity*10}%"></label></div></div>`}
 function weeklySheet(){const t=TODAY();const sunday=addDays(weekStart(t),6);const w=db.weekly[sunday]||{};const W=weekStats(t);
   sheet('Bilan du dimanche',`<form id="sf" data-form="weekly" data-d="${sunday}">
@@ -921,6 +936,9 @@ document.addEventListener('click',ev=>{
    case 'pastMorning':morningSheet(el.dataset.d);break;
    case 'pastEvening':eveningSheet(el.dataset.d);break;
    case 'mealPhotoAgain':mealAnalyze();break;
+   case 'suppNew':suppSheet();break;
+   case 'suppEdit':{const x=suppList().find(y=>y.id===id);if(x)suppSheet(x);break}
+   case 'suppDel':st().suppList=suppList().filter(y=>y.id!==id);save();closeSheet();render();hud('Complément supprimé');break;
    case 'bibleStart':{unlockAudio();const mn=Math.max(1,+st().reading?.min||10);db.reading={end:Date.now()+mn*60000,total:mn*60,fired:false};save();const go=()=>{closeSheet(true);paintReading()};if(document.querySelector('#bloom'))bloomFrom(el.querySelector('.ico')||el,'#A2845E',go);else go();try{if('wakeLock' in navigator&&!wakeLock)navigator.wakeLock.request('screen').then(w=>{wakeLock=w}).catch(()=>{})}catch(e){}break}
    case 'bibleStop':{const r=$('#reader');r.classList.add('closing');db.reading=null;save();setTimeout(()=>{r.hidden=true;r.classList.remove('closing');r.dataset.mode=''},450);break}
    case 'bibleAdd':if(db.reading){db.reading.end+=60000;db.reading.total+=60;save();paintReading()}break;
@@ -992,9 +1010,10 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.areaToggle){const k=t.dataset.areaToggle,cur=new Set(st().areas||[]);t.checked?cur.add(k):cur.delete(k);if(!cur.size){t.checked=true;hud('Garde au moins une section');return}st().areas=AREA_PICK.map(a=>a[0]).filter(x=>cur.has(x));save();hud(t.checked?'Section activée':'Section masquée');return}
   if(t.dataset.change==='name'){st().name=t.value.trim()||'toi';save();hud('Prénom enregistré');return}
   if(t.dataset.change==='apikey'){st().apiKey=t.value.trim();save();hud(t.value.trim()?'Clé enregistrée':'Clé retirée');return}
+  if(t.name==='when'&&t.closest('[data-form=suppItem]')){const r=t.value==='repas';$('#spmeals').hidden=!r;$('#spdaily').hidden=!r;return}
   if(t.name==='type'&&t.closest('[data-form=meal]')){t.closest('form').querySelectorAll('#msupps [data-types]').forEach(l=>{const on=l.dataset.types.split(' ').includes(t.value);l.hidden=!on;if(!on)l.querySelector('input').checked=false});return}
   if(t.dataset.change==='exsel'){S.ex=t.value;render();return}
-  if(t.dataset.setting){st()[t.dataset.setting]=t.checked;save();return}
+  if(t.dataset.setting){st()[t.dataset.setting]=t.checked;save();if(t.dataset.setting==='supps')render();return}
   if(t.dataset.tday!=null){const k=+t.dataset.tday;const a=new Set(st().trainingDays);t.checked?a.add(k):a.delete(k);st().trainingDays=[...a].sort();save();render();return}
   if(t.name==='evView'){S.evView=t.value;paintCareer();return}
   if(t.name==='ctCh'){const m=t.value==='mail';const sj=$('.ct-subj');if(sj)sj.hidden=!m;const b=$('#ctgo');if(b)b.textContent=m?'Ouvrir dans Mail':'Ouvrir dans Messages';return}
@@ -1013,6 +1032,9 @@ document.addEventListener('submit',ev=>{
   if(f.dataset.form==='ccProf'){const d=f.dataset.dom,P={};PROF[d].f.forEach(([k])=>{const x=String(v[k]||'').trim();if(x)P[k]=x});st().prof=Object.assign({},st().prof,{[d]:P});save();closeSheet();CC.dom=d;coachRepaint();hud('Profil enregistré');return}
   if(f.dataset.form==='brNote'||f.dataset.form==='brLink'){brainSubmit(f,v);return}
   switch(f.dataset.form){
+   case 'suppItem':{const name=String(v.name||'').trim();if(!name)break;const L=st().suppList||(st().suppList=[]);let x=L.find(y=>y.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid()};L.push(x)}
+     Object.assign(x,{name,dose:String(v.dose||'').trim(),when:v.when||'repas',meals:fd.getAll('meals'),daily:!!v.daily,season:v.season||'all',tip:String(v.tip||'').trim()});if(x.when==='repas'&&!x.meals.length)x.meals=ALLM.slice();
+     if(isNew)st().supps=true;save();closeSheet();render();hud(isNew?'Complément ajouté':'Complément enregistré');break}
    case 'morning':{const dd=f.dataset.d||t,D=day(dd);D.morning=Object.assign(D.morning||{},{weight:num(v.weight),fat:num(v.fat),muscle:num(v.muscle),visceral:num(v.visceral),time:v.time||nowHM(),sleepH:num(v.sleepH),sleepQ:v.sleepQ?+v.sleepQ:null},f.querySelector('#mbi')?{bible:!!v.bible}:{});save();closeSheet();render();haptic();hud(dd===t?'Réveil enregistré':'Réveil rattrapé');break}
    case 'meal':{const D=day(t);const o={type:v.type,time:v.time,foods:(v.foods||'').trim(),source:v.source,speed:v.speed,comment:(v.comment||'').trim(),supps:fd.getAll('msupp'),sugar:!!v.sugar};
      if(st().countMode==='mains'){o.hands={p:num(v.h_p)||0,c:num(v.h_c)||0,f:num(v.h_f)||0,v:num(v.h_v)||0};o.kcal=num(v.ai_kcal);o.prot=num(v.ai_prot)}else{o.kcal=num(v.kcal);o.prot=num(v.prot)}
@@ -1022,7 +1044,7 @@ document.addEventListener('submit',ev=>{
    case 'evening':{const dd=f.dataset.d||t,D=day(dd);
      D.meals.forEach(m=>{const sc=+(v['b_'+m.id]||0);m.bloat=sc?{score:sc,delay:num(v['bd_'+m.id]),duration:num(v['bu_'+m.id]),signs:(v['bs_'+m.id]||'').trim()}:{score:0}});
      const pz=fd.getAll('pz'),pi=fd.getAll('pi');
-     D.evening={done:true,sugarExtra:!!v.sugarExtra,water:num(v.water),steps:num(v.steps),energy:v.energy?+v.energy:null,hunger:v.hunger?+v.hunger:null,stress:v.stress?+v.stress:null,supps:fd.getAll('supp'),magTime:fd.getAll('supp').includes('Magnésium')?((D.evening?.supps||[]).includes('Magnésium')&&D.evening.magTime?D.evening.magTime:nowHM()):'',alcohol:+v.alcohol||0,
+     D.evening={done:true,sugarExtra:!!v.sugarExtra,water:num(v.water),steps:num(v.steps),energy:v.energy?+v.energy:null,hunger:v.hunger?+v.hunger:null,stress:v.stress?+v.stress:null,supps:fd.getAll('supp'),suppT:Object.fromEntries(fd.getAll('supp').map(x=>[x,(D.evening?.suppT||{})[x]||((D.evening?.supps||[]).includes(x)&&x==='Magnésium'&&D.evening.magTime)||nowHM()])),alcohol:+v.alcohol||0,
        pains:pz.map((z,k)=>({zone:z.trim(),intensity:+pi[k]})).filter(p=>p.zone),note:(v.note||'').trim()};
      save();closeSheet();render();haptic();hud(dd===t?'Soirée enregistrée':'Soir rattrapé');break}
    case 'weekly':{db.weekly[f.dataset.d]={done:true,waist:num(v.waist),belt:num(v.belt),hips:num(v.hips),chest:num(v.chest),arm:num(v.arm),thigh:num(v.thigh),wins:v.wins.trim(),struggles:v.struggles.trim(),questions:v.questions.trim()};save();closeSheet();render();hud('Bilan enregistré');break}
@@ -1779,9 +1801,9 @@ function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntri
   return {today:out.filter(o=>o.day===t).sort((a,b)=>rank(a).localeCompare(rank(b))),soon:out.filter(o=>o.day>t).sort((a,b)=>(a.day+(a.time||'99')).localeCompare(b.day+(b.time||'99')))}}
 function paintAgenda(){const el=$('#agenda');if(!el)return;const {today,soon}=agendaItems(),t=TODAY();
   const row=o=>`<div class="cell ag" style="--c:${o.c};--pc:${o.todo?PRIO_C[o.todo.prio]||PRIO_C.moyenne:o.c}">${o.todo?`<button type="button" class="td-check" data-act="tdToggle" data-id="${o.id}" aria-label="Marquer comme faite"></button>`:'<span class="ag-dot"></span>'}
-    <button type="button" class="ag-body" data-act="${o.act}" ${o.id?`data-id="${o.id}"`:''}><span class="ag-t">${o.title}</span><span class="fn">${[o.day!==t?whenDay(o.day):null,o.time?esc(o.time):null,o.meta||null].filter(Boolean).join(' · ')}</span></button>${o.late?'<span class="pill late">En retard</span>':''}</div>`;
+    <button type="button" class="ag-body" data-act="${o.act}" ${o.id?`data-id="${o.id}"`:''}><span class="ag-t">${o.title}</span><span class="fn">${[o.time?esc(o.time):null,o.meta||null].filter(Boolean).join(' · ')}</span></button>${o.late?'<span class="pill late">En retard</span>':''}</div>`;
   el.innerHTML=`<section class="sec"><div class="sec-h">Aujourd’hui${today.length?` · ${today.length}`:''}</div><div class="group">${today.length?today.map(row).join(''):`<div class="cell"><span class="body fn">Rien de prévu aujourd’hui. Profite !</span></div>`}</div></section>
-   ${soon.length?`<section class="sec"><div class="sec-h">Bientôt</div><div class="group">${soon.map(row).join('')}</div></section>`:''}`}
+   ${[...new Set(soon.map(o=>o.day))].map(d=>{const xs=soon.filter(o=>o.day===d);return `<section class="sec"><div class="sec-h">${esc(whenDay(d))} · ${xs.length}</div><div class="group">${xs.map(row).join('')}</div></section>`}).join('')}`}
 /* ================= accueil : cercles des aspects de vie ================= */
 const AREAS=[
  {id:'forme',name:'Forme',sub:'Sport & nutrition',color:'#F2994A',size:128,ready:true},
