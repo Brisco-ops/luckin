@@ -5,6 +5,7 @@
 //                  et les rappels de tâches : résumé à 08:00, puis ~15 min avant une tâche qui a une heure.
 // - kind "test"  : l'utilisateur connecté s'envoie une notification de test.
 // - kind "cheer" : encourager un ami du même groupe (une fois par jour et par ami).
+// - kind "ical"  : l'utilisateur connecté lit son agenda (adresse secrète iCal Google, iCloud ou Outlook).
 // Secrets à définir dans Edge Functions › Secrets : VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, CRON_SECRET.
 // SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY sont fournis automatiquement par Supabase, côté serveur uniquement.
 import webpush from "npm:web-push@3.6.7";
@@ -190,6 +191,18 @@ Deno.serve(async (req) => {
   const { data: u } = await sb.auth.getUser(jwt);
   const me = u?.user;
   if (!me) return json({ error: "Connecte-toi d’abord." }, 401);
+
+  // Agenda : lit l'adresse secrète iCal (Google, iCloud, Outlook) à la place de l'app, qui ne peut pas la lire directement (CORS).
+  if (body.kind === "ical") {
+    let u: URL;
+    try { u = new URL(String(body.url || "").replace(/^webcal:/i, "https:")); } catch { return json({ error: "Adresse invalide." }, 400); }
+    if (u.protocol !== "https:" || !/(^|\.)(google\.com|icloud\.com|outlook\.com|live\.com|office365\.com)$/.test(u.hostname)) return json({ error: "Adresse d’agenda non reconnue." }, 400);
+    const r = await fetch(u.toString(), { headers: { "user-agent": "Luckin/1.0" } }).catch(() => null);
+    if (!r || !r.ok) return json({ error: "Agenda inaccessible" + (r ? " (" + r.status + ")" : "") + "." }, 502);
+    const ics = await r.text();
+    if (ics.length > 5_000_000) return json({ error: "Agenda trop volumineux." }, 413);
+    return json({ ok: true, ics });
+  }
 
   if (body.kind === "test") {
     const n = await sendToUser(me.id, { title: "Luck’In", body: "Les notifications fonctionnent.", tag: "test" });

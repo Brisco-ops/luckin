@@ -1259,6 +1259,8 @@ function paintPrefs(){const s=st();
   ${sec('Profil',`<label class="cell field" for="pn"><span>Prénom</span><input id="pn" data-change="name" value="${esc(s.name||'')}" autocomplete="given-name"></label><button class="cell tap" data-act="reWelcome"><span class="body"><span>Mon identité et ma phrase</span><span class="fn">Nom, sexe, naissance, phrase fétiche, sections, objectif</span></span>${I.chev}</button>`,'Les réglages propres à une section (objectif de poids, programmes, objectif de candidatures…) restent dans la section.')}
   ${sec('Mes sections',AREA_PICK.map(([k,l,d])=>`<label class="cell" for="ra-${k}"><span class="body"><span>${l}</span><span class="fn">${d}</span></span><input id="ra-${k}" type="checkbox" class="switch" data-area-toggle="${k}" ${areaOn(k)?'checked':''}></label>`).join(''),'Les sections désactivées disparaissent de l’accueil, de la barre et du coach. Tes données sont conservées. Les réglages propres à une section (profil Forme, objectif de candidatures…) se trouvent dans la section.')}
   ${sec(T('Langue','Language'),`<label class="cell field" for="lng"><span>${T('Langue','Language')}</span><select id="lng" data-change="lang">${[['auto',T('Automatique (langue du téléphone)','Automatic (phone language)')],['fr','Français'],['en','English']].map(([k,l])=>`<option value="${k}" ${k===(s.lang||'auto')?'selected':''}>${l}</option>`).join('')}</select></label>`)}
+  ${sec(T('Agenda Google','Google Calendar'),gcalUrls().length?`<div class="cell"><span class="body"><span>${T('Agenda connecté','Calendar connected')}</span><span class="fn">${GCAL?T(`${GCAL.items.length} rendez-vous sur 30 jours · mis à jour à ${hm(new Date(GCAL.at))}`,`${GCAL.items.length} events over 30 days · updated at ${hm(new Date(GCAL.at))}`):T('Pas encore lu : touche Actualiser','Not read yet: tap Refresh')}</span></span></div><button class="cell tap link" data-act="gcalRefresh">${T('Actualiser','Refresh')}</button><button class="cell tap link" data-act="gcalSetup">${T('Modifier l’adresse','Change address')}</button><button class="cell tap danger" data-act="gcalOff">${T('Déconnecter','Disconnect')}</button>`
+     :`<button class="cell tap link" data-act="gcalSetup">${T('Connecter mon agenda Google','Connect my Google Calendar')}</button>`,T('Tes rendez-vous apparaissent sur l’accueil et ton coach en tient compte. Lecture seule. Nécessite un compte connecté.','Your events appear on the home screen and your coach takes them into account. Read only. Requires a signed-in account.'))}
   ${accountSec()}
   ${sec('Coach IA',`<label class="cell field" for="ak"><span>Clé API</span><input id="ak" data-change="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(s.apiKey||'')}"></label>
      <div class="cell block"><span>Coachs</span>${seg('coachMode',COACH_MODES.map(m=>[m[0],m[1]]),s.coachMode||'eq')}</div><div class="cell"><span class="body fn">${esc((COACH_MODES.find(m=>m[0]===(s.coachMode||'eq'))||COACH_MODES[1])[2])}</span></div>`,
@@ -1450,6 +1452,7 @@ Closes récentes : ${closed.slice(-15).map(j=>`${j.company} – ${cut(j.role,50)
 Contacts : ${contacts().slice(0,40).map(x=>`${x.name} (${[x.role,x.company].filter(Boolean).join(', ')||'?'}, rencontré : ${x.met||'?'}${x.next?', à recontacter le '+x.next:''}${x.last?', dernier contact '+x.last:''}${x.notes?', notes : '+cut(x.notes,100):''})`).join(' ; ')||'aucun'}`},
  taches(){const t=TODAY(),o=todos().filter(x=>!x.done);
   return `Tâches à faire (${o.length}) : ${o.map(x=>`${x.title} [id ${x.id}, ${x.prio}${x.due?', échéance '+x.due+(x.time?' '+x.time:''):', sans échéance'}${x.due&&x.due<t?', EN RETARD':''}${x.cat?', '+x.cat:''}${x.rep?', répétée '+REP_SHORT[x.rep]:''}]${x.note?' : '+cut(x.note,100):''}`).join(' ; ')||'aucune'}
+Rendez-vous fixes de l’agenda (14 jours) : ${gcalItems(t,addDays(t,14)).map(x=>`${x.d} ${x.allDay?'journée':x.time+(x.end?'-'+x.end:'')} ${x.title}`).join(' ; ')||'aucun ou non connecté'}.
 Faites ces 14 derniers jours : ${todos().filter(x=>x.done&&(x.doneAt||0)>Date.now()-14*864e5).length + sum(todos().map(x=>(x.hist||[]).filter(h=>h>Date.now()-14*864e5).length))}.`},
  finances(){const F=fin(),t=TODAY(),m=monthKey(t),tx=F.tx.filter(x=>monthKey(x.date)===m),out=sum(tx.filter(x=>x.kind==='out').map(x=>x.amount)),inn=sum(tx.filter(x=>x.kind==='in').map(x=>x.amount));
   const cats={};tx.filter(x=>x.kind==='out').forEach(x=>cats[x.cat]=(cats[x.cat]||0)+x.amount);
@@ -1466,8 +1469,9 @@ Notes (récentes d’abord) : ${N.slice(0,60).map(n=>`« ${n.title} »${(n.tags|
  central(){const t=TODAY(),{today,soon}=agendaItems(),strip=x=>String(x).replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
   const F=fin(),m=monthKey(t),out=sum(F.tx.filter(x=>monthKey(x.date)===m&&x.kind==='out').map(x=>x.amount)),a7=lastWeightAvg(),s=st();
   const txt=`Domaines suivis : ${AREA_PICK.filter(a=>areaOn(a[0])).map(a=>a[1]).join(', ')}.
-Agenda d’aujourd’hui : ${today.map(o=>strip(o.title)+(o.time?' à '+o.time:'')+' ('+COACH_DOMS[o.area==='savoir'?'savoir':o.area]+(o.late?', en retard':'')+')').join(' ; ')||'rien'}
-Prochains jours : ${soon.map(o=>o.day+' '+strip(o.title)+(o.time?' '+o.time:'')+' ('+COACH_DOMS[o.area]+')').join(' ; ')||'rien'}
+Agenda d’aujourd’hui : ${today.map(o=>strip(o.title)+(o.time?' à '+o.time:'')+' ('+(COACH_DOMS[o.area]||'agenda')+(o.late?', en retard':'')+')').join(' ; ')||'rien'}
+Prochains jours : ${soon.map(o=>o.day+' '+strip(o.title)+(o.time?' '+o.time:'')+' ('+(COACH_DOMS[o.area]||'agenda')+')').join(' ; ')||'rien'}
+Agenda Google (rendez-vous fixes, 14 jours) : ${gcalItems(t,addDays(t,14)).map(x=>`${x.d} ${x.allDay?'journée':x.time+(x.end?'-'+x.end:'')} ${x.title}${x.loc?' ('+x.loc+')':''}`).join(' ; ')||'aucun ou non connecté'}
 Forme : poids moyen 7 j ${a7!=null?fmt(a7)+' kg':'?'} (départ ${s.startWeight??'?'}, cible ${s.targetWeight??'?'}), série ${streak()} j, sans sucre ${sugarStreak()} j, réveil ${morningFull(t)?'complet':'à compléter'}, soir ${eveningFull(t)?'complet':'à compléter'}, jours d’entraînement ${s.trainingDays.map(d=>['lun','mar','mer','jeu','ven','sam','dim'][d]).join(' ')}.
 Carrière : ${weekApps()}/${car().goal} candidatures cette semaine, ${jobs().filter(jobOpen).length} en cours, ${jobs().filter(relanceDue).length} à relancer, ${ivUpcoming().length} entretien(s) à venir, ${events().filter(e=>e.date>=t).length} événement(s) à venir.
 Tâches : ${todos().filter(x=>!x.done&&x.due&&x.due<t).length} en retard, ${todos().filter(x=>!x.done&&x.due===t).length} aujourd’hui, ${todos().filter(x=>!x.done).length} ouvertes : ${todos().filter(x=>!x.done).slice(0,40).map(x=>`${x.title} [id ${x.id}, ${x.prio}${x.due?', '+x.due+(x.time?' '+x.time:''):''}]`).join(' ; ')}.
@@ -1860,6 +1864,11 @@ document.addEventListener('click',ev=>{
    case 'pastEvening':eveningSheet(el.dataset.d);break;
    case 'mealPhotoAgain':mealAnalyze();break;
    case 'stepsImport':importSteps();break;
+   case 'gcalSetup':gcalSheet();break;
+   case 'gcalRefresh':gcalRefresh(true);break;
+   case 'gcalOff':asheet(T('Déconnecter ton agenda ?','Disconnect your calendar?'),[{label:T('Déconnecter','Disconnect'),act:'gcalOffGo',danger:true}]);break;
+   case 'gcalOffGo':st().gcal='';GCAL=null;try{localStorage.removeItem(GK)}catch(e){}save();if(prefsOn())paintPrefs();if(!$('#home').hidden)paintAgenda();hud(T('Agenda déconnecté','Calendar disconnected'));break;
+   case 'gcalShow':{const [d,tm,...r]=String(id).split('|'),x=(GCAL?.items||[]).find(y=>y.d===d&&(y.time||'')===tm&&y.title===r.join('|'));if(x)asheet(`${x.title} · ${whenDay(x.d)}${x.time?' '+x.time+(x.end?'–'+x.end:''):''}${x.loc?' · '+x.loc:''} · ${T('Agenda Google','Google Calendar')}`,[]);break}
    case 'stepsHelp':stepsHelp();break;
    case 'suppNew':suppSheet();break;
    case 'suppEdit':{const x=suppList().find(y=>y.id===id);if(x)suppSheet(x);break}
@@ -1958,6 +1967,7 @@ document.addEventListener('submit',ev=>{
   if(f.dataset.form==='ccProf'){const d=f.dataset.dom,P={};PROF[d].f.forEach(([k])=>{const x=String(v[k]||'').trim();if(x)P[k]=x});st().prof=Object.assign({},st().prof,{[d]:P});save();closeSheet();CC.dom=d;coachRepaint();hud('Profil enregistré');return}
   if(f.dataset.form==='brNote'||f.dataset.form==='brLink'){brainSubmit(f,v);return}
   switch(f.dataset.form){
+   case 'gcal':{const v2=String(v.url||'').trim().split(/\s+/).filter(u=>/^(https|webcal):\/\//i.test(u)).join('\n');if(v.url&&!v2){hud(T('Adresse non reconnue : elle doit commencer par https://','Address not recognised: it must start with https://'));break}st().gcal=v2;GCAL=null;try{localStorage.removeItem(GK)}catch(e){}save();closeSheet();if(prefsOn())paintPrefs();if(v2)gcalRefresh(true);break}
    case 'suppItem':{const name=String(v.name||'').trim();if(!name)break;const L=st().suppList||(st().suppList=[]);let x=L.find(y=>y.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid()};L.push(x)}
      Object.assign(x,{name,dose:String(v.dose||'').trim(),when:v.when||'repas',meals:fd.getAll('meals'),daily:!!v.daily,season:v.season||'all',tip:String(v.tip||'').trim()});if(x.when==='repas'&&!x.meals.length)x.meals=ALLM.slice();
      if(isNew)st().supps=true;save();closeSheet();render();hud(isNew?'Complément ajouté':'Complément enregistré');break}
@@ -2696,6 +2706,55 @@ function finAct(act,id,el){const F=fin();
    case 'fiDelInvGo':F.inv=F.inv.filter(y=>y.id!==id);save();paintFinance();hud('Placement supprimé');break;
    default:return false}
   return true}
+/* ================= agenda Google (ou iCloud, Outlook) en lecture : adresse secrète iCal, lue via la fonction push ================= */
+const GK=K+':gcal';
+let GCAL=(()=>{try{return JSON.parse(localStorage.getItem(GK)||'null')}catch(e){return null}})();
+const gcalUrls=()=>String(st().gcal||'').split(/\s+/).filter(u=>/^(https|webcal):\/\//i.test(u));
+const icsText=v=>v.replace(/\\n/gi,' ').replace(/\\([,;\\])/g,'$1').trim();
+function icsDate(v){const m=String(v).match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z?))?/);if(!m)return null;const [,Y,M,D,h='0',mi='0',sec='0',z]=m;
+  return z?new Date(Date.UTC(+Y,M-1,+D,+h,+mi,+sec)):new Date(+Y,M-1,+D,+h,+mi,+sec)}
+const ICS_DAYS=['SU','MO','TU','WE','TH','FR','SA'];
+/* occurrences d'un événement (répétitions RRULE simples : quotidien, hebdomadaire avec jours, mensuel, annuel) dans la fenêtre */
+function icsExpand(ev,from,to){const out=[],dur=ev.end&&ev.start?ev.end-ev.start:0,s=ev.start;
+  if(!ev.rrule){if(s<=to&&s.getTime()+Math.max(dur,1)>=from)out.push(s);return out}
+  const r=ev.rrule,int=+(r.INTERVAL||1),count=r.COUNT?+r.COUNT:Infinity,until=r.UNTIL?icsDate(r.UNTIL):null;let n=0;
+  const keep=o=>{if(until&&o>until)return false;if(n>=count)return false;n++;if(o.getTime()+Math.max(dur,1)>=from&&o<=to&&!ev.ex.includes(o.getTime()))out.push(o);return o<=to};
+  if(r.FREQ==='WEEKLY'&&r.BYDAY){const days=r.BYDAY.split(',').map(x=>ICS_DAYS.indexOf(x.slice(-2))).filter(x=>x>=0).sort((a,b)=>a-b),ws=new Date(s);ws.setDate(ws.getDate()-ws.getDay());
+    for(let w=0;w<1500;w++){for(const d of days){const o=new Date(ws);o.setDate(ws.getDate()+w*7*int+d);o.setHours(s.getHours(),s.getMinutes(),s.getSeconds(),0);if(o<s)continue;if(!keep(o))return out}}}
+  else for(let k=0;k<3000;k++){const o=new Date(s);if(r.FREQ==='DAILY')o.setDate(s.getDate()+k*int);else if(r.FREQ==='WEEKLY')o.setDate(s.getDate()+7*k*int);else if(r.FREQ==='MONTHLY')o.setMonth(s.getMonth()+k*int);else if(r.FREQ==='YEARLY')o.setFullYear(s.getFullYear()+k*int);else break;if(!keep(o))break}
+  return out}
+const hm=d=>String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+function icsParse(txt,from,to){const lines=String(txt).replace(/\r?\n[ \t]/g,'').split(/\r?\n/),evs=[];let cur=null;
+  for(const l of lines){if(l==='BEGIN:VEVENT'){cur={ex:[]};continue}if(l==='END:VEVENT'){if(cur&&cur.start)evs.push(cur);cur=null;continue}if(!cur)continue;
+    const i=l.indexOf(':');if(i<0)continue;const head=l.slice(0,i).split(';'),name=head[0].toUpperCase(),p=Object.fromEntries(head.slice(1).map(x=>x.split('='))),val=l.slice(i+1);
+    if(name==='SUMMARY')cur.title=icsText(val);else if(name==='LOCATION')cur.loc=icsText(val);else if(name==='UID')cur.uid=val;else if(name==='STATUS')cur.status=val;
+    else if(name==='DTSTART'){cur.start=icsDate(val);cur.allDay=p.VALUE==='DATE'||/^\d{8}$/.test(val)}else if(name==='DTEND')cur.end=icsDate(val);
+    else if(name==='RRULE')cur.rrule=Object.fromEntries(val.split(';').map(x=>x.split('=')));else if(name==='EXDATE')val.split(',').forEach(v=>{const d=icsDate(v);if(d)cur.ex.push(d.getTime())});
+    else if(name==='RECURRENCE-ID')cur.rid=icsDate(val)?.getTime()}
+  /* une occurrence modifiée (RECURRENCE-ID) remplace celle de la série */
+  const moved=new Map();evs.filter(e=>e.rid&&e.uid).forEach(e=>{const k=e.uid;moved.set(k,[...(moved.get(k)||[]),e.rid])});
+  const out=[];evs.forEach(e=>{if(e.status==='CANCELLED')return;if(e.rrule&&moved.has(e.uid))e.ex.push(...moved.get(e.uid));
+    icsExpand(e,from,to).forEach(o=>{const dur=e.end&&e.start?e.end-e.start:0;
+      if(e.allDay){const days=Math.max(1,Math.round(dur/864e5));for(let k=0;k<Math.min(days,14);k++){const d=new Date(o);d.setDate(d.getDate()+k);if(d>=new Date(from.getFullYear(),from.getMonth(),from.getDate())&&d<=to)out.push({d:iso(d),time:'',title:e.title||'(sans titre)',loc:e.loc||'',allDay:true})}}
+      else out.push({d:iso(o),time:hm(o),end:dur?hm(new Date(o.getTime()+dur)):'',title:e.title||'(sans titre)',loc:e.loc||''})})});
+  return out.sort((a,b)=>(a.d+(a.time||'00:00')).localeCompare(b.d+(b.time||'00:00')))}
+let gcalBusy=false;
+async function gcalRefresh(force){const urls=gcalUrls();if(!urls.length||gcalBusy)return;
+  if(!force&&GCAL&&GCAL.at>Date.now()-30*60e3&&GCAL.key===urls.join(' '))return;
+  if(!sb||!A.user){if(force)hud(T('Connecte-toi pour lire ton agenda','Sign in to read your calendar'));return}
+  gcalBusy=true;try{const from=new Date();from.setDate(from.getDate()-1);from.setHours(0,0,0,0);const to=new Date();to.setDate(to.getDate()+31);let items=[],err='';
+    for(const u of urls){try{const r=await fnCall({kind:'ical',url:u});items=items.concat(icsParse(r.ics||'',from,to))}catch(e){err=e?.message||'erreur'}}
+    items.sort((a,b)=>(a.d+(a.time||'00:00')).localeCompare(b.d+(b.time||'00:00')));
+    if(!items.length&&err){if(force)hud(T('Agenda : ','Calendar: ')+err);return}
+    GCAL={at:Date.now(),key:urls.join(' '),items,err};try{localStorage.setItem(GK,JSON.stringify(GCAL))}catch(e){}
+    if(!$('#home').hidden)paintAgenda();if(prefsOn())paintPrefs();if(force)hud(T(`Agenda à jour · ${items.length} rendez-vous`,`Calendar updated · ${items.length} events`))}
+  finally{gcalBusy=false}}
+const gcalItems=(from,to)=>(GCAL?.items||[]).filter(x=>x.d>=from&&x.d<=to);
+function gcalSheet(){sheet(T('Agenda Google','Google Calendar'),`<form id="sf" data-form="gcal">
+   ${sec('',`<div class="cell"><div class="body" style="display:block;font-size:15px;line-height:1.5">${T(`<p>Une fois, <b>sur un ordinateur</b> :</p><ol><li>Ouvre <b>calendar.google.com</b>, puis ⚙ <b>Paramètres</b>.</li><li>À gauche, sous « Paramètres de mes agendas », clique sur ton agenda.</li><li>Section <b>Intégrer l’agenda</b> : copie l’<b>adresse secrète au format iCal</b> (elle finit par <i>basic.ics</i>).</li><li>Envoie-la-toi (mail, Notes) puis colle-la ci-dessous. Plusieurs agendas : une adresse par ligne.</li></ol><p>Elle donne accès à ton agenda : ne la partage pas. Elle reste dans ton compte privé, jamais visible par tes amis. Google la met à jour toutes les quelques heures.</p>`,
+     `<p>Once, <b>on a computer</b>:</p><ol><li>Open <b>calendar.google.com</b>, then ⚙ <b>Settings</b>.</li><li>On the left, under “Settings for my calendars”, click your calendar.</li><li>In <b>Integrate calendar</b>: copy the <b>Secret address in iCal format</b> (it ends with <i>basic.ics</i>).</li><li>Send it to yourself (email, Notes) and paste it below. Several calendars: one address per line.</li></ol><p>It gives access to your calendar: don’t share it. It stays in your private account, never visible to your friends. Google refreshes it every few hours.</p>`)}</div></div>
+     <div class="cell"><textarea name="url" rows="3" autocapitalize="off" spellcheck="false" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics">${esc(st().gcal||'')}</textarea></div>`,T('Fonctionne aussi avec iCloud et Outlook (adresse de partage .ics).','Also works with iCloud and Outlook (.ics sharing address).'))}
+  </form>`)}
 /* ================= accueil : ce qui est à faire aujourd'hui et bientôt, toutes sections confondues ================= */
 const AG_SOON=7;
 const areaOn=id=>(st().areas||['forme','carriere','taches','finances','savoir']).includes(id);
@@ -2719,15 +2778,17 @@ function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntri
   contacts().filter(x=>x.next&&x.next<=end).forEach(x=>add({day:x.next<t?t:x.next,late:x.next<t,area:'carriere',title:'Recontacter '+esc(x.name),meta:[x.role&&esc(x.role),x.company&&esc(x.company)].filter(Boolean).join(' · '),act:'ctEdit',id:x.id}));
   // Finances : échéances à payer (7 derniers jours) et des 7 prochains jours
   upcoming(addDays(t,-7),end).forEach(({p,d})=>add({day:d<t?t:d,late:d<t,area:'finances',title:esc(p.title)+' · '+eur(p.amount),meta:'À payer'+(p.rep?' · '+FREP.find(r=>r[0]===p.rep)[1].toLowerCase():''),act:'fiOcc',id:p.id+'|'+d}));
+  // Agenda Google : rendez-vous du jour et des 7 prochains jours
+  gcalItems(t,end).forEach(x=>add({day:x.d,time:x.time,area:'gcal',title:esc(x.title),meta:[x.allDay?T('Toute la journée','All day'):x.end?T('jusqu’à ','until ')+x.end:null,x.loc&&esc(x.loc)].filter(Boolean).join(' · '),act:'gcalShow',id:x.d+'|'+(x.time||'')+'|'+x.title,user:true}));
   // Tâches : en retard, du jour et des 7 prochains jours
   todos().filter(x=>!x.done&&x.due&&x.due<=end).forEach(x=>add({day:x.due<t?t:x.due,late:x.due<t,time:x.time||'',area:'taches',title:esc(x.title),meta:[x.rep?'↻ '+REP_SHORT[x.rep]:null,x.cat&&esc(x.cat)].filter(Boolean).join(' · '),act:'tdEdit',id:x.id,todo:x}));
   const rank=o=>(o.late?'0':'1')+(o.time||'99:99')+(o.todo?prioRank(o.todo.prio):3);
-  out.forEach(o=>o.c=C[o.area]);
-  const kept=out.filter(o=>areaOn(o.area));out.length=0;out.push(...kept);
+  out.forEach(o=>o.c=C[o.area]||o.c);
+  out.forEach(o=>{if(o.area==='gcal')o.c='#4285F4'});const kept=out.filter(o=>o.area==='gcal'||areaOn(o.area));out.length=0;out.push(...kept);
   return {today:out.filter(o=>o.day===t).sort((a,b)=>rank(a).localeCompare(rank(b))),soon:out.filter(o=>o.day>t).sort((a,b)=>(a.day+(a.time||'99')).localeCompare(b.day+(b.time||'99')))}}
 function paintAgenda(){const el=$('#agenda');if(!el)return;const {today,soon}=agendaItems(),t=TODAY();
   const row=o=>`<div class="cell ag" style="--c:${o.c};--pc:${o.todo?PRIO_C[o.todo.prio]||PRIO_C.moyenne:o.c}">${o.todo?`<button type="button" class="td-check" data-act="tdToggle" data-id="${o.id}" aria-label="Marquer comme faite"></button>`:'<span class="ag-dot"></span>'}
-    <button type="button" class="ag-body" data-act="${o.act}" ${o.id?`data-id="${o.id}"`:''}><span class="ag-t${o.todo?' no-tr':''}">${o.title}</span><span class="fn">${[o.time?esc(o.time):null,o.meta||null].filter(Boolean).join(' · ')}</span></button>${o.late?'<span class="pill late">En retard</span>':''}</div>`;
+    <button type="button" class="ag-body" data-act="${o.act}" ${o.id?`data-id="${o.id}"`:''}><span class="ag-t${o.todo||o.user?' no-tr':''}">${o.title}</span><span class="fn">${[o.time?esc(o.time):null,o.meta||null].filter(Boolean).join(' · ')}</span></button>${o.late?'<span class="pill late">En retard</span>':''}</div>`;
   el.innerHTML=`<section class="sec"><div class="sec-h">Aujourd’hui${today.length?` · ${today.length}`:''}</div><div class="group">${today.length?today.map(row).join(''):`<div class="cell"><span class="body fn">Rien de prévu aujourd’hui. Profite !</span></div>`}</div></section>
    ${[...new Set(soon.map(o=>o.day))].map(d=>{const xs=soon.filter(o=>o.day===d);return `<section class="sec"><div class="sec-h">${esc(whenDay(d))} · ${xs.length}</div><div class="group">${xs.map(row).join('')}</div></section>`}).join('')}`}
 /* ================= accueil : cercles des aspects de vie ================= */
@@ -2747,7 +2808,7 @@ function paintHome(){
   const on=AREAS.filter(a=>areaOn(a.id));
   $('#orbit').innerHTML=`<div class="in" style="grid-template-columns:repeat(${on.length},1fr)">`+on.map(a=>`<button class="planet${a.ready||a.paint?'':' soon'}" data-area="${a.id}" style="--c:${a.color}" aria-label="${a.name}"><span class="p-ring"><svg viewBox="0 0 24 24" aria-hidden="true">${AREA_ICONS[a.id]}</svg></span><span class="p-name">${a.short||a.name}</span></button>`).join('')+`</div>`;
   paintAgenda();
-  placePlanets();paintFriends();loadGroup();
+  placePlanets();paintFriends();loadGroup();gcalRefresh(false);
 }
 function placePlanets(){}
 function spin(ts){H.raf=0;return;if(!H.open){H.raf=0;return}if(H.last&&!reduce()&&!H.hold)H.angle+=(ts-H.last)/1000*0.09;H.last=ts;placePlanets();H.raf=requestAnimationFrame(spin)}
