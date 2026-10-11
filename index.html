@@ -864,7 +864,7 @@ const LOC=LANG==='en'?'en-GB':'fr-FR';
 const T=(fr,en)=>LANG==='en'?en:fr;
 const EN=new Map(Object.entries({
  // accueil, barre, sections
- 'Accueil':'Home','Bonjour':'Hello','Ton coach':'Your coach','Il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Sees everything, plans ahead and relies on your specialist coaches','Ton coach : il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Your coach: sees everything, plans ahead and relies on your specialist coaches','Luck, ton coach':'Luck, your coach','Dans la journée':'During the day','nouveau':'new','déplacé':'moved','Liste':'List','Semaine':'Week','Durée estimée':'Estimated time','Aperçu de ta semaine':'Your week at a glance',
+ 'Accueil':'Home','Bonjour':'Hello','Ton coach':'Your coach','Il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Sees everything, plans ahead and relies on your specialist coaches','Ton coach : il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Your coach: sees everything, plans ahead and relies on your specialist coaches','Luck, ton coach':'Luck, your coach','Dans la journée':'During the day','nouveau':'new','déplacé':'moved','Liste':'List','Semaine':'Week','Durée estimée':'Estimated time','Heure habituelle de séance':'Usual workout time','Heure de séance enregistrée':'Workout time saved','Heure de séance retirée':'Workout time removed','Aperçu de ta semaine':'Your week at a glance',
  'Aujourd’hui':'Today','Demain':'Tomorrow','Rien de prévu aujourd’hui. Profite !':'Nothing planned today. Enjoy!','En retard':'Overdue','Marquer comme faite':'Mark as done',
  'Forme':'Fitness','Carrière':'Career','Tâches':'Tasks','Finances':'Finances','Savoir':'Knowledge','Apprentissage':'Learning',
  'Sport, nutrition, sommeil':'Sport, nutrition, sleep','Candidatures, entretiens, réseau':'Applications, interviews, network','To-do, échéances, priorités':'To-dos, deadlines, priorities','Budget, épargne, placements':'Budget, savings, investments','Notes, apprentissage, deuxième cerveau':'Notes, learning, second brain',
@@ -1000,7 +1000,7 @@ function seedTemplates(){
 function seed(){
   let old={};try{old=JSON.parse(localStorage.getItem('cap-objectifs-v1')||'{}').settings||{}}catch(e){}
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
-    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
+    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,trainTime:'',suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
     apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',coachMode:'eq',career:{goal:5,relance:7}},
     days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[],notes:[],fin:{tx:[],plans:[],goals:[],inv:[],budget:null}};
 }
@@ -1011,6 +1011,7 @@ function save(){db.mod=Date.now();writeLocal();try{cloudQueue()}catch(e){}}
 db=load();
 if(!db.settings.restFix){db.templates.forEach(t=>t.exercises.forEach(e=>e.rest=40));const aw=db.active&&db.workouts.find(w=>w.id===db.active.id);if(aw)aw.exercises.forEach(e=>e.rest=40);db.settings.restFix=1;save()}
 /* installations existantes : on garde le rituel et les compléments déjà en place */
+if(db.settings.trainTime==null)db.settings.trainTime='';
 if(db.settings.onboarded==null){db.settings.onboarded=1;if(db.settings.reading==null)db.settings.reading={on:true,label:'Lecture de la Bible',min:10};if(db.settings.supps==null)db.settings.supps=true;writeLocal()}
 /* section Carrière : objectif hebdomadaire et liste des candidatures */
 if(!db.todos){db.todos=[];writeLocal()}
@@ -1050,7 +1051,7 @@ function morningMissing(d){const m=peekDay(d).morning||{},s=st(),x=[];
   if(m.sleepH==null)x.push('durée du sommeil');if(!m.sleepQ)x.push('qualité du sommeil');if(s.reading?.on&&!m.bible)x.push((s.reading.label||'lecture').toLowerCase());return x}
 function eveningMissing(d){const e=peekDay(d).evening||{},x=[];if(!e.done)x.push('fiche du soir');
   if(e.water==null)x.push('eau');if(e.steps==null)x.push('pas');if(!e.energy)x.push('énergie');if(!e.hunger)x.push('faim');if(!e.stress)x.push('stress');return x}
-function weeklyMissing(d){const w=db.weekly[d]||{},x=[];if(w.waist==null)x.push('tour de taille');if(w.belt==null)x.push('trou de ceinture');if(!w.wins)x.push('victoires');if(!w.struggles)x.push('difficultés');return x}
+function weeklyMissing(d){const w=db.weekly[d]||{},x=[];if(w.waist==null)x.push('tour de taille');if(!w.wins)x.push('victoires');if(!w.struggles)x.push('difficultés');return x}
 const morningFull=d=>!morningMissing(d).length,eveningFull=d=>!eveningMissing(d).length,weeklyFull=d=>!weeklyMissing(d).length;
 const stateP=(full,started)=>full?state(true):started?'<span class="state part" aria-label="À compléter"></span>':state(false);
 const isTrainingDay=d=>st().trainingDays.includes(dow(d));
@@ -1157,6 +1158,16 @@ function mealCell(m){const k=mealKcal(m),p=mealProt(m);const src=SOURCES.find(x=
   return `<button class="cell tap" data-act="editMeal" data-id="${m.id}"><span class="body"><span>${esc((MEALTYPES.find(x=>x[0]===m.type)||[])[1]||'Repas')} <span class="l2" style="font-size:15px">${esc(m.time||'')}</span></span><span class="fn clamp2">${esc(m.foods||'—')}${m.sugar?' · <span style="color:var(--orange)">sucre ajouté</span>':''}</span></span>
   <span style="display:flex;flex-direction:column;align-items:flex-end;gap:3px"><span class="pill ${m.source==='maison'?'ok':'late'}">${src?src[1]:'?'}</span><span class="fn num">${k!=null?fmt(k,0)+' kcal':''}${p!=null?' · '+fmt(p,0)+' g':''}</span></span>${I.chev}</button>`}
 function workoutVisible(){const t=TODAY();return isTrainingDay(t)||!!db.active||workoutsOn(t).length>0}
+/* séances prévues des prochains jours : programme suivant dans la rotation, heure habituelle, durée moyenne */
+function sessionsAhead(from,to){const out=[],done=db.workouts.filter(w=>w.end&&w.duration>0).slice(-6),avg=done.length?Math.round(sum(done.map(w=>w.duration))/done.length):60;
+  let i=db.templates.length?Math.max(0,db.templates.indexOf(nextTemplate())):-1;
+  for(let d=from;d<=to;d=addDays(d,1)){if(!isTrainingDay(d))continue;const w=workoutsOn(d);
+    if(w.length){out.push({d,name:w.map(x=>x.name).join(' + '),done:!!w.every(x=>x.end),time:st().trainTime||'',dur:w[0].duration||avg});continue}
+    if(d<TODAY())continue;const tp=i>=0?db.templates[i%db.templates.length]:null;if(i>=0)i++;
+    out.push({d,name:tp?tp.name:'Séance',time:st().trainTime||'',dur:Math.min(180,Math.max(20,avg))})}
+  return out}
+const sessTxt=(from,to)=>sessionsAhead(from,to).map(x=>`${x.d} (${['lun','mar','mer','jeu','ven','sam','dim'][dow(x.d)]}) ${x.name}${x.time?' à '+x.time:', heure libre'}, ~${x.dur} min${x.done?', faite':''}`).join(' ; ')||'aucune';
+function lastFormeAdvice(){const m=chat.filter(x=>x.role==='assistant'&&typeof x.content==='string').pop();return m?cut(m.content.replace(/<programme>[\s\S]*?<\/programme>/g,''),600):''}
 function nextTemplate(){if(!db.templates.length)return null;const done=db.workouts.filter(w=>w.end&&w.kind==='muscu'&&w.templateId);const last=done[done.length-1];
   if(!last)return db.templates[0];const i=db.templates.findIndex(t=>t.id===last.templateId);return db.templates[(i+1)%db.templates.length]}
 
@@ -1248,7 +1259,8 @@ function vSettings(){
    <button class="cell tap link center">Enregistrer</button></form>`,'Le coach peut t’aider à fixer tes cibles de calories et de protéines.')}
   ${sec('Saisie',`<div class="cell block"><span>Comptage des repas</span>${seg('countMode',[['kcal','Calories + protéines'],['mains','Portions de main']],s.countMode)}</div>
    <div class="cell block"><span>Muscle squelettique affiché par la balance en</span>${seg('muscleUnit',[['kg','kg'],['%','%']],s.muscleUnit)}</div>
-   <div class="cell block"><span>Jours d’entraînement</span><div class="toggles">${DAYS.map((d,k)=>`<label><input type="checkbox" data-tday="${k}" ${s.trainingDays.includes(k)?'checked':''}><span>${d}</span></label>`).join('')}</div></div>`,
+   <div class="cell block"><span>Jours d’entraînement</span><div class="toggles">${DAYS.map((d,k)=>`<label><input type="checkbox" data-tday="${k}" ${s.trainingDays.includes(k)?'checked':''}><span>${d}</span></label>`).join('')}</div></div>
+   <label class="cell field" for="trt"><span>Heure habituelle de séance</span><input id="trt" type="time" data-change="trainTime" value="${esc(s.trainTime||'')}"></label>`,
    'Les jours de repos, l’onglet Séance est masqué : la saisie se limite au réveil, aux repas et au soir. Portions de main : 1 paume de protéines ≈ 24 g de protéines et 120 kcal, 1 main creuse de féculents ≈ 110 kcal, 1 pouce de matières grasses ≈ 100 kcal, 1 poing de légumes ≈ 25 kcal. Ce sont des estimations.')}
   ${sec('Programmes de musculation',db.templates.map(t=>`<button class="cell tap" data-act="editTpl" data-id="${t.id}"><span class="body"><span>${esc(t.name)}</span><span class="fn">${t.exercises.length} exercices</span></span>${I.chev}</button>`).join('')+addCell('Nouveau programme','editTpl','data-id=""'),'Modifiables ici même les jours de repos.','ic')}
   ${sec('Rituels',`<label class="cell" for="sw-rd"><span class="body"><span>Lecture du matin chronométrée</span><span class="fn">Bible, livre, méditation…</span></span><input id="sw-rd" type="checkbox" class="switch" data-rd="on" ${s.reading?.on?'checked':''}></label>
@@ -1320,7 +1332,7 @@ function dataContext(){
     lines.push(`${d} | poids ${m.weight??'-'} | MG ${m.fat??'-'} | sommeil ${m.sleepH??'-'}h q${m.sleepQ??'-'} | ${tt.kcal??'-'} kcal | ${tt.prot??'-'} g prot | repas ${tt.n} dont hors plan ${tt.off} | séance ${workoutsOn(d).map(w=>w.name).join('+')||'-'} | pas ${e.steps??'-'} | eau ${e.water??'-'} L | énergie/faim/stress ${e.energy??'-'}/${e.hunger??'-'}/${e.stress??'-'} | ballonnement max ${bl.length?Math.max(...bl):'-'} | compléments ${suppsTaken(d).map(x=>x.name+(x.time?' '+x.time:'')).join(', ')||'-'} | bible ${m.bible?'oui':'-'} | sans sucre ajouté ${eveningDone(d)?(hasSugar(d)?'non':'oui'):'?'} | alcool ${e.alcohol??'-'}${e.pains?.length?' | douleurs '+e.pains.map(p=>p.zone+' '+p.intensity+'/10').join(', '):''}`)}
   const meals=Object.keys(db.days).sort().slice(-5).flatMap(d=>db.days[d].meals.map(m=>`${d} ${m.type}: ${m.foods||'?'} (${m.source}, ${m.speed||'?'}${m.bloat?.score?', ballonnement '+m.bloat.score+'/3':''})`)).slice(-15);
   const wos=db.workouts.filter(w=>w.end).slice(-6).map(w=>`${w.date} ${w.name}: `+(w.kind==='muscu'?w.exercises.filter(e=>e.logged.length).map(e=>`${e.name} ${e.logged.map(x=>x.secs!=null?x.secs+'s':`${x.load??'PDC'}x${x.reps}@${x.rir}`).join(' ')}`).join('; '):`${w.cardio?.type} ${w.duration} min ${w.cardio?.distance??''} km`));
-  const wk=Object.keys(db.weekly).sort().slice(-3).map(d=>{const x=db.weekly[d];return `${d}: taille ${x.waist??'-'} cm, cran ${x.belt??'-'}, victoires: ${x.wins||'-'}, difficultés: ${x.struggles||'-'}, questions: ${x.questions||'-'}`});
+  const wk=Object.keys(db.weekly).sort().slice(-3).map(d=>{const x=db.weekly[d];return `${d}: taille ${x.waist??'-'} cm${x.belt!=null?', cran '+x.belt:''}, victoires: ${x.wins||'-'}, difficultés: ${x.struggles||'-'}, questions: ${x.questions||'-'}`});
   return `Profil : ${s.name}, ${s.height} cm, départ ${s.startWeight} kg, cible ${s.targetWeight??'non fixée'}${s.targetDate?' le '+s.targetDate:''}. Cibles : ${s.kcalTarget??'?'} kcal, ${s.protTarget??'?'} g de protéines. Contraintes alimentaires : ${s.diet||'aucune'}. Entraînement prévu ${s.trainingDays.length} jours par semaine. Comptage : ${s.countMode==='mains'?'portions de main':'calories'}.
 Programmes : ${db.templates.map(t=>t.name+' ('+t.exercises.map(e=>`${e.name} ${e.sets}x${e.reps} repos ${e.rest}s`).join(', ')+')').join(' ; ')||'aucun'}
 Journal des 14 derniers jours :
@@ -1452,7 +1464,7 @@ const PLAN_NOTE=`
 
 Réorganiser l’emploi du temps : si l’utilisateur te demande d’organiser, planifier ou réorganiser (sa journée, sa semaine, ses tâches), propose un planning réaliste (tâches majeures sur ses créneaux d’énergie, marges, en tenant compte des séances, entretiens, événements et échéances), explique-le brièvement, puis termine ton message par UN SEUL bloc :
 <planning>{"changes":[{"id":"…","due":"AAAA-MM-JJ","time":"HH:MM","dur":60,"prio":"haute|moyenne|basse"}],"new":[{"title":"…","due":"AAAA-MM-JJ","time":"HH:MM","dur":45,"prio":"moyenne","cat":"…"}],"remove":["id"]}</planning>
-Découpe le travail en créneaux réalistes : donne à chaque tâche planifiée une heure (« time ») et une durée estimée en minutes (« dur »), sans chevaucher les rendez-vous fixes ni dépasser les horaires de l’utilisateur ; l’utilisateur verra sa semaine heure par heure. JSON valide uniquement. « changes » : seulement les tâches existantes à modifier, avec leur id exact (n’invente jamais d’id), et seulement les champs qui changent (time vide "" pour retirer l’heure). « new » : tâches ou créneaux à créer (ex. étapes d’une grosse tâche, « Préparer l’entretien »). « remove » : seulement si l’utilisateur l’accepte ou si c’est un doublon évident. L’utilisateur verra le détail et appliquera d’un bouton ; ne mets pas de bloc si on ne te demande pas de planifier.`;
+Découpe le travail en créneaux réalistes : donne à chaque tâche planifiée une heure (« time ») et une durée estimée en minutes (« dur »), sans chevaucher les rendez-vous fixes ni les séances de sport prévues (une séance sans heure : garde-lui un créneau libre de sa durée ce jour-là et dis lequel) ni dépasser les horaires de l’utilisateur ; l’utilisateur verra sa semaine heure par heure. JSON valide uniquement. « changes » : seulement les tâches existantes à modifier, avec leur id exact (n’invente jamais d’id), et seulement les champs qui changent (time vide "" pour retirer l’heure). « new » : tâches ou créneaux à créer (ex. étapes d’une grosse tâche, « Préparer l’entretien »). « remove » : seulement si l’utilisateur l’accepte ou si c’est un doublon évident. L’utilisateur verra le détail et appliquera d’un bouton ; ne mets pas de bloc si on ne te demande pas de planifier.`;
 const prof=d=>(st().prof||{})[d]||{};
 const profFilled=d=>PROF[d].f.filter(([k])=>String(prof(d)[k]||'').trim()).length;
 function profText(d){const P=prof(d),r=PROF[d].f.filter(([k])=>String(P[k]||'').trim()).map(([k,l])=>`- ${l} : ${String(P[k]).trim().slice(0,k==='cv'?4000:600)}`);return r.length?r.join('\n'):'(non renseigné : si une information importante manque, pose une question et propose de compléter le profil du coach)'}
@@ -1470,7 +1482,7 @@ Closes récentes : ${closed.slice(-15).map(j=>`${j.company} – ${cut(j.role,50)
 Contacts : ${contacts().slice(0,40).map(x=>`${x.name} (${[x.role,x.company].filter(Boolean).join(', ')||'?'}, rencontré : ${x.met||'?'}${x.next?', à recontacter le '+x.next:''}${x.last?', dernier contact '+x.last:''}${x.notes?', notes : '+cut(x.notes,100):''})`).join(' ; ')||'aucun'}`},
  taches(){const t=TODAY(),o=todos().filter(x=>!x.done);
   return `Tâches à faire (${o.length}) : ${o.map(x=>`${x.title} [id ${x.id}, ${x.prio}${x.due?', échéance '+x.due+(x.time?' '+x.time:''):', sans échéance'}${x.due&&x.due<t?', EN RETARD':''}${x.cat?', '+x.cat:''}${x.rep?', répétée '+REP_SHORT[x.rep]:''}]${x.note?' : '+cut(x.note,100):''}`).join(' ; ')||'aucune'}
-Rendez-vous fixes de l’agenda (14 jours) : ${gcalItems(t,addDays(t,14)).map(x=>`${x.d} ${x.allDay?'journée':x.time+(x.end?'-'+x.end:'')} ${x.title}`).join(' ; ')||'aucun ou non connecté'}.
+${areaOn('forme')?'Séances de sport prévues (14 jours, créneaux fixes) : '+sessTxt(t,addDays(t,14))+'.\n':''}Rendez-vous fixes de l’agenda (14 jours) : ${gcalItems(t,addDays(t,14)).map(x=>`${x.d} ${x.allDay?'journée':x.time+(x.end?'-'+x.end:'')} ${x.title}`).join(' ; ')||'aucun ou non connecté'}.
 Faites ces 14 derniers jours : ${todos().filter(x=>x.done&&(x.doneAt||0)>Date.now()-14*864e5).length + sum(todos().map(x=>(x.hist||[]).filter(h=>h>Date.now()-14*864e5).length))}.`},
  finances(){const F=fin(),t=TODAY(),m=monthKey(t),tx=F.tx.filter(x=>monthKey(x.date)===m),out=sum(tx.filter(x=>x.kind==='out').map(x=>x.amount)),inn=sum(tx.filter(x=>x.kind==='in').map(x=>x.amount));
   const cats={};tx.filter(x=>x.kind==='out').forEach(x=>cats[x.cat]=(cats[x.cat]||0)+x.amount);
@@ -1493,7 +1505,7 @@ Agenda Google (rendez-vous fixes, 14 jours) : ${gcalItems(t,addDays(t,14)).map(x
 Forme : poids moyen 7 j ${a7!=null?fmt(a7)+' kg':'?'} (départ ${s.startWeight??'?'}, cible ${s.targetWeight??'?'}), série ${streak()} j, sans sucre ${sugarStreak()} j, réveil ${morningFull(t)?'complet':'à compléter'}, soir ${eveningFull(t)?'complet':'à compléter'}, jours d’entraînement ${s.trainingDays.map(d=>['lun','mar','mer','jeu','ven','sam','dim'][d]).join(' ')}.
 Carrière : ${weekApps()}/${car().goal} candidatures cette semaine, ${jobs().filter(jobOpen).length} en cours, ${jobs().filter(relanceDue).length} à relancer, ${ivUpcoming().length} entretien(s) à venir, ${events().filter(e=>e.date>=t).length} événement(s) à venir.
 Tâches : ${todos().filter(x=>!x.done&&x.due&&x.due<t).length} en retard, ${todos().filter(x=>!x.done&&x.due===t).length} aujourd’hui, ${todos().filter(x=>!x.done).length} ouvertes : ${todos().filter(x=>!x.done).slice(0,40).map(x=>`${x.title} [id ${x.id}, ${x.prio}${x.due?', '+x.due+(x.time?' '+x.time:''):''}]`).join(' ; ')}.
-Séances prévues : ${['lun','mar','mer','jeu','ven','sam','dim'].filter((_,k)=>st().trainingDays.includes(k)).join(', ')}.
+Séances de sport prévues (14 j, créneaux fixes à respecter, ne pas les déplacer sans le dire) : ${sessTxt(t,addDays(t,14))}. Programmes : ${db.templates.map(x=>x.name+' ('+x.exercises.length+' exercices)').join(', ')||'aucun'}.${lastFormeAdvice()?' Dernier conseil du coach Forme : '+lastFormeAdvice():''}
 Finances : dépensé ce mois ${eur(out)}${F.budget?' sur '+eur(F.budget):''}, ${upcoming(t,addDays(t,14)).length} échéance(s) dans 14 j, épargne ${eur(sum(F.goals.map(g=>g.saved||0)))}, placements ${eur(sum(F.inv.map(invVal)))}.
 Savoir : ${notes().length} notes, dernières : ${notes().slice().sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,5).map(n=>n.title).join(', ')||'-'}.`;
   const pre={'Forme :':'forme','Séances prévues':'forme','Carrière :':'carriere','Tâches :':'taches','Finances :':'finances','Savoir :':'savoir'};
@@ -1606,7 +1618,7 @@ function weekBlocks(days,todoList,marks){const map=new Map(days.map(d=>[d,[]])),
   gcalItems(days[0],days[days.length-1]).forEach(x=>{const s=toMinS(x.time);put(x.d,{s,e:toMinS(x.end)||(s!=null?s+60:null),title:x.title,c:'#4285F4',fixed:1})});
   if(areaOn('carriere')){jobs().filter(jobOpen).forEach(j=>(j.interviews||[]).forEach(i=>{const s=toMinS(i.time);put(i.date,{s,e:s!=null?s+60:null,title:T('Entretien · ','Interview · ')+j.company,c:'#3E6FD8',fixed:1})}));
     events().forEach(e=>{const s=toMinS(e.time);put(e.date,{s,e:s!=null?s+120:null,title:e.title,c:'#3E6FD8',fixed:1})})}
-  if(areaOn('forme'))days.forEach(d=>{if(isTrainingDay(d))put(d,{s:null,title:T('Séance','Workout'),c:'#F2994A',fixed:1})});
+  if(areaOn('forme'))sessionsAhead(days[0],days[days.length-1]).forEach(x=>{const s=toMinS(x.time);put(x.d,{s,e:s!=null?s+x.dur:null,title:T('Séance','Workout')+(x.name!=='Séance'?' · '+x.name:'')+(s==null?' (~'+durTxt(x.dur)+')':''),c:'#F2994A',fixed:1})});
   return map}
 const durTxt=m=>m>=60?Math.floor(m/60)+' h'+(m%60?' '+String(m%60).padStart(2,'0'):''):m+' min';
 function weekView(days,map){return days.map(d=>{const xs=map.get(d)||[],timed=xs.filter(o=>o.s!=null).sort((a,b)=>a.s-b.s),free=xs.filter(o=>o.s==null),span=(WK_H1-WK_H0)*60;
@@ -1823,7 +1835,7 @@ function suppSheet(x){const isNew=!x;x=x||{name:'',dose:'',when:'repas',meals:['
 function painRow(p={zone:'',intensity:3}){return `<div class="cell block" data-pain><div class="mini"><label>Zone<input name="pz" value="${esc(p.zone)}" placeholder="genou droit, bas du dos…"></label><label>Intensité <output>${p.intensity}</output>/10<input type="range" class="range" name="pi" min="0" max="10" value="${p.intensity}" style="--c:var(--red);--p:${p.intensity*10}%"></label></div></div>`}
 function weeklySheet(){const t=TODAY();const sunday=addDays(weekStart(t),6);const w=db.weekly[sunday]||{};const W=weekStats(t);
   sheet('Bilan du dimanche',`<form id="sf" data-form="weekly" data-d="${sunday}">
-   ${sec('Mensurations',`${fieldNum('waist','Tour de taille',w.waist,'cm','au nombril')}${fieldNum('belt','Trou de ceinture',w.belt,'cran','')}${fieldNum('hips','Hanches',w.hips,'cm','facultatif')}${fieldNum('chest','Poitrine',w.chest,'cm','facultatif')}${fieldNum('arm','Bras',w.arm,'cm','facultatif')}${fieldNum('thigh','Cuisse',w.thigh,'cm','facultatif')}`,'Mesure le matin à jeun, au même endroit chaque semaine.')}
+   ${sec('Mensurations',`${fieldNum('waist','Tour de taille',w.waist,'cm','au nombril')}${fieldNum('hips','Hanches',w.hips,'cm','facultatif')}${fieldNum('chest','Poitrine',w.chest,'cm','facultatif')}${fieldNum('arm','Bras',w.arm,'cm','facultatif')}${fieldNum('thigh','Cuisse',w.thigh,'cm','facultatif')}`,'Mesure le matin à jeun, au même endroit chaque semaine.')}
    ${sec('Adhérence (calculée)',`<div class="cell"><span class="body">Rituels du réveil</span><span class="acc num">${W.morning}/${W.days}</span></div><div class="cell"><span class="body">Rituels du soir</span><span class="acc num">${W.evening}/${W.days}</span></div><div class="cell"><span class="body">Séances</span><span class="acc num">${W.sessions}/${W.planned}</span></div><div class="cell"><span class="body">Repas maison</span><span class="acc num">${W.meals?W.home+'/'+W.meals:'–'}</span></div>${W.protHit!=null?`<div class="cell"><span class="body">Jours à l’objectif protéines</span><span class="acc num">${W.protHit}/${W.days}</span></div>`:''}<div class="cell"><span class="body">Poids moyen</span><span class="acc num">${W.wAvg!=null?fmt(W.wAvg)+' kg':'–'}${W.wAvg!=null&&W.wPrev!=null?` (${W.wAvg-W.wPrev>0?'+':''}${fmt(W.wAvg-W.wPrev)})`:''}</span></div>`)}
    ${sec('Bilan',`<label class="cell block" for="wins"><span>Victoires</span><textarea id="wins" name="wins" rows="2">${esc(w.wins||'')}</textarea></label><label class="cell block" for="struggles"><span>Difficultés</span><textarea id="struggles" name="struggles" rows="2">${esc(w.struggles||'')}</textarea></label><label class="cell block" for="questions"><span>Questions</span><textarea id="questions" name="questions" rows="2">${esc(w.questions||'')}</textarea></label>`,'Tes questions pourront être posées au coach, qui verra ce bilan.')}
   </form>`)}
@@ -1989,6 +2001,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.change==='apikey'){st().apiKey=t.value.trim();save();hud(t.value.trim()?'Clé enregistrée':'Clé retirée');return}
   if(t.name==='when'&&t.closest('[data-form=suppItem]')){const r=t.value==='repas';$('#spmeals').hidden=!r;$('#spdaily').hidden=!r;return}
   if(t.name==='type'&&t.closest('[data-form=meal]')){t.closest('form').querySelectorAll('#msupps [data-types]').forEach(l=>{const on=l.dataset.types.split(' ').includes(t.value);l.hidden=!on;if(!on)l.querySelector('input').checked=false});return}
+  if(t.dataset.change==='trainTime'){st().trainTime=t.value;save();hud(t.value?'Heure de séance enregistrée':'Heure de séance retirée');return}
   if(t.dataset.change==='exsel'){S.ex=t.value;render();return}
   if(t.dataset.setting){st()[t.dataset.setting]=t.checked;save();if(t.dataset.setting==='supps')render();return}
   if(t.dataset.tday!=null){const k=+t.dataset.tday;const a=new Set(st().trainingDays);t.checked?a.add(k):a.delete(k);st().trainingDays=[...a].sort();save();render();return}
@@ -2026,7 +2039,7 @@ document.addEventListener('submit',ev=>{
      D.evening={done:true,sugarExtra:!!v.sugarExtra,water:num(v.water),steps:num(v.steps),energy:v.energy?+v.energy:null,hunger:v.hunger?+v.hunger:null,stress:v.stress?+v.stress:null,supps:fd.getAll('supp'),suppT:Object.fromEntries(fd.getAll('supp').map(x=>[x,(D.evening?.suppT||{})[x]||((D.evening?.supps||[]).includes(x)&&x==='Magnésium'&&D.evening.magTime)||nowHM()])),alcohol:+v.alcohol||0,
        pains:pz.map((z,k)=>({zone:z.trim(),intensity:+pi[k]})).filter(p=>p.zone),note:(v.note||'').trim()};
      save();closeSheet();render();haptic();hud(dd===t?'Soirée enregistrée':'Soir rattrapé');break}
-   case 'weekly':{db.weekly[f.dataset.d]={done:true,waist:num(v.waist),belt:num(v.belt),hips:num(v.hips),chest:num(v.chest),arm:num(v.arm),thigh:num(v.thigh),wins:v.wins.trim(),struggles:v.struggles.trim(),questions:v.questions.trim()};save();closeSheet();render();hud('Bilan enregistré');break}
+   case 'weekly':{db.weekly[f.dataset.d]={done:true,waist:num(v.waist),belt:db.weekly[f.dataset.d]?.belt??null,hips:num(v.hips),chest:num(v.chest),arm:num(v.arm),thigh:num(v.thigh),wins:v.wins.trim(),struggles:v.struggles.trim(),questions:v.questions.trim()};save();closeSheet();render();hud('Bilan enregistré');break}
    case 'cardio':{const dur=num(v.cdur),dist=num(v.cdist);let pace='';
      if(dur&&dist){if(v.ctype==='piscine')pace=mmss(dur*60/(dist*10))+' /100 m';else if(v.ctype==='velo')pace=fmt(dist/(dur/60))+' km/h';else pace=mmss(dur*60/dist)+' /km'}
      const lab=(CARDIO.find(x=>x[0]===v.ctype)||[])[1];
