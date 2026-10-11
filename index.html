@@ -1132,7 +1132,7 @@ function openPrefs(from){const go=()=>{H.cur='reglages';const r=document.documen
   if(from)bloomFrom(from,PREFS_C,go);else go()}
 function paintPrefs(){const s=st();
   $('#area').innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><p class="l2">Luck’In</p><h1>Réglages</h1></div>
-  ${sec('Profil',`<label class="cell field" for="pn"><span>Prénom</span><input id="pn" data-change="name" value="${esc(s.name||'')}" autocomplete="given-name"></label>`,'Les réglages propres à une section (objectif de poids, programmes, objectif de candidatures…) restent dans la section.')}
+  ${sec('Profil',`<label class="cell field" for="pn"><span>Prénom</span><input id="pn" data-change="name" value="${esc(s.name||'')}" autocomplete="given-name"></label><button class="cell tap" data-act="reOnboard"><span class="body"><span>Mes infos de départ</span><span class="fn">Taille, poids, objectif, jours de séance, lecture, compléments${s.height==null||s.startWeight==null?' · à compléter':''}</span></span>${I.chev}</button>`,'Les réglages propres à une section (objectif de poids, programmes, objectif de candidatures…) restent dans la section.')}
   ${accountSec()}
   ${sec('Coach IA',`<label class="cell field" for="ak"><span>Clé API</span><input id="ak" data-change="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(s.apiKey||'')}"></label>
      <div class="cell block"><span>Coachs</span>${seg('coachMode',COACH_MODES.map(m=>[m[0],m[1]]),s.coachMode||'eq')}</div><div class="cell"><span class="body fn">${esc((COACH_MODES.find(m=>m[0]===(s.coachMode||'eq'))||COACH_MODES[1])[2])}</span></div>`,
@@ -2529,6 +2529,8 @@ function finAct(act,id,el){const F=fin();
 const AG_SOON=7;
 function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntries(AREAS.map(a=>[a.id,a.color])),out=[];
   const add=o=>out.push(Object.assign({time:'',late:false},o));
+  // Infos de départ manquantes (taille, poids de départ) : on propose de les compléter
+  if(st().height==null||st().startWeight==null)add({day:t,area:'forme',title:'Compléter mes infos de départ',meta:'Taille, poids, objectif : pour suivre ta progression',act:'reOnboard'});
   // Forme : rituels du jour encore à faire
   const miss=(x,dflt)=>x.length?'À compléter : '+x.slice(0,4).join(', ')+(x.length>4?'…':''):dflt;
   if(!morningFull(t))add({day:t,area:'forme',title:'Réveil',meta:peekDay(t).morning?miss(morningMissing(t)):'Poids et sommeil',act:'agMorning'});
@@ -2710,8 +2712,8 @@ async function doAuth(f){const v=Object.fromEntries(new FormData(f));const email
   catch(e){b.disabled=false;msg(authErr(e))}}
 
 /* ---------- bienvenue (premier lancement) ---------- */
-function showOnboard(){const s=st(),r=s.reading||{on:false,label:'Lecture',min:10};const g=$('#gate');g.hidden=false;g.dataset.mode='onboard';
-  g.innerHTML=`<div class="g-in"><h1 class="g-h">Bienvenue</h1><p class="g-sub left">Quelques réglages pour démarrer. Tout se modifie ensuite dans Réglages.</p>
+function showOnboard(again){const s=st(),r=s.reading||{on:false,label:'Lecture',min:10};const g=$('#gate');g.hidden=false;g.dataset.mode='onboard';g.dataset.again=again?'1':'';
+  g.innerHTML=`<div class="g-in"><h1 class="g-h">${again?'Tes infos de départ':'Bienvenue'}</h1><p class="g-sub left">${again?'Complète ou corrige ce que tu veux. Seul le prénom est obligatoire.':'Quelques réglages pour démarrer. Seul le prénom est obligatoire : le reste peut se compléter plus tard (Réglages › Mes infos de départ).'}</p>
   <form data-form="onboard" novalidate>
    ${sec('Toi',`<label class="cell field" for="ob_name"><span>Prénom</span><input id="ob_name" name="ob_name" value="${esc(s.name)}" autocomplete="given-name" placeholder="Ton prénom"></label>${fieldNum('ob_height','Taille',s.height,'cm','175')}`)}
    ${sec('Objectif',fieldNum('ob_start','Poids actuel',s.startWeight,'kg','0,0')+fieldNum('ob_target','Poids cible',s.targetWeight,'kg','facultatif'),'Tes amis voient seulement ta progression en %, jamais ton poids.')}
@@ -2721,13 +2723,13 @@ function showOnboard(){const s=st(),r=s.reading||{on:false,label:'Lecture',min:1
    ${sec('Alimentation',`<label class="cell" for="ob_sup"><span class="body"><span>Suivre mes compléments</span><span class="fn">Vitamines, zinc, magnésium, créatine</span></span><input id="ob_sup" name="ob_sup" type="checkbox" class="switch" ${s.supps?'checked':''}></label>
      <label class="cell field" for="ob_diet"><span>Contraintes</span><input id="ob_diet" name="ob_diet" value="${esc(s.diet||'')}" placeholder="Aucune"></label>`)}
    <p class="g-msg" role="alert"></p>
-   <button class="btn-fill g-go">Commencer</button>
-  </form></div>`;g.scrollTop=0}
+   <button class="btn-fill g-go">${again?'Enregistrer':'Commencer'}</button>
+  </form>${again?'<button type="button" class="g-link" data-act="onboardLater">Plus tard</button>':''}</div>`;g.scrollTop=0}
 function doOnboard(f){const fd=new FormData(f),v=Object.fromEntries(fd);const s=st();
   const name=String(v.ob_name||'').trim();if(!name){f.querySelector('.g-msg').textContent='Indique ton prénom.';$('#ob_name').focus();return}
   s.name=name;s.height=num(v.ob_height);s.startWeight=num(v.ob_start);s.targetWeight=num(v.ob_target);
   s.trainingDays=fd.getAll('ob_days').map(Number).sort();s.reading={on:!!v.ob_ron,label:String(v.ob_rl||'').trim()||'Lecture',min:Math.max(1,Math.round(num(v.ob_rm)||10))};
-  s.supps=!!v.ob_sup;s.diet=String(v.ob_diet||'').trim();s.onboarded=1;save();hideGate();refreshAll();hud('C’est parti, '+name)}
+  s.supps=!!v.ob_sup;s.diet=String(v.ob_diet||'').trim();const again=$('#gate').dataset.again==='1';s.onboarded=1;save();hideGate();refreshAll();if(prefsOn())paintPrefs();hud(again?'Infos enregistrées':'C’est parti, '+name)}
 
 /* ---------- groupe d’amis ---------- */
 async function loadGroup(force){
@@ -2840,6 +2842,8 @@ document.addEventListener('click',async ev=>{const el=ev.target.closest('[data-a
      try{const r=await fnCall({kind:'cheer',to:id});if(r.already){hud('Déjà encouragé aujourd’hui');break}
        A.cheers.push({from_id:A.user.id,to_id:id,day:TODAY()});hud(r.sent?'🔥 Encouragement envoyé à '+nm:nm+' verra ton encouragement dans l’app')}
      catch(e){el.classList.remove('done');hud('Erreur : '+e.message)}break}
+   case 'reOnboard':showOnboard(true);break;
+   case 'onboardLater':hideGate();break;
    case 'gateSkip':try{localStorage.setItem(AK,'local')}catch(e){}hideGate();if(!st().onboarded)showOnboard();break;
    case 'gateOpen':showGate('login');break;
    case 'groupMenu':if(!A.group)asheet('Groupe d’amis',[{label:'Créer un groupe',act:'groupCreate'},{label:'Rejoindre avec un code',act:'groupJoin'}]);
