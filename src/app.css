@@ -565,3 +565,24 @@ a.cell{text-decoration:none}
 .plan.pl ul{margin:8px 0;padding-left:18px;font-size:15px;line-height:1.4}
 .plan.pl li{margin:4px 0}.plan.pl .pl-add b{color:var(--green)}.plan.pl .pl-rm b{color:var(--red)}
 .cc .plan{align-self:stretch}
+/* Bienvenue en plusieurs écrans */
+.ob-dots{display:flex;gap:6px;justify-content:center;margin:4px 0 6px}
+.ob-dots i{width:8px;height:8px;border-radius:4px;background:var(--fill);transition:width .25s,background .25s}
+.ob-dots i.done{background:color-mix(in srgb,var(--tint) 45%,var(--fill))}
+.ob-dots i.on{width:22px;background:var(--tint)}
+.ob-hero{display:flex;flex-direction:column;align-items:center;gap:6px;padding:28px 0 10px}
+.ob-c{text-align:center}
+@media (prefers-reduced-motion:no-preference){.ob.ob-next{animation:obIn .32s ease both}.ob.ob-back{animation:obBk .32s ease both}
+ @keyframes obIn{from{opacity:0;transform:translateX(24px)}}@keyframes obBk{from{opacity:0;transform:translateX(-24px)}}}
+.ob-areas{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.ob-area{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:16px;border:2px solid transparent;background:var(--card);color:var(--label);font:inherit;text-align:left;cursor:pointer;opacity:.6;transition:opacity .2s,border-color .2s}
+.ob-area.on{opacity:1;border-color:var(--c)}
+.ob-area .p-ring{width:40px;height:40px;flex:none;border-radius:50%;background:var(--c);display:grid;place-items:center}
+.ob-area .p-ring svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ob-at{flex:1;display:flex;flex-direction:column;gap:2px}.ob-at b{font:600 17px var(--display)}.ob-at span{font-size:13px;color:var(--label2)}
+.ob-ck{width:24px;height:24px;border-radius:50%;border:2px solid var(--label3);display:grid;place-items:center;color:#fff}
+.ob-ck svg{width:13px;height:13px;opacity:0}.ob-area.on .ob-ck{background:var(--c);border-color:var(--c)}.ob-area.on .ob-ck svg{opacity:1}
+.ob-tour{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.ob-tour>div{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;background:var(--card)}
+.ob-tour b{display:block;font:600 16px var(--display);margin-bottom:2px}.ob-tour span{font-size:14px;color:var(--label2);line-height:1.4}.ob-tour b{color:var(--label)}
+.ob-n{width:28px;height:28px;flex:none;border-radius:50%;background:var(--tint);color:#fff!important;display:grid;place-items:center;font:700 14px var(--font)!important}
