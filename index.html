@@ -957,6 +957,7 @@ function vToday(){
   else if(wo.length)rows.push(`<button class="cell tap" data-act="goWorkout">${ico('dumb','#0A84FF')}<span class="body"><span>Séance</span><span class="fn">${wo.map(w=>esc(w.name)+(w.duration?' · '+w.duration+' min':'')).join(' + ')}</span></span>${state(true)}</button>`);
   else if(isTrainingDay(t))rows.push(`<button class="cell tap" data-act="goWorkout">${ico('dumb','#0A84FF')}<span class="body"><span>Séance du jour</span><span class="fn">${tpl?'Prochaine : '+esc(tpl.name):'Jour d’entraînement'}</span></span>${state(false)}</button>`);
   rows.push(`<button class="cell tap" data-act="evening">${ico('moon','#5856D6')}<span class="body"><span>Soir</span><span class="fn">${eveningDone(t)?[e.water!=null?fmt(e.water)+' L':null,e.steps!=null?fmt(e.steps,0)+' pas':null,e.energy?'énergie '+e.energy+'/5':null].filter(Boolean).join(' · '):'Ballonnements, eau, pas, ressentis · 1 min'}</span></span>${stateP(eveningFull(t),!!e)}</button>`);
+  {const c=catchUps();if(c.length)rows.push(`<button class="cell tap" data-act="catchUp">${ico('spark','#8E8E93')}<span class="body"><span>Rattraper ${c.some(x=>x.d===addDays(t,-1))?'hier':'avant-hier'}</span><span class="fn">${c.map(x=>x.label.toLowerCase()).filter((v,i,a)=>a.indexOf(v)===i).join(', ')} à compléter</span></span>${I.chev}</button>`)}
   const sun=dow(t)===6;const wk=db.weekly[t];
   if(sun)rows.push(`<button class="cell tap" data-act="weekly">${ico('ruler','#30B0C7')}<span class="body"><span>Bilan du dimanche</span><span class="fn">${wk?.done?`Taille ${fmt(wk.waist)} cm${wk.belt!=null?' · cran '+fmt(wk.belt,0):''}`:'Mensurations et bilan de la semaine'}</span></span>${stateP(weeklyFull(t),!!wk)}</button>`);
   const done=[morningDone(t),eveningDone(t)].filter(Boolean).length;
@@ -1266,12 +1267,17 @@ function asheet(caption,items){
    <div class="group"><button class="cell tap cancel" data-act="closeSheet">Annuler</button></div></div></div>`}
 function closeSheet(now){setTimeout(()=>{const y=window.scrollY;window.scrollTo(window.scrollX,y+1);window.scrollTo(window.scrollX,y)},260);const s=$('#layer .scrim');if(!s)return;if(now||matchMedia('(prefers-reduced-motion: reduce)').matches){$('#layer').innerHTML='';return}s.classList.add('out');setTimeout(()=>{if($('#layer .scrim.out'))$('#layer').innerHTML=''},220)}
 
-function morningSheet(){const m=peekDay(TODAY()).morning||{};const s=st();
-  sheet('Réveil',`<form id="sf" data-form="morning">
+function catchUps(){const out=[];for(const k of [1,2]){const d=addDays(TODAY(),-k);if(!morningDone(d))out.push({d,what:'morning',label:'Réveil'});if(!eveningDone(d))out.push({d,what:'evening',label:'Soir'})}return out}
+function catchUpMenu(){const c=catchUps();if(!c.length){hud('Rien à rattraper');return}
+  asheet('Compléter un jour passé (hier ou avant-hier) : il comptera dans tes séries.',c.map(x=>({label:`${x.label} · ${x.d===addDays(TODAY(),-1)?'hier':fday(x.d)}`,act:x.what==='morning'?'pastMorning':'pastEvening',data:{d:x.d}})))}
+const dayTitle=(l,d)=>d===TODAY()?l:l+' · '+(d===addDays(TODAY(),-1)?'hier':fday(d));
+function morningSheet(d=TODAY()){const m=peekDay(d).morning||{};const s=st(),past=d!==TODAY();
+  sheet(dayTitle('Réveil',d),`<form id="sf" data-form="morning" data-d="${d}">
    ${sec('Balance',`${fieldNum('weight','Poids',m.weight,'kg','0,0')}${fieldNum('fat','Masse grasse',m.fat,'%','0,0')}${fieldNum('muscle','Muscle squelettique',m.muscle,esc(s.muscleUnit),'0,0')}${fieldNum('visceral','Graisse viscérale',m.visceral,'indice','0')}
      <label class="cell field" for="time"><span>Heure de pesée</span><input id="time" name="time" type="time" value="${m.time||nowHM()}"></label>`,'Pèse-toi après être allé aux toilettes, avant de boire ou manger.')}
    ${sec('Sommeil',`${fieldNum('sleepH','Durée',m.sleepH,'h','7,5')}<div class="cell block"><span>Qualité</span>${scale('sleepQ',1,5,m.sleepQ)}</div>`)}
-   ${s.reading?.on?sec(esc(s.reading.label||'Lecture'),`<button type="button" class="cell tap" data-act="bibleStart"><span class="ico" style="background:#A2845E">${I.book}</span><span class="body"><span>${m.bible?'Lecture faite · relancer':'Démarrer · '+(s.reading.min||10)+' min'}</span></span>${m.bible?state(true):`<span class="plus" style="background:#A2845E">▶</span>`}</button>`):''}
+   ${s.reading?.on&&past?sec(esc(s.reading.label||'Lecture'),`<label class="cell" for="mbi"><span class="body">Lecture faite ce jour-là</span><input id="mbi" name="bible" type="checkbox" class="switch" ${m.bible?'checked':''}></label>`):''}
+   ${s.reading?.on&&!past?sec(esc(s.reading.label||'Lecture'),`<button type="button" class="cell tap" data-act="bibleStart"><span class="ico" style="background:#A2845E">${I.book}</span><span class="body"><span>${m.bible?'Lecture faite · relancer':'Démarrer · '+(s.reading.min||10)+' min'}</span></span>${m.bible?state(true):`<span class="plus" style="background:#A2845E">▶</span>`}</button>`):''}
    ${sec('',`<button type="button" class="cell tap link" data-act="importHealth">Importer depuis le presse-papiers (Raccourci Santé)</button>`)}
   </form>`)}
 function mealSheet(m){const isNew=!m;const s=st();S.mealImg=null;m=m||{type:defaultMealType(),foods:'',source:'maison',speed:'pose',time:nowHM()};
@@ -1291,12 +1297,12 @@ function mealSheet(m){const isNew=!m;const s=st();S.mealImg=null;m=m||{type:defa
    ${sec('',`<div class="cell"><textarea id="mcom" name="comment" rows="2" placeholder="Commentaire (facultatif)">${esc(m.comment||'')}</textarea></div>`)}
    ${m.id?sec('',`<button type="button" class="cell tap danger center" data-act="delMeal" data-id="${m.id}">Supprimer le repas</button>`):''}
   </form>`)}
-function eveningSheet(){const t=TODAY(),D=peekDay(t),e=D.evening||{},tt=totals(t);
+function eveningSheet(d=TODAY()){const t=d,D=peekDay(t),e=D.evening||{},tt=totals(t);
   const bloatRow=m=>{const b=m.bloat||{};const lab=(MEALTYPES.find(x=>x[0]===m.type)||[])[1]||'Repas';
     return `<div class="cell block"><span>${esc(lab)} ${esc(m.time||'')} · ${esc((m.foods||'').slice(0,40))}</span>${scale('b_'+m.id,0,3,b.score??0)}
      <div class="mini three" data-bdet="${m.id}" ${b.score?'':'hidden'}><label>Délai (min)<input name="bd_${m.id}" inputmode="numeric" value="${b.delay??''}" placeholder="30"></label><label>Durée (h)<input name="bu_${m.id}" inputmode="decimal" value="${b.duration??''}" placeholder="2"></label><label>Autres signes<input name="bs_${m.id}" value="${esc(b.signs||'')}" placeholder="gaz, reflux…"></label></div></div>`};
   const pains=(e.pains||[]).map(p=>painRow(p)).join('');
-  sheet('Soir',`<form id="sf" data-form="evening">
+  sheet(dayTitle('Soir',d),`<form id="sf" data-form="evening" data-d="${d}">
    ${sec('Ballonnements de la journée',D.meals.length?D.meals.map(bloatRow).join(''):'<div class="cell l2" style="font-size:15px">Aucun repas saisi aujourd’hui.</div>','0 = aucun, 3 = fort. Délai après le repas, durée, autres signes.')}
    ${sec('Calculé automatiquement',`<div class="cell"><span class="body">Calories</span><span class="acc num">${tt.kcal!=null?fmt(tt.kcal,0)+' kcal':'–'}</span></div><div class="cell"><span class="body">Protéines</span><span class="acc num">${tt.prot!=null?fmt(tt.prot,0)+' g':'–'}</span></div><div class="cell"><span class="body">Repas hors plan</span><span class="acc num">${tt.off} / ${tt.n}</span></div>`)}
    ${sec('Sans sucre ajouté',`<div class="cell"><span class="body"><span>Repas avec sucre ajouté</span></span><span class="acc num" style="color:${D.meals.some(m=>m.sugar)?'var(--orange)':'var(--green)'}">${D.meals.filter(m=>m.sugar).length} / ${D.meals.length}</span></div>
@@ -1400,6 +1406,9 @@ document.addEventListener('click',ev=>{
   switch(act){
    case 'sugarInfo':{const n=sugarStreak(),b=Math.max(n,sugarBest()),j=jokerWeek();asheet(`Série sans sucre ajouté : ${n} jour${n>1?'s':''} · record ${b} jour${b>1?'s':''}. Une journée compte une fois la fiche du soir complète, sans sucre ajouté. Joker : 1 jour non rempli par semaine ne casse pas la série${j?` (utilisé cette semaine : ${fday(j)})`:' (disponible cette semaine)'}.`,[{label:'Ouvrir la fiche du soir',act:'evening'}]);break}
    case 'morning':morningSheet();break;
+   case 'catchUp':catchUpMenu();break;
+   case 'pastMorning':morningSheet(el.dataset.d);break;
+   case 'pastEvening':eveningSheet(el.dataset.d);break;
    case 'mealPhotoAgain':mealAnalyze();break;
    case 'bibleStart':{unlockAudio();const mn=Math.max(1,+st().reading?.min||10);db.reading={end:Date.now()+mn*60000,total:mn*60,fired:false};save();const go=()=>{closeSheet(true);paintReading()};if(document.querySelector('#bloom'))bloomFrom(el.querySelector('.ico')||el,'#A2845E',go);else go();try{if('wakeLock' in navigator&&!wakeLock)navigator.wakeLock.request('screen').then(w=>{wakeLock=w}).catch(()=>{})}catch(e){}break}
    case 'bibleStop':{const r=$('#reader');r.classList.add('closing');db.reading=null;save();setTimeout(()=>{r.hidden=true;r.classList.remove('closing');r.dataset.mode=''},450);break}
@@ -1490,18 +1499,18 @@ document.addEventListener('submit',ev=>{
   if(f.dataset.form==='todo'){todoSubmit(f,v);return}
   if(f.dataset.form==='brNote'||f.dataset.form==='brLink'){brainSubmit(f,v);return}
   switch(f.dataset.form){
-   case 'morning':{const D=day(t);D.morning=Object.assign(D.morning||{},{weight:num(v.weight),fat:num(v.fat),muscle:num(v.muscle),visceral:num(v.visceral),time:v.time||nowHM(),sleepH:num(v.sleepH),sleepQ:v.sleepQ?+v.sleepQ:null});save();closeSheet();render();haptic();hud('Réveil enregistré');break}
+   case 'morning':{const dd=f.dataset.d||t,D=day(dd);D.morning=Object.assign(D.morning||{},{weight:num(v.weight),fat:num(v.fat),muscle:num(v.muscle),visceral:num(v.visceral),time:v.time||nowHM(),sleepH:num(v.sleepH),sleepQ:v.sleepQ?+v.sleepQ:null},f.querySelector('#mbi')?{bible:!!v.bible}:{});save();closeSheet();render();haptic();hud(dd===t?'Réveil enregistré':'Réveil rattrapé');break}
    case 'meal':{const D=day(t);const o={type:v.type,time:v.time,foods:(v.foods||'').trim(),source:v.source,speed:v.speed,comment:(v.comment||'').trim(),supps:fd.getAll('msupp'),sugar:!!v.sugar};
      if(st().countMode==='mains'){o.hands={p:num(v.h_p)||0,c:num(v.h_c)||0,f:num(v.h_f)||0,v:num(v.h_v)||0};o.kcal=num(v.ai_kcal);o.prot=num(v.ai_prot)}else{o.kcal=num(v.kcal);o.prot=num(v.prot)}
      if(f.dataset.id)Object.assign(D.meals.find(m=>m.id===f.dataset.id),o);else D.meals.push(Object.assign({id:uid()},o));
      o.foods.split(/[,;]+/).map(x=>x.trim().toLowerCase()).filter(x=>x&&x.length<30).reverse().forEach(x=>{db.foods=[x,...db.foods.filter(y=>y!==x)]});db.foods=db.foods.slice(0,30);
      D.meals.sort((a,b)=>(a.time||'').localeCompare(b.time||''));save();closeSheet();render();haptic();hud('Repas enregistré');break}
-   case 'evening':{const D=day(t);
+   case 'evening':{const dd=f.dataset.d||t,D=day(dd);
      D.meals.forEach(m=>{const sc=+(v['b_'+m.id]||0);m.bloat=sc?{score:sc,delay:num(v['bd_'+m.id]),duration:num(v['bu_'+m.id]),signs:(v['bs_'+m.id]||'').trim()}:{score:0}});
      const pz=fd.getAll('pz'),pi=fd.getAll('pi');
      D.evening={done:true,sugarExtra:!!v.sugarExtra,water:num(v.water),steps:num(v.steps),energy:v.energy?+v.energy:null,hunger:v.hunger?+v.hunger:null,stress:v.stress?+v.stress:null,supps:fd.getAll('supp'),magTime:fd.getAll('supp').includes('Magnésium')?((D.evening?.supps||[]).includes('Magnésium')&&D.evening.magTime?D.evening.magTime:nowHM()):'',alcohol:+v.alcohol||0,
        pains:pz.map((z,k)=>({zone:z.trim(),intensity:+pi[k]})).filter(p=>p.zone),note:(v.note||'').trim()};
-     save();closeSheet();render();haptic();hud('Soirée enregistrée');break}
+     save();closeSheet();render();haptic();hud(dd===t?'Soirée enregistrée':'Soir rattrapé');break}
    case 'weekly':{db.weekly[f.dataset.d]={done:true,waist:num(v.waist),belt:num(v.belt),hips:num(v.hips),chest:num(v.chest),arm:num(v.arm),thigh:num(v.thigh),wins:v.wins.trim(),struggles:v.struggles.trim(),questions:v.questions.trim()};save();closeSheet();render();hud('Bilan enregistré');break}
    case 'cardio':{const dur=num(v.cdur),dist=num(v.cdist);let pace='';
      if(dur&&dist){if(v.ctype==='piscine')pace=mmss(dur*60/(dist*10))+' /100 m';else if(v.ctype==='velo')pace=fmt(dist/(dur/60))+' km/h';else pace=mmss(dur*60/dist)+' /km'}
@@ -2090,6 +2099,7 @@ function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntri
   if(active)add({day:t,area:'forme',title:'Séance en cours',meta:esc(active.name),act:'agWorkout'});
   else if(isTrainingDay(t)&&!workoutsOn(t).length){const tp=nextTemplate();add({day:t,area:'forme',title:'Séance',meta:tp?esc(tp.name):'Jour d’entraînement',act:'agWorkout'})}
   if(dow(t)===6&&!weeklyFull(t))add({day:t,area:'forme',title:'Bilan du dimanche',meta:db.weekly[t]?miss(weeklyMissing(t)):'Mensurations et bilan',act:'agWeekly'});
+  {const c=catchUps();if(c.length)add({day:t,area:'forme',title:'Rattraper '+(c.some(x=>x.d===addDays(t,-1))?'hier':'avant-hier'),meta:[...new Set(c.map(x=>x.label.toLowerCase()))].join(' et ')+' à compléter',act:'catchUp'})}
   if(!eveningFull(t))add({day:t,area:'forme',title:'Soir',meta:peekDay(t).evening?miss(eveningMissing(t).filter(y=>y!=='fiche du soir')):'Clôturer la journée',act:'agEvening'});
   // Carrière : entretiens, événements, relances, contacts
   jobs().filter(jobOpen).forEach(j=>(j.interviews||[]).forEach(i=>{if(i.date>=t&&i.date<=end)add({day:i.date,time:i.time||'',area:'carriere',title:'Entretien · '+esc(j.company),meta:[(IVKIND.find(k=>k[0]===i.kind)||[])[1],j.role&&esc(j.role)].filter(Boolean).join(' · '),act:'jobEdit',id:j.id})}));
