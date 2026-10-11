@@ -773,6 +773,8 @@ a.cell{text-decoration:none}
 #area .a-in{position:relative}
 .ctabs .in{grid-template-columns:repeat(5,1fr)!important}
 .a-coach{top:8px;right:0}
+.cc-prof{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:12px 14px;margin-bottom:6px;border-radius:16px;border:1px solid var(--glass-line);background:var(--glass);color:var(--label);font:14px var(--font);text-align:left;cursor:pointer}
+.cc-prof b{font-weight:600}.cc-prof-go{color:var(--area);font-weight:600;white-space:nowrap}
 </style>
 
 </head><body>
@@ -875,6 +877,7 @@ if(db.settings.onboarded==null){db.settings.onboarded=1;if(db.settings.reading==
 /* section Carrière : objectif hebdomadaire et liste des candidatures */
 if(!db.todos){db.todos=[];writeLocal()}
 /* repos lancé automatiquement : réglage absent des anciennes installations (donc éteint), on l'active une fois */
+if(!db.settings.cmFix){db.settings.coachMode='eq';db.settings.cmFix=1;writeLocal()}
 if(db.settings.coachMode==null){db.settings.coachMode=/haiku/.test(db.settings.model||'')?'eco':/opus/.test(db.settings.model||'')?'max':'eq';writeLocal()}
 if(db.settings.strictFrom==null){db.settings.strictFrom=TODAY();writeLocal()}
 if(!db.settings.autoFix){db.settings.autoTimer=true;db.settings.autoFix=1;if(db.settings.restBetween==null)db.settings.restBetween=0;writeLocal()}
@@ -1250,13 +1253,56 @@ const COACH={
   starters:['Où part mon argent ce mois-ci ?','Est-ce que je vais boucler le mois ?','Combien puis-je épargner par mois de façon réaliste ?','Fais le point sur mes placements.']},
  savoir:{name:'Coach Savoir',hello:n=>`Salut ${n}. Je connais tes notes et leurs connexions. On approfondit quoi ?`,
   starters:['Résume ce que j’ai appris récemment.','Quelles notes devrais-je relier entre elles ?','Quelles notes sont isolées ou à compléter ?','Pose-moi 5 questions pour réviser mes notes.']}};
+/* consignes d'expert de chaque coach (le coach Forme a les siennes dans rules()) */
 const ROLE={
- central:`Tu es le coach principal de Luck’In, l’app où ${'${name}'} pilote sa vie. Tu supervises 5 coachs spécialisés : Forme (sport, nutrition, sommeil), Carrière (candidatures, entretiens, événements, réseau), Tâches (to-do, échéances, priorités), Finances (budget, échéances, épargne, placements) et Savoir (deuxième cerveau : notes et connexions).
-Tu as la vue d’ensemble ci-dessous et tu anticipes : échéances proches, oublis probables, retards, conflits d’agenda (séance et entretien le même jour, paiement important avant la paie…), déséquilibres entre domaines. Quand une question demande le détail d’un domaine, utilise l’outil consulter_coach (plusieurs domaines à la fois si besoin) puis fais toi-même la synthèse. Ne renvoie pas l’utilisateur vers un autre coach : réponds.`,
- carriere:`Tu es le coach Carrière de Luck’In, spécialisé uniquement dans la recherche d’emploi et la carrière : candidatures (ciblage, taux de réponse, étapes où ça bloque), relances, préparation d’entretiens (questions probables, pitch, questions à poser), événements (salons, masterclass) et réseau (qui recontacter, quoi écrire). Reste dans ce domaine ; pour autre chose, dis-le en une phrase.`,
- taches:`Tu es le coach Tâches de Luck’In, spécialisé uniquement dans l’organisation : prioriser (urgence 30 %, impact 50 %, effort 20 %), planifier la journée et la semaine, découper les grosses tâches, repérer les retards et ce qu’on peut reporter ou supprimer. Reste dans ce domaine.`,
- finances:`Tu es le coach Finances de Luck’In, spécialisé uniquement dans les finances personnelles : budget et dépenses par catégorie, échéances à venir, fin de mois, épargne (objectifs, rythme), placements (répartition, frais, horizon). Tu expliques et compares de façon pédagogique, sans recommander de produit précis ni promettre de rendement ; pour une décision importante, conseille un professionnel. Reste dans ce domaine.`,
- savoir:`Tu es le coach Savoir de Luck’In, spécialisé uniquement dans l’apprentissage et le deuxième cerveau de l’utilisateur : résumer, relier les notes (format [[Titre]]), repérer les notes isolées ou incomplètes, proposer des révisions (questions, répétition espacée), structurer un sujet. Reste dans ce domaine.`};
+ central:`Tu es le coach principal de Luck’In, l’app où ${'${name}'} pilote sa vie. Tu es un chef d’orchestre : tu supervises 5 coachs spécialisés — Forme (sport, nutrition, sommeil), Carrière (candidatures, entretiens, événements, réseau), Tâches (organisation), Finances (budget, épargne, placements) et Savoir (deuxième cerveau).
+Ta valeur ajoutée, c’est la vue d’ensemble :
+- Anticiper : échéances des 7 prochains jours, oublis probables, retards qui s’accumulent, rituels non faits.
+- Arbitrer entre domaines : charge de la semaine (entretien + séance + échéance le même jour), énergie et sommeil avant un moment important, dépense importante avant la paie, temps d’étude vs recherche d’emploi.
+- Relier : un événement carrière à préparer dans Tâches, une note Savoir utile pour un entretien, un objectif d’épargne lié à un projet.
+- Prioriser : au plus 3 priorités, classées par impact, avec le « pourquoi » en une phrase.
+Quand une question demande le détail d’un domaine, utilise l’outil consulter_coach (plusieurs domaines à la fois si besoin), puis fais toi-même une synthèse claire. Ne renvoie pas l’utilisateur vers un autre coach : réponds. Si une information importante manque, pose une seule question précise.`,
+ carriere:`Tu es le coach Carrière de Luck’In : un recruteur et coach de carrière expérimenté, qui connaît bien les métiers de l’audit, de la finance et de la banque en France et à l’international (Big Four, banques d’investissement, VIE/Business France), sans t’y limiter.
+Ton expertise :
+- Ciblage : postes cohérents avec le profil, priorisation qualité > volume, lecture des statistiques (taux de réponse, étape où ça bloque : screening = CV/ciblage, test = préparation technique, entretien RH = discours et motivation).
+- CV et lettre : adaptés à chaque offre, mots-clés de l’annonce pour les logiciels de tri (ATS), réalisations chiffrées, une page en début de carrière.
+- Entretiens : questions probables pour le poste et l’entreprise, méthode STAR (Situation, Tâche, Action, Résultat), pitch de 60 secondes, questions intelligentes à poser, cas pratiques et tests techniques, suivi après entretien.
+- Relances : J+7 à J+10 après envoi, message court et personnalisé ; remerciement sous 24 h après un entretien.
+- Réseau et événements : préparer 3 objectifs et des questions avant un salon, noter les contacts, recontacter sous 48 h, demander des échanges de 15 minutes plutôt qu’un emploi.
+Sois concret : propose des textes prêts à envoyer, des listes de questions, un plan de la semaine. Reste dans ce domaine ; pour autre chose, dis-le en une phrase.`,
+ taches:`Tu es le coach Tâches de Luck’In : un expert de l’organisation personnelle et de la productivité.
+Ta méthode :
+- Prioriser avec la grille de l’utilisateur : urgence 30 %, impact 50 %, effort 20 % (et la matrice d’Eisenhower : urgent/important).
+- Planifier : 1 à 3 tâches majeures par jour, blocs de temps (time blocking) en tenant compte des créneaux d’énergie de l’utilisateur, marges pour l’imprévu.
+- Découper : toute tâche floue ou de plus de 2 h devient des étapes concrètes commençant par un verbe, la première faisable en 15 minutes.
+- Assainir : signaler les retards chroniques, proposer de reporter, déléguer ou supprimer, regrouper les petites tâches (règle des 2 minutes).
+- Revue hebdomadaire : ce qui est fait, ce qui glisse, les 3 priorités de la semaine suivante.
+Reste dans ce domaine.`,
+ finances:`Tu es le coach Finances de Luck’In : un conseiller pédagogue en finances personnelles, qui connaît le contexte français.
+Ton expertise :
+- Budget : repérer où part l’argent, comparer au mois précédent, règle 50/30/20 (besoins / envies / épargne) comme repère, chasser les abonnements inutiles, anticiper les échéances pour éviter les fins de mois difficiles.
+- Épargne : épargne de précaution de 3 à 6 mois de dépenses sur des livrets disponibles (Livret A, LDDS, LEP si éligible), puis épargne projet, puis investissement long terme ; se « payer en premier » par virement automatique en début de mois.
+- Placements : diversification, horizon de placement, frais (ils comptent énormément sur le long terme), enveloppes françaises (PEA, assurance-vie, PER, compte-titres) et leur fiscalité dans les grandes lignes, ETF larges à faibles frais, investissement régulier (DCA), ne pas investir l’argent dont on a besoin à moins de 5 ans.
+- Tu expliques et compares, sans recommander de produit ou d’établissement précis ni promettre de rendement ; les taux et plafonds réglementés changent : dis-le si tu cites un chiffre. Pour une décision importante (immobilier, gros montant, fiscalité complexe), conseille un professionnel.
+Reste dans ce domaine.`,
+ savoir:`Tu es le coach Savoir de Luck’In : un expert de l’apprentissage et de la gestion des connaissances (deuxième cerveau).
+Ta méthode :
+- Zettelkasten : une idée par note, formulée avec ses propres mots, reliée à d’autres notes par des liens [[Titre]] ; repérer les notes isolées et proposer des liens précis (quelle note relier à quelle autre et pourquoi).
+- Comprendre : technique de Feynman (expliquer simplement, repérer les trous), résumés progressifs, questions de compréhension.
+- Retenir : répétition espacée et rappel actif (questions-réponses, quiz) plutôt que relecture.
+- Structurer : notes de synthèse (« carte » d’un sujet), plans d’apprentissage avec objectifs, ressources et temps réaliste par semaine.
+Quand tu proposes une note ou un lien, écris-le au format [[Titre]] pour que l’utilisateur puisse le recopier. Reste dans ce domaine.`};
+/* profil de l'utilisateur par coach (rempli une fois, transmis au coach) */
+const PROF={
+ central:{label:'À propos de toi',f:[['about','Qui tu es','area','Âge, situation, ce qui compte pour toi en ce moment…'],['goals','Tes grands objectifs','area','Sur 3 mois, sur 1 an…'],['style','Comment le coach doit te parler','text','Direct, sans détour, tutoiement…']]},
+ carriere:{label:'Profil carrière',f:[['target','Poste visé','text','Auditeur financier junior, analyste crédit…'],['sector','Secteurs','text','Audit, banque, finance de projet…'],['where','Où','text','Paris, Luxembourg, VIE à l’étranger…'],['contract','Contrat recherché','text','CDI, VIE, stage…'],['edu','Formation','text','Diplôme, école, année'],['exp','Expérience','area','Stages, alternances, missions, réalisations chiffrées…'],['skills','Compétences clés','area','Techniques, logiciels, savoir-être…'],['langs','Langues','text','Anglais C1, espagnol B2…'],['cv','Ton CV (texte copié-collé)','area','Colle ici le texte de ton CV']]},
+ finances:{label:'Profil finances',f:[['income','Revenus nets par mois','text','2 400 € (salaire), variable…'],['situation','Situation','text','Seul, en couple, enfants…'],['home','Logement','text','Locataire, propriétaire, chez les parents…'],['safety','Épargne de précaution visée','text','3 mois de dépenses…'],['horizon','Horizon de placement','text','5 ans, 10 ans, retraite…'],['risk','Rapport au risque','text','Prudent, équilibré, dynamique'],['debts','Crédits ou dettes','text','Prêt étudiant 150 €/mois…'],['fgoals','Projets financiers','area','Achat immobilier, voyage, voiture…']]},
+ taches:{label:'Profil organisation',f:[['hours','Horaires habituels','text','9 h–18 h en semaine…'],['energy','Moments où tu es le plus efficace','text','Le matin, après le sport…'],['constraints','Contraintes','area','Trajets, engagements fixes…'],['focus','Ce qui compte en ce moment','area','Trouver un emploi, finir un projet…']]},
+ savoir:{label:'Profil apprentissage',f:[['topics','Sujets qui t’intéressent','area','Finance de marché, développement personnel…'],['lgoals','Objectifs d’apprentissage','area','Certification, langue, lectures…'],['time','Temps disponible par semaine','text','3 h, 30 min par jour…'],['how','Comment tu apprends le mieux','text','Lire, écouter, pratiquer, expliquer…']]}};
+const prof=d=>(st().prof||{})[d]||{};
+const profFilled=d=>PROF[d].f.filter(([k])=>String(prof(d)[k]||'').trim()).length;
+function profText(d){const P=prof(d),r=PROF[d].f.filter(([k])=>String(P[k]||'').trim()).map(([k,l])=>`- ${l} : ${String(P[k]).trim().slice(0,k==='cv'?4000:600)}`);return r.length?r.join('\n'):'(non renseigné : si une information importante manque, pose une question et propose de compléter le profil du coach)'}
+function profSheet(d){const P=prof(d);sheet(PROF[d].label,`<form id="sf" data-form="ccProf" data-dom="${d}">${sec('',PROF[d].f.map(([k,l,t,ph])=>t==='area'?`<label class="cell block" for="pf-${k}"><span>${l}</span><textarea id="pf-${k}" name="${k}" rows="${k==='cv'?8:3}" placeholder="${esc(ph)}">${esc(P[k]||'')}</textarea></label>`:`<label class="cell field" for="pf-${k}"><span>${l}</span><input id="pf-${k}" name="${k}" value="${esc(P[k]||'')}" placeholder="${esc(ph)}" autocomplete="off"></label>`).join(''),'Rempli une fois, transmis au coach à chaque question. Reste sur ton téléphone et dans ton compte, jamais visible par tes amis.')}</form>`)}
 const cut=(t,n)=>{t=String(t||'').replace(/\s+/g,' ').trim();return t.length>n?t.slice(0,n-1)+'…':t};
 const CTX={
  carriere(){const t=TODAY(),c=car(),J=jobs(),open=J.filter(jobOpen),closed=J.filter(j=>!jobOpen(j));
@@ -1294,7 +1340,12 @@ Finances : dépensé ce mois ${eur(out)}${F.budget?' sur '+eur(F.budget):''}, ${
 Savoir : ${notes().length} notes, dernières : ${notes().slice().sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,5).map(n=>n.title).join(', ')||'-'}.`}};
 function systemFor(d,forBoss){if(d==='forme')return rules()+(forBoss?'\n\nTu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui, sans bloc <programme>.':'');
   const wd=new Date().toLocaleDateString('fr-FR',{weekday:'long'});
+  const allProf=d==='central'?Object.keys(PROF).filter(k=>k!=='central'&&profFilled(k)).map(k=>`${PROF[k].label} :\n${profText(k)}`).join('\n'):'';
   return `${ROLE[d].replace('${name}',st().name)}
+
+${PROF[d].label} de l’utilisateur :
+${profText(d)}${allProf?'\n\nProfils des autres domaines :\n'+allProf:''}
+
 Nous sommes le ${wd} ${TODAY()}. L’utilisateur s’appelle ${st().name}. Réponds en français, en tutoyant, de façon concise et concrète (listes courtes, 1 à 3 actions prioritaires), en citant ses données.${forBoss?' Tu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui.':''}
 
 Données :
@@ -1366,7 +1417,9 @@ function coachPage(d,o={}){const k=COACH[d],c=chatOf(d),b=backend();
   const head=`<div class="a-head">${o.back?`<button type="button" class="link br-back" data-act="${o.back}">‹ ${o.backLabel}</button>`:`<p class="l2">${d==='central'?'Vue d’ensemble · 5 coachs spécialisés':'Spécialiste '+COACH_DOMS[d]}</p>`}<h1>${k.name}</h1></div>`;
   if(!b)return head+sec('',`<div class="cell"><span class="body"><span>Active ton coach</span><span class="fn">Le coach utilise Claude avec ta clé API Anthropic (Réglages › Coach IA), stockée uniquement sur ce téléphone.</span></span></div><button class="cell tap link" data-act="goKey">Saisir ma clé API</button>`,'','notile');
   const items=c.map(m=>m.role==='user'?`<div class="msg u">${esc(m.content)}</div>`:m.err?`<div class="msg a err">${esc(m.content)}</div>`:`<div class="msg a">${md(m.content)}${m.via?`<p class="cc-via">A consulté : ${m.via.map(esc).join(', ')}</p>`:''}</div>`).join('');
-  return `${head}<div class="cc-msgs">${c.length?'':`<div class="msg a">${md(k.hello(st().name))}</div><div class="chips">${k.starters.map(x=>`<button class="chip-s" data-act="ccStarter" data-dom="${d}">${esc(x)}</button>`).join('')}</div>`}
+  const nf=profFilled(d),nt=PROF[d].f.length;
+  const profCell=`<button type="button" class="cc-prof" data-act="ccProfile" data-dom="${d}"><span><b>${PROF[d].label}</b> · ${nf?nf+'/'+nt+' renseigné'+(nf>1?'s':''):'à remplir pour des conseils vraiment personnalisés'}</span><span class="cc-prof-go">${nf?'Modifier':'Remplir'}</span></button>`;
+  return `${head}${profCell}<div class="cc-msgs">${c.length?'':`<div class="msg a">${md(k.hello(st().name))}</div><div class="chips">${k.starters.map(x=>`<button class="chip-s" data-act="ccStarter" data-dom="${d}">${esc(x)}</button>`).join('')}</div>`}
    ${items}<div id="cclive"${CC.busy&&CC.dom===d?'':' hidden'}>${CC.busy&&CC.dom===d?ccLiveHTML():''}</div>
    ${c.length&&!CC.busy?`<button class="note link" data-act="ccNew" data-dom="${d}" style="margin-top:6px">Nouvelle conversation</button>`:''}</div>
    <div class="composer cc-comp${o.tabs?' with-tabs':''}"><div class="in"><textarea id="ccin" rows="1" placeholder="Écris à ${esc(k.name.toLowerCase().replace('coach','ton coach'))}…" aria-label="Message"></textarea>
@@ -1386,6 +1439,7 @@ function coachAct(act,id,el){const d=el.dataset.dom;
    case 'ccSend':coachSend(d,$('#ccin')?.value);break;
    case 'ccStarter':coachSend(d,el.textContent);break;
    case 'ccStop':CC.ctl?.abort();break;
+   case 'ccProfile':profSheet(d);break;
    case 'ccNew':asheet('Effacer cette conversation ?',[{label:'Nouvelle conversation',act:'ccNewGo',data:{dom:d},danger:true}]);break;
    case 'ccNewGo':chats[d]=[];saveChatOf(d);CC.dom=d;coachRepaint();break;
    case 'tdCoach':S.tdCoach=!S.tdCoach;paintTodos();if(S.tdCoach){const a=$('#area');a.scrollTop=a.scrollHeight}break;
@@ -1696,6 +1750,7 @@ document.addEventListener('submit',ev=>{
   if(f.dataset.form==='ct'){ctSubmit(f,v);return}
   if(f.dataset.form==='todo'){todoSubmit(f,v);return}
   if(/^fi/.test(f.dataset.form||'')){finSubmit(f,v);return}
+  if(f.dataset.form==='ccProf'){const d=f.dataset.dom,P={};PROF[d].f.forEach(([k])=>{const x=String(v[k]||'').trim();if(x)P[k]=x});st().prof=Object.assign({},st().prof,{[d]:P});save();closeSheet();CC.dom=d;coachRepaint();hud('Profil enregistré');return}
   if(f.dataset.form==='brNote'||f.dataset.form==='brLink'){brainSubmit(f,v);return}
   switch(f.dataset.form){
    case 'morning':{const dd=f.dataset.d||t,D=day(dd);D.morning=Object.assign(D.morning||{},{weight:num(v.weight),fat:num(v.fat),muscle:num(v.muscle),visceral:num(v.visceral),time:v.time||nowHM(),sleepH:num(v.sleepH),sleepQ:v.sleepQ?+v.sleepQ:null},f.querySelector('#mbi')?{bible:!!v.bible}:{});save();closeSheet();render();haptic();hud(dd===t?'Réveil enregistré':'Réveil rattrapé');break}

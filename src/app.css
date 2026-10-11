@@ -560,3 +560,5 @@ a.cell{text-decoration:none}
 #area .a-in{position:relative}
 .ctabs .in{grid-template-columns:repeat(5,1fr)!important}
 .a-coach{top:8px;right:0}
+.cc-prof{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:12px 14px;margin-bottom:6px;border-radius:16px;border:1px solid var(--glass-line);background:var(--glass);color:var(--label);font:14px var(--font);text-align:left;cursor:pointer}
+.cc-prof b{font-weight:600}.cc-prof-go{color:var(--area);font-weight:600;white-space:nowrap}
