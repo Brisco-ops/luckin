@@ -799,6 +799,10 @@ a.cell{text-decoration:none}
 .ob-tour>div{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;background:var(--card)}
 .ob-tour b{display:block;font:600 16px var(--display);margin-bottom:2px}.ob-tour span{font-size:14px;color:var(--label2);line-height:1.4}.ob-tour b{color:var(--label)}
 .ob-n{width:28px;height:28px;flex:none;border-radius:50%;background:var(--tint);color:#fff!important;display:grid;place-items:center;font:700 14px var(--font)!important}
+.link-inline{background:none;border:0;padding:0;color:var(--tint);font:inherit;cursor:pointer}
+.steps-help{padding:10px 12px;font-size:15px;line-height:1.5;color:var(--label)}
+.steps-help h3{font:700 18px var(--display);margin:4px 0 8px}
+.steps-help ol{padding-left:20px;margin:6px 0}.steps-help li{margin:4px 0}.steps-help p{margin:6px 0}
 </style>
 
 </head><body>
@@ -887,7 +891,7 @@ const EN=new Map(Object.entries({
  '‹ Mes notes':'‹ My notes','‹ Mes tâches':'‹ My tasks','Arrêter':'Stop','Envoyer':'Send','Message':'Message',
  // divers
  'Réglages Forme':'Fitness settings','Ma journée':'My day','Repas':'Meals','Tendance':'Trend','Poids moyen sur 7 jours':'7-day average weight','série':'streak','eau':'water','prot.':'protein','Suivi':'Progress','Bilan':'Stats','Candidatures':'Applications','Événements':'Events','Contacts':'Contacts','Budget':'Budget','À venir':'Upcoming','Épargne':'Savings','Placements':'Investments',
- 'Poids, composition, sommeil · 1 min':'Weight, body composition, sleep · 1 min','20 s par repas':'20 s per meal','Ballonnements, eau, pas, ressentis · 1 min':'Bloating, water, steps, how you feel · 1 min','Mensurations et bilan de la semaine':'Measurements and weekly review','Pas de connexion':'No connection','Rien à rattraper':'Nothing to catch up',
+ 'Poids, composition, sommeil · 1 min':'Weight, body composition, sleep · 1 min','20 s par repas':'20 s per meal','Ballonnements, eau, pas, ressentis · 1 min':'Bloating, water, steps, how you feel · 1 min','Mensurations et bilan de la semaine':'Measurements and weekly review','Pas de connexion':'No connection','Rien à rattraper':'Nothing to catch up','Importer mes pas (Raccourci Santé)':'Import my steps (Health shortcut)','Comment créer le raccourci ?':'How to create the shortcut?',
 }));
 const EN_PART=new Map(Object.entries({'poids':'weight','masse grasse':'body fat','muscle':'muscle','graisse viscérale':'visceral fat','durée du sommeil':'sleep duration','qualité du sommeil':'sleep quality','lecture de la bible':'Bible reading','lecture':'reading','eau':'water','pas':'steps','énergie':'energy','faim':'hunger','stress':'stress','tour de taille':'waist','trou de ceinture':'belt notch','victoires':'wins','difficultés':'struggles','réveil':'wake-up','soir':'evening','fiche du soir':'evening log'}));
 const trList=x=>x.split(', ').map(p=>EN_PART.get(p)||p).join(', ');
@@ -1714,7 +1718,7 @@ function eveningSheet(d=TODAY()){const t=d,D=peekDay(t),e=D.evening||{},tt=total
    ${sec('Calculé automatiquement',`<div class="cell"><span class="body">Calories</span><span class="acc num">${tt.kcal!=null?fmt(tt.kcal,0)+' kcal':'–'}</span></div><div class="cell"><span class="body">Protéines</span><span class="acc num">${tt.prot!=null?fmt(tt.prot,0)+' g':'–'}</span></div><div class="cell"><span class="body">Repas hors plan</span><span class="acc num">${tt.off} / ${tt.n}</span></div>`)}
    ${sec('Sans sucre ajouté',`<div class="cell"><span class="body"><span>Repas avec sucre ajouté</span></span><span class="acc num" style="color:${D.meals.some(m=>m.sugar)?'var(--orange)':'var(--green)'}">${D.meals.filter(m=>m.sugar).length} / ${D.meals.length}</span></div>
      <label class="cell" for="sx"><span class="body"><span>Sucre ajouté hors repas</span><span class="fn">Boisson sucrée, bonbon, grignotage…</span></span><input id="sx" name="sugarExtra" type="checkbox" class="switch" ${e.sugarExtra?'checked':''}></label>`,'La journée compte dans ta série si aucun repas n’a de sucre ajouté et que cet interrupteur reste éteint.')}
-   ${sec('Activité',`${fieldNum('water','Eau',e.water,'L','2')}${fieldNum('steps','Pas',e.steps,'pas','8000')}`)}
+   ${sec('Activité',`${fieldNum('water','Eau',e.water,'L','2')}${fieldNum('steps','Pas',e.steps,'pas','8000')}<button type="button" class="cell tap link" data-act="stepsImport">Importer mes pas (Raccourci Santé)</button>`,'<button type="button" class="link-inline" data-act="stepsHelp">Comment créer le raccourci ?</button>')}
    ${sec('Ressentis',`<div class="cell block"><span>Énergie</span>${scale('energy',1,5,e.energy)}</div><div class="cell block"><span>Faim</span>${scale('hunger',1,5,e.hunger)}</div><div class="cell block"><span>Stress</span>${scale('stress',1,5,e.stress)}</div>`)}
    ${!st().supps?'':(()=>{const tk=suppsTaken(t).filter(x=>x.type!=='soir'),L=suppList().filter(suppActive),soir=L.filter(x=>x.when==='soir');
      const others=L.filter(x=>x.when==='libre'||(x.when==='repas'&&x.daily&&!tk.some(y=>y.name===x.name))).map(x=>x.name);
@@ -1802,6 +1806,26 @@ function parseHealth(txt){const map={poids:'weight',weight:'weight',mg:'fat',fat
 function applyHealth(o){const t=TODAY(),D=day(t);const mk=['weight','fat','muscle','visceral','sleepH'],ek=['steps','water'];let n=0;
   mk.forEach(k=>{if(o[k]!=null){D.morning=D.morning||{};D.morning[k]=o[k];if(!D.morning.time)D.morning.time=nowHM();n++}});
   ek.forEach(k=>{if(o[k]!=null){D.evening=D.evening||{};D.evening[k]=o[k];n++}});save();return n}
+/* pas du soir : le raccourci copie « pas=8450 » (ou juste le nombre) ; on remplit le champ de la fiche ouverte sans l'enregistrer */
+async function importSteps(){let txt='';try{txt=await navigator.clipboard.readText()}catch(e){}
+  if(!txt){hud(T('Presse-papiers vide : lance d’abord ton raccourci « Pas Luck’In »','Clipboard empty: run your “Luck’In steps” shortcut first'));return}
+  const o=parseHealth(txt);let st0=o.steps;if(st0==null){const m=String(txt).trim().match(/^(\d[\d\s.,]*)\s*(pas|steps)?$/i);if(m)st0=Math.round(num(m[1].replace(/[\s.]/g,'').replace(',','.')))}
+  if(st0==null){hud(T('Aucun nombre de pas reconnu dans le presse-papiers','No step count found in the clipboard'));return}
+  const f=$('#steps');if(f)f.value=Math.round(st0);if(o.water!=null&&$('#water'))$('#water').value=String(o.water).replace('.',',');haptic(8);hud(T(`${Math.round(st0).toLocaleString(LOC)} pas importés`,`${Math.round(st0).toLocaleString(LOC)} steps imported`))}
+function stepsHelp(){brPop(`<div class="steps-help"><h3>${T('Raccourci « Pas Luck’In »','“Luck’In steps” shortcut')}</h3>${T(`<p>Une fois, dans l’app <b>Raccourcis</b> de l’iPhone :</p><ol>
+<li>Touche <b>+</b> pour créer un raccourci, nomme-le <b>Pas Luck’In</b>.</li>
+<li>Ajoute l’action <b>Rechercher des échantillons de santé</b> : type <b>Nombre de pas</b>, filtre <b>Date de début · est aujourd’hui</b>.</li>
+<li>Ajoute <b>Calculer les statistiques</b> : <b>Somme</b> des échantillons de santé.</li>
+<li>Ajoute <b>Arrondir le nombre</b> (unités).</li>
+<li>Ajoute <b>Copier dans le presse-papiers</b>.</li></ol>
+<p>Le soir : lance le raccourci (depuis Raccourcis, un widget ou Siri : « Pas Luck’In »), puis dans Luck’In, fiche Soir › <b>Importer mes pas</b>. La première fois, autorise l’accès à Santé et touche <b>Coller</b> quand l’iPhone le demande.</p>`,
+`<p>Once, in the iPhone <b>Shortcuts</b> app:</p><ol>
+<li>Tap <b>+</b> to create a shortcut and name it <b>Luck’In steps</b>.</li>
+<li>Add the <b>Find Health Samples</b> action: type <b>Steps</b>, filter <b>Start Date · is today</b>.</li>
+<li>Add <b>Calculate Statistics</b>: <b>Sum</b> of the health samples.</li>
+<li>Add <b>Round Number</b> (ones).</li>
+<li>Add <b>Copy to Clipboard</b>.</li></ol>
+<p>In the evening: run the shortcut (from Shortcuts, a widget or Siri: “Luck’In steps”), then in Luck’In, Evening sheet › <b>Import my steps</b>. The first time, allow Health access and tap <b>Paste</b> when the iPhone asks.</p>`)}</div><button type="button" data-act="brPopClose"><b>${T('Compris','Got it')}</b></button>`)}
 async function importHealth(){let txt='';try{txt=await navigator.clipboard.readText()}catch(e){}
   if(!txt){sheet('Coller les données Santé',`<form id="sf" data-form="healthPaste">${sec('',`<div class="cell"><textarea name="t" rows="4" placeholder="poids=81,2; mg=18,4; pas=8450"></textarea></div>`,'Colle le texte copié par ton raccourci.')}</form>`,{save:'Importer'});return}
   const o=parseHealth(txt);const n=applyHealth(o);closeSheet(true);render();hud(n?`${n} valeur${n>1?'s':''} importée${n>1?'s':''}`:'Aucune valeur reconnue dans le presse-papiers')}
@@ -1828,6 +1852,8 @@ document.addEventListener('click',ev=>{
    case 'pastMorning':morningSheet(el.dataset.d);break;
    case 'pastEvening':eveningSheet(el.dataset.d);break;
    case 'mealPhotoAgain':mealAnalyze();break;
+   case 'stepsImport':importSteps();break;
+   case 'stepsHelp':stepsHelp();break;
    case 'suppNew':suppSheet();break;
    case 'suppEdit':{const x=suppList().find(y=>y.id===id);if(x)suppSheet(x);break}
    case 'suppDel':st().suppList=suppList().filter(y=>y.id!==id);save();closeSheet();render();hud('Complément supprimé');break;

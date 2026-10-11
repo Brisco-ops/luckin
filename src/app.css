@@ -586,3 +586,7 @@ a.cell{text-decoration:none}
 .ob-tour>div{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;background:var(--card)}
 .ob-tour b{display:block;font:600 16px var(--display);margin-bottom:2px}.ob-tour span{font-size:14px;color:var(--label2);line-height:1.4}.ob-tour b{color:var(--label)}
 .ob-n{width:28px;height:28px;flex:none;border-radius:50%;background:var(--tint);color:#fff!important;display:grid;place-items:center;font:700 14px var(--font)!important}
+.link-inline{background:none;border:0;padding:0;color:var(--tint);font:inherit;cursor:pointer}
+.steps-help{padding:10px 12px;font-size:15px;line-height:1.5;color:var(--label)}
+.steps-help h3{font:700 18px var(--display);margin:4px 0 8px}
+.steps-help ol{padding-left:20px;margin:6px 0}.steps-help li{margin:4px 0}.steps-help p{margin:6px 0}

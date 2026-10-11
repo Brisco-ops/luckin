@@ -84,7 +84,7 @@ Aperçu local : `python3 -m http.server 8000` puis http://localhost:8000 (le ser
 ## Pièges iOS connus
 
 - Notifications : seulement dans l’app installée (iOS 16.4+), permission demandée pendant un geste de l’utilisateur.
-- Pas d’accès à Santé, pas de son en arrière-plan ; le clavier peut laisser la barre du bas décalée (correctif `nudge`).
+- Pas d’accès direct à Santé (web app) : passerelle par Raccourci iPhone qui copie le texte dans le presse-papiers. Fiche Réveil › « Importer depuis le presse-papiers » (`importHealth`, `parseHealth` : poids, mg, muscle, visceral, sommeil, pas, eau) ; fiche Soir › « Importer mes pas » (`importSteps` : `pas=8450` ou juste le nombre, remplit le champ sans enregistrer) et guide du raccourci « Pas Luck’In » (`stepsHelp`, affiché par-dessus la fiche). Pas de son en arrière-plan ; le clavier peut laisser la barre du bas décalée (correctif `nudge`).
 - L’icône d’écran d’accueil ne se met à jour qu’en réinstallant l’app.
 - Barre d’état `black-translucent` : l’heure est toujours écrite en blanc. En mode clair, un voile très progressif (`body::after`, sans bord net) la garde lisible ; ne pas le remettre en bande de la hauteur exacte de la barre (démarcation visible).
 
