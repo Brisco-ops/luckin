@@ -13,7 +13,7 @@
   <button data-view="settings" aria-label="Réglages Forme" title="Réglages Forme"><svg class="o" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8l1.6 2.4 2.8-.7.7 2.8 2.4 1.6-1.3 2.6 1.3 2.6-2.4 1.6-.7 2.8-2.8-.7L12 21.2l-1.6-2.4-2.8.7-.7-2.8-2.4-1.6L5.8 12 4.5 9.5l2.4-1.6.7-2.8 2.8.7Z"/></svg><svg class="f" viewBox="0 0 24 24"><path class="fill" d="M12 2.8l1.6 2.4 2.8-.7.7 2.8 2.4 1.6-1.3 2.6 1.3 2.6-2.4 1.6-.7 2.8-2.8-.7L12 21.2l-1.6-2.4-2.8.7-.7-2.8-2.4-1.6L5.8 12 4.5 9.5l2.4-1.6.7-2.8 2.8.7Z"/><circle cx="12" cy="12" r="3.2" fill="var(--pill-bg,#fff)" stroke="none"/></svg></button>
 </div></nav>
 <div id="layer"></div>
-<section id="home" aria-label="Accueil"><button type="button" class="h-me" data-act="openPrefs" aria-label="Réglages" id="hMe"></button><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote"><p>« Dans la vie, rien n’est à craindre, tout est à comprendre. »</p><cite>Marie Curie</cite></blockquote></div><div id="agenda"></div><div id="friends"></div><nav class="hbar" id="orbit" aria-label="Sections"></nav></section>
+<section id="home" aria-label="Accueil"><button type="button" class="h-me" data-act="openPrefs" aria-label="Réglages" id="hMe"></button><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote"><p>« Dans la vie, rien n’est à craindre, tout est à comprendre. »</p><cite>Marie Curie</cite></blockquote></div><button type="button" class="h-coach" data-act="openCoach"><span class="hc-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z"/></svg></span><span class="hc-txt"><b>Ton coach</b><span>Il voit tout, anticipe et s’appuie sur 5 coachs spécialisés</span></span></button><div id="agenda"></div><div id="friends"></div><nav class="hbar" id="orbit" aria-label="Sections"></nav></section>
 <section id="area" hidden></section>
 <div id="bloom" hidden></div>
 
@@ -451,6 +451,146 @@ async function send(text){
   C.busy=false;C.live='';saveChat();render();window.scrollTo(0,document.body.scrollHeight);
 }
 
+/* ================= coachs : un coach central (accueil) qui supervise 5 coachs spécialisés ================= */
+/* Le coach Forme est l'onglet Coach historique (chat `chat`, consignes rules()). Les autres coachs partagent ce moteur.
+   Le coach central voit un résumé de tout ; avec la clé API, il interroge les spécialistes via l'outil consulter_coach. */
+const COACH_DOMS={forme:'Forme',carriere:'Carrière',taches:'Tâches',finances:'Finances',savoir:'Savoir'};
+const COACH={
+ central:{name:'Coach',color:'#2B3FC4',hello:n=>`Salut ${n}. Je vois l’ensemble de ta vie dans Luck’In : forme, carrière, tâches, finances et savoir. Je travaille avec un coach spécialisé pour chaque domaine. Que veux-tu regarder ?`,
+  starters:['Fais-moi le point de ma journée et de ma semaine.','Qu’est-ce que je risque d’oublier dans les 7 prochains jours ?','Quelles sont mes 3 priorités cette semaine, tous domaines confondus ?','Aide-moi à organiser ma journée de demain.']},
+ carriere:{name:'Coach Carrière',hello:n=>`Salut ${n}. Je connais tes candidatures, tes événements et tes contacts. On regarde quoi ?`,
+  starters:['Analyse mes candidatures : qu’est-ce qui bloque ?','Qui dois-je relancer ou recontacter cette semaine ?','Prépare-moi pour mon prochain entretien.','Quelles questions poser à mon prochain événement ?']},
+ taches:{name:'Coach Tâches',hello:n=>`Salut ${n}. Je vois toutes tes tâches, leurs échéances et priorités. Par quoi on commence ?`,
+  starters:['Que dois-je faire en priorité aujourd’hui ?','Organise ma semaine à partir de mes tâches.','Quelles tâches puis-je reporter ou supprimer ?','Découpe ma tâche la plus lourde en étapes.']},
+ finances:{name:'Coach Finances',hello:n=>`Salut ${n}. Je vois ton budget, tes échéances, ton épargne et tes placements. Que veux-tu savoir ?`,
+  starters:['Où part mon argent ce mois-ci ?','Est-ce que je vais boucler le mois ?','Combien puis-je épargner par mois de façon réaliste ?','Fais le point sur mes placements.']},
+ savoir:{name:'Coach Savoir',hello:n=>`Salut ${n}. Je connais tes notes et leurs connexions. On approfondit quoi ?`,
+  starters:['Résume ce que j’ai appris récemment.','Quelles notes devrais-je relier entre elles ?','Quelles notes sont isolées ou à compléter ?','Pose-moi 5 questions pour réviser mes notes.']}};
+const ROLE={
+ central:`Tu es le coach principal de Luck’In, l’app où ${'${name}'} pilote sa vie. Tu supervises 5 coachs spécialisés : Forme (sport, nutrition, sommeil), Carrière (candidatures, entretiens, événements, réseau), Tâches (to-do, échéances, priorités), Finances (budget, échéances, épargne, placements) et Savoir (deuxième cerveau : notes et connexions).
+Tu as la vue d’ensemble ci-dessous et tu anticipes : échéances proches, oublis probables, retards, conflits d’agenda (séance et entretien le même jour, paiement important avant la paie…), déséquilibres entre domaines. Quand une question demande le détail d’un domaine, utilise l’outil consulter_coach (plusieurs domaines à la fois si besoin) puis fais toi-même la synthèse. Ne renvoie pas l’utilisateur vers un autre coach : réponds.`,
+ carriere:`Tu es le coach Carrière de Luck’In, spécialisé uniquement dans la recherche d’emploi et la carrière : candidatures (ciblage, taux de réponse, étapes où ça bloque), relances, préparation d’entretiens (questions probables, pitch, questions à poser), événements (salons, masterclass) et réseau (qui recontacter, quoi écrire). Reste dans ce domaine ; pour autre chose, dis-le en une phrase.`,
+ taches:`Tu es le coach Tâches de Luck’In, spécialisé uniquement dans l’organisation : prioriser (urgence 30 %, impact 50 %, effort 20 %), planifier la journée et la semaine, découper les grosses tâches, repérer les retards et ce qu’on peut reporter ou supprimer. Reste dans ce domaine.`,
+ finances:`Tu es le coach Finances de Luck’In, spécialisé uniquement dans les finances personnelles : budget et dépenses par catégorie, échéances à venir, fin de mois, épargne (objectifs, rythme), placements (répartition, frais, horizon). Tu expliques et compares de façon pédagogique, sans recommander de produit précis ni promettre de rendement ; pour une décision importante, conseille un professionnel. Reste dans ce domaine.`,
+ savoir:`Tu es le coach Savoir de Luck’In, spécialisé uniquement dans l’apprentissage et le deuxième cerveau de l’utilisateur : résumer, relier les notes (format [[Titre]]), repérer les notes isolées ou incomplètes, proposer des révisions (questions, répétition espacée), structurer un sujet. Reste dans ce domaine.`};
+const cut=(t,n)=>{t=String(t||'').replace(/\s+/g,' ').trim();return t.length>n?t.slice(0,n-1)+'…':t};
+const CTX={
+ carriere(){const t=TODAY(),c=car(),J=jobs(),open=J.filter(jobOpen),closed=J.filter(j=>!jobOpen(j));
+  const by=f=>{const m={};J.forEach(j=>{const k=f(j);if(k)m[k]=(m[k]||0)+1});return Object.entries(m).map(([k,v])=>k+' '+v).join(', ')||'-'};
+  return `Objectif : ${c.goal} candidatures par semaine (cette semaine : ${weekApps()}). Relance après ${c.relance} jours.
+Candidatures : ${J.length} au total. Par statut : ${by(j=>j.status)}. Étape atteinte : ${by(j=>j.stage)}. Raisons : ${by(j=>j.reason)}.
+En cours : ${open.map(j=>`${j.company} – ${j.role||'?'} (${j.contract||'?'}, ${j.location||'?'}), envoyée le ${j.date}, statut ${j.status}${(j.relances||[]).length?', relancée '+j.relances.length+'x':''}${relanceDue(j)?', À RELANCER':''}${(j.interviews||[]).map(i=>`, entretien ${i.date} ${i.time||''} ${i.kind||''} ${i.note||''}`).join('')}${j.note?', note : '+cut(j.note,120):''}`).join(' ; ')||'aucune'}
+Closes récentes : ${closed.slice(-15).map(j=>`${j.company} – ${cut(j.role,50)} : ${j.status}${j.stage?' ('+j.stage+')':''}`).join(' ; ')||'aucune'}
+Événements à venir : ${events().filter(e=>e.date>=t).map(e=>`${e.date} ${e.time||''} ${e.title} (${e.kind}, ${e.place||'?'}) questions : ${cut(e.questions,200)||'-'} notes : ${cut(e.notes,200)||'-'}`).join(' ; ')||'aucun'}
+Événements passés : ${events().filter(e=>e.date<t).slice(-5).map(e=>`${e.date} ${e.title} notes : ${cut(e.notes,200)||'-'}`).join(' ; ')||'aucun'}
+Contacts : ${contacts().slice(0,40).map(x=>`${x.name} (${[x.role,x.company].filter(Boolean).join(', ')||'?'}, rencontré : ${x.met||'?'}${x.next?', à recontacter le '+x.next:''}${x.last?', dernier contact '+x.last:''}${x.notes?', notes : '+cut(x.notes,100):''})`).join(' ; ')||'aucun'}`},
+ taches(){const t=TODAY(),o=todos().filter(x=>!x.done);
+  return `Tâches à faire (${o.length}) : ${o.map(x=>`${x.title} [${x.prio}${x.due?', échéance '+x.due+(x.time?' '+x.time:''):', sans échéance'}${x.due&&x.due<t?', EN RETARD':''}${x.cat?', '+x.cat:''}${x.rep?', répétée '+REP_SHORT[x.rep]:''}]${x.note?' : '+cut(x.note,100):''}`).join(' ; ')||'aucune'}
+Faites ces 14 derniers jours : ${todos().filter(x=>x.done&&(x.doneAt||0)>Date.now()-14*864e5).length + sum(todos().map(x=>(x.hist||[]).filter(h=>h>Date.now()-14*864e5).length))}.`},
+ finances(){const F=fin(),t=TODAY(),m=monthKey(t),tx=F.tx.filter(x=>monthKey(x.date)===m),out=sum(tx.filter(x=>x.kind==='out').map(x=>x.amount)),inn=sum(tx.filter(x=>x.kind==='in').map(x=>x.amount));
+  const cats={};tx.filter(x=>x.kind==='out').forEach(x=>cats[x.cat]=(cats[x.cat]||0)+x.amount);
+  const prev=addMonths(m+'-15',-1).slice(0,7),pout=sum(F.tx.filter(x=>monthKey(x.date)===prev&&x.kind==='out').map(x=>x.amount));
+  return `Mois en cours (${m}) : revenus ${eur(inn)}, dépenses ${eur(out)}${F.budget?' sur un budget de '+eur(F.budget):''}. Mois précédent : dépenses ${eur(pout)}.
+Par catégorie ce mois : ${Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+' '+eur(v)).join(', ')||'-'}.
+Dernières opérations : ${F.tx.slice(-25).map(x=>`${x.date} ${x.kind==='out'?'-':'+'}${eur(x.amount)} ${x.cat}${x.note?' ('+cut(x.note,40)+')':''}`).join(' ; ')||'aucune'}
+Échéances (30 j passés non payées et 60 j à venir) : ${upcoming(addDays(t,-30),addDays(t,60)).map(({p,d})=>`${d} ${p.title} ${eur(p.amount)}${d<t?' EN RETARD':''}${p.rep?' ('+FREP.find(r=>r[0]===p.rep)[1]+')':''}`).join(' ; ')||'aucune'}
+Épargne : ${F.goals.map(g=>`${g.name} ${eur(g.saved||0)} sur ${eur(g.target)}${g.due?' pour le '+g.due:''}`).join(' ; ')||'aucun objectif'}
+Placements : ${F.inv.map(a=>`${a.name} (${a.type}) valeur ${eur(invVal(a))}, versé ${eur(invIn(a))}`).join(' ; ')||'aucun'}`},
+ savoir(){const N=notes().slice().sort((a,b)=>(b.updated||0)-(a.updated||0)),tags=[...new Set(N.flatMap(n=>n.tags||[]))];
+  return `${N.length} notes. Étiquettes : ${tags.join(', ')||'aucune'}.
+Notes (récentes d’abord) : ${N.slice(0,60).map(n=>`« ${n.title} »${(n.tags||[]).length?' #'+n.tags.join(' #'):''} [liens vers : ${brOut(n).join(', ')||'-'} ; citée par : ${brBack(n).map(x=>x.title).join(', ')||'-'}${(n.media||[]).length?' ; '+n.media.length+' média(s)':''}] ${cut((n.body||'').replace(/!\[\[media:[a-z0-9]+\]\]/g,''),220)}`).join('\n')||'aucune'}`},
+ central(){const t=TODAY(),{today,soon}=agendaItems(),strip=x=>String(x).replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
+  const F=fin(),m=monthKey(t),out=sum(F.tx.filter(x=>monthKey(x.date)===m&&x.kind==='out').map(x=>x.amount)),a7=lastWeightAvg(),s=st();
+  return `Agenda d’aujourd’hui : ${today.map(o=>strip(o.title)+(o.time?' à '+o.time:'')+' ('+COACH_DOMS[o.area==='savoir'?'savoir':o.area]+(o.late?', en retard':'')+')').join(' ; ')||'rien'}
+Prochains jours : ${soon.map(o=>o.day+' '+strip(o.title)+(o.time?' '+o.time:'')+' ('+COACH_DOMS[o.area]+')').join(' ; ')||'rien'}
+Forme : poids moyen 7 j ${a7!=null?fmt(a7)+' kg':'?'} (départ ${s.startWeight??'?'}, cible ${s.targetWeight??'?'}), série ${streak()} j, sans sucre ${sugarStreak()} j, réveil ${morningFull(t)?'complet':'à compléter'}, soir ${eveningFull(t)?'complet':'à compléter'}, jours d’entraînement ${s.trainingDays.map(d=>['lun','mar','mer','jeu','ven','sam','dim'][d]).join(' ')}.
+Carrière : ${weekApps()}/${car().goal} candidatures cette semaine, ${jobs().filter(jobOpen).length} en cours, ${jobs().filter(relanceDue).length} à relancer, ${ivUpcoming().length} entretien(s) à venir, ${events().filter(e=>e.date>=t).length} événement(s) à venir.
+Tâches : ${todos().filter(x=>!x.done&&x.due&&x.due<t).length} en retard, ${todos().filter(x=>!x.done&&x.due===t).length} aujourd’hui, ${todos().filter(x=>!x.done).length} ouvertes.
+Finances : dépensé ce mois ${eur(out)}${F.budget?' sur '+eur(F.budget):''}, ${upcoming(t,addDays(t,14)).length} échéance(s) dans 14 j, épargne ${eur(sum(F.goals.map(g=>g.saved||0)))}, placements ${eur(sum(F.inv.map(invVal)))}.
+Savoir : ${notes().length} notes, dernières : ${notes().slice().sort((a,b)=>(b.updated||0)-(a.updated||0)).slice(0,5).map(n=>n.title).join(', ')||'-'}.`}};
+function systemFor(d,forBoss){if(d==='forme')return rules()+(forBoss?'\n\nTu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui, sans bloc <programme>.':'');
+  const wd=new Date().toLocaleDateString('fr-FR',{weekday:'long'});
+  return `${ROLE[d].replace('${name}',st().name)}
+Nous sommes le ${wd} ${TODAY()}. L’utilisateur s’appelle ${st().name}. Réponds en français, en tutoyant, de façon concise et concrète (listes courtes, 1 à 3 actions prioritaires), en citant ses données.${forBoss?' Tu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui.':''}
+
+Données :
+${CTX[d]()}`}
+const CONSULT_TOOL={name:'consulter_coach',description:'Pose une question précise à un coach spécialisé de Luck’In. Il a accès au détail complet de son domaine (toutes les données) et te répond pour que tu fasses la synthèse.',strict:true,
+  input_schema:{type:'object',additionalProperties:false,required:['domaine','question'],properties:{domaine:{type:'string',enum:Object.keys(COACH_DOMS)},question:{type:'string'}}}};
+async function claudeCall({system,messages,tools,stream,onText,signal,effort}){
+  const model=st().model||'claude-sonnet-5-5',fb=/^claude-(sonnet-5-5|opus-5-5|opus-5$|fable)/.test(model),haiku=/haiku/.test(model);
+  const headers={'content-type':'application/json','x-api-key':st().apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};if(fb)headers['anthropic-beta']='server-side-fallback-2026-07-01';
+  const body={model,max_tokens:8000,system,messages};if(tools)body.tools=tools;if(fb)body.fallbacks='default';if(effort&&!haiku)body.output_config={effort};if(stream)body.stream=true;
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal,headers,body:JSON.stringify(body)});
+  if(!r.ok){let m='';try{m=(await r.json()).error?.message||''}catch(e){}throw {code:'api',message:r.status===401?'Clé API invalide. Vérifie-la dans Réglages.':r.status===429?'Limite de requêtes atteinte. Réessaie dans un instant.':/credit/i.test(m)?'Crédit API épuisé : recharge ton compte sur console.anthropic.com.':m||'Erreur '+r.status}}
+  if(!stream){const j=await r.json();if(j.stop_reason==='refusal')throw {code:'refused'};return j}
+  const rd=r.body.getReader(),dec=new TextDecoder();let buf='',text='';
+  for(;;){const {done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});const parts=buf.split('\n');buf=parts.pop();
+    for(const ln of parts){if(!ln.startsWith('data:'))continue;let ev;try{ev=JSON.parse(ln.slice(5))}catch(e){continue}
+      if(ev.type==='content_block_delta'&&ev.delta?.type==='text_delta'){text+=ev.delta.text;onText&&onText(text)}if(ev.type==='error')throw {code:'api',message:ev.error?.message||'Erreur du service'}}}
+  return {text}}
+const textOf=j=>(j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim();
+/* historique par coach (le coach Forme garde l'historique d'origine) */
+const chats={};
+function chatOf(d){if(d==='forme')return chat;if(!chats[d]){try{chats[d]=JSON.parse(localStorage.getItem(CK+':'+d)||'[]')}catch(e){chats[d]=[]}}return chats[d]}
+function saveChatOf(d){if(d==='forme')return saveChat();try{localStorage.setItem(CK+':'+d,JSON.stringify(chats[d].slice(-40)))}catch(e){}}
+const CC={busy:false,dom:null,live:'',status:'',ctl:null};
+async function askSpecialist(d,question,signal){
+  if(backend()==='claude'){const r=await C.sample([{role:'user',content:systemFor(d,true)+'\n\n---\nQuestion du coach principal : '+question}],{cache:false,signal});return r.text}
+  const j=await claudeCall({system:systemFor(d,true),messages:[{role:'user',content:question}],signal,effort:'low'});return textOf(j)||'(pas de réponse)'}
+async function coachSend(d,text){text=String(text||'').trim();if(!text||CC.busy||C.busy)return;const c=chatOf(d);const ci=$('#ccin');if(ci)ci.value='';
+  c.push({role:'user',content:text});saveChatOf(d);Object.assign(CC,{busy:true,dom:d,live:'',status:'',ctl:new AbortController()});coachRepaint();
+  const turns=c.filter(m=>!m.err).slice(-20).map(m=>({role:m.role,content:m.content}));while(turns.length&&turns[0].role!=='user')turns.shift();
+  const live=t=>{CC.live=t;ccLive()};let out='',via=[];
+  try{
+    if(backend()==='claude'){
+      const sys=d==='central'?systemFor('central')+'\n\nDétail des domaines :\n'+Object.keys(COACH_DOMS).filter(k=>k!=='forme').map(k=>`### ${COACH_DOMS[k]}\n${CTX[k]()}`).join('\n\n')+`\n\n### Forme\n${dataContext()}`:systemFor(d);
+      const r=await C.sample([{role:'user',content:sys+'\n\n---\nLa conversation commence ci-dessous.'},...turns],{cache:false,signal:CC.ctl.signal,onText:({text})=>live(text)});out=r.text}
+    else if(d!=='central'){out=(await claudeCall({system:systemFor(d),messages:turns,stream:true,onText:live,signal:CC.ctl.signal})).text}
+    else{let msgs=turns.slice();const sys=systemFor('central');
+      for(let round=0;round<3;round++){CC.status=round?'Je fais la synthèse…':'Je regarde l’ensemble…';ccLive();
+        const j=await claudeCall({system:sys,messages:msgs,tools:[CONSULT_TOOL],signal:CC.ctl.signal});
+        const uses=(j.content||[]).filter(b=>b.type==='tool_use');if(!uses.length||round===2){out=textOf(j);break}
+        const names=[...new Set(uses.map(u=>COACH_DOMS[u.input.domaine]||u.input.domaine))];via.push(...names);
+        CC.status='Je consulte '+(names.length>1?'les coachs '+names.slice(0,-1).join(', ')+' et '+names.slice(-1):'le coach '+names[0])+'…';ccLive();
+        msgs.push({role:'assistant',content:j.content});
+        const res=await Promise.all(uses.map(async u=>({type:'tool_result',tool_use_id:u.id,content:await askSpecialist(u.input.domaine,u.input.question,CC.ctl.signal).catch(e=>'Coach indisponible : '+(e?.message||'erreur'))})));
+        msgs.push({role:'user',content:res})}}
+    c.push(Object.assign({role:'assistant',content:out||'(pas de réponse)'},via.length?{via:[...new Set(via)]}:{}))}
+  catch(e){const partial=CC.live;if(e?.name==='AbortError'||e?.code==='cancelled'){if(partial)c.push({role:'assistant',content:partial})}
+    else{if(partial&&e?.code!=='refused')c.push({role:'assistant',content:partial});c.push({role:'assistant',err:true,content:errCopy[e?.code]||e?.message||'La connexion a échoué. Vérifie ta connexion et réessaie.'})}}
+  Object.assign(CC,{busy:false,live:'',status:''});saveChatOf(d);coachRepaint()}
+function coachPage(d,o={}){const k=COACH[d],c=chatOf(d),b=backend();
+  const head=`<div class="a-head">${o.back?`<button type="button" class="link br-back" data-act="${o.back}">‹ ${o.backLabel}</button>`:`<p class="l2">${d==='central'?'Vue d’ensemble · 5 coachs spécialisés':'Spécialiste '+COACH_DOMS[d]}</p>`}<h1>${k.name}</h1></div>`;
+  if(!b)return head+sec('',`<div class="cell"><span class="body"><span>Active ton coach</span><span class="fn">Le coach utilise Claude avec ta clé API Anthropic (Réglages › Coach IA), stockée uniquement sur ce téléphone.</span></span></div><button class="cell tap link" data-act="goKey">Saisir ma clé API</button>`,'','notile');
+  const items=c.map(m=>m.role==='user'?`<div class="msg u">${esc(m.content)}</div>`:m.err?`<div class="msg a err">${esc(m.content)}</div>`:`<div class="msg a">${md(m.content)}${m.via?`<p class="cc-via">A consulté : ${m.via.map(esc).join(', ')}</p>`:''}</div>`).join('');
+  return `${head}<div class="cc-msgs">${c.length?'':`<div class="msg a">${md(k.hello(st().name))}</div><div class="chips">${k.starters.map(x=>`<button class="chip-s" data-act="ccStarter" data-dom="${d}">${esc(x)}</button>`).join('')}</div>`}
+   ${items}<div id="cclive"${CC.busy&&CC.dom===d?'':' hidden'}>${CC.busy&&CC.dom===d?ccLiveHTML():''}</div>
+   ${c.length&&!CC.busy?`<button class="note link" data-act="ccNew" data-dom="${d}" style="margin-top:6px">Nouvelle conversation</button>`:''}</div>
+   <div class="composer cc-comp${o.tabs?' with-tabs':''}"><div class="in"><textarea id="ccin" rows="1" placeholder="Écris à ${esc(k.name.toLowerCase().replace('coach','ton coach'))}…" aria-label="Message"></textarea>
+   <button class="send" data-act="${CC.busy?'ccStop':'ccSend'}" data-dom="${d}" aria-label="${CC.busy?'Arrêter':'Envoyer'}">${CC.busy?I.stop:I.up}</button></div></div>`}
+function ccLiveHTML(){return CC.live?`<div class="msg a">${md(CC.live)}</div>`:`<div class="msg a">${CC.status?`<p class="cc-via">${esc(CC.status)}</p>`:''}<span class="typing"><i></i><i></i><i></i></span></div>`}
+function ccLive(){const el=$('#cclive');if(el){el.hidden=false;el.innerHTML=ccLiveHTML();const a=$('#area');a.scrollTop=a.scrollHeight}}
+function coachRepaint(){const d=CC.dom;if($('#area').hidden)return;
+  if(H.cur==='coach'&&d==='central')paintCentral();else if(H.cur==='carriere')paintCareer();else if(H.cur==='finances')paintFinance();else if(H.cur==='taches')paintTodos();else if(H.cur==='savoir')paintBrain();
+  const a=$('#area');a.scrollTop=a.scrollHeight}
+const CENTRAL_C='#2B3FC4';
+function openCentral(from){const go=()=>{H.cur='coach';const r=document.documentElement;r.style.setProperty('--area',CENTRAL_C);r.classList.add('in-area');H.open=false;$('#home').hidden=true;
+  const v=$('#area');v.hidden=false;v.style.setProperty('--c',CENTRAL_C);paintCentral();v.scrollTop=v.scrollHeight};if(from)bloomFrom(from,CENTRAL_C,go);else go()}
+function paintCentral(){$('#area').innerHTML=`<div class="a-in cc">${HOMEBTN}${coachPage('central')}</div>`}
+function coachAct(act,id,el){const d=el.dataset.dom;
+  switch(act){
+   case 'openCoach':openCentral(el.querySelector('.hc-ico')||el);break;
+   case 'ccSend':coachSend(d,$('#ccin')?.value);break;
+   case 'ccStarter':coachSend(d,el.textContent);break;
+   case 'ccStop':CC.ctl?.abort();break;
+   case 'ccNew':asheet('Effacer cette conversation ?',[{label:'Nouvelle conversation',act:'ccNewGo',data:{dom:d},danger:true}]);break;
+   case 'ccNewGo':chats[d]=[];saveChatOf(d);CC.dom=d;coachRepaint();break;
+   case 'tdCoach':S.tdCoach=!S.tdCoach;paintTodos();if(S.tdCoach){const a=$('#area');a.scrollTop=a.scrollHeight}break;
+   case 'brCoach':S.brCoach=!S.brCoach;paintBrain();if(S.brCoach){const a=$('#area');a.scrollTop=a.scrollHeight}break;
+   default:return false}
+  return true}
+document.addEventListener('input',e=>{if(e.target.id!=='ccin')return;const t=e.target;t.style.height='auto';t.style.height=Math.min(140,t.scrollHeight)+'px'});
 /* ================= timer ================= */
 let actx=null;
 function unlockAudio(){try{if(!actx){const A=window.AudioContext||window.webkitAudioContext;if(A)actx=new A()}if(actx&&actx.state==='suspended')actx.resume()}catch(e){}}
@@ -658,7 +798,7 @@ document.addEventListener('click',ev=>{
   if(act==='agEvening'){eveningSheet();return}
   if(act==='agWeekly'){weeklySheet();return}
   if(act==='agWorkout'){S.tab='workout';openArea('forme');return}
-  if(jobAct(act,id,el)||todoAct(act,id,el)||brainAct(act,id,el)||finAct(act,id,el)){if(!$('#home').hidden)paintAgenda();return} /* actions des sections Carrière et Tâches */
+  if(jobAct(act,id,el)||todoAct(act,id,el)||brainAct(act,id,el)||finAct(act,id,el)||coachAct(act,id,el)){if(!$('#home').hidden)paintAgenda();return} /* actions des sections Carrière et Tâches */
   switch(act){
    case 'sugarInfo':{const n=sugarStreak(),b=Math.max(n,sugarBest()),j=jokerWeek();asheet(`Série sans sucre ajouté : ${n} jour${n>1?'s':''} · record ${b} jour${b>1?'s':''}. Une journée compte une fois la fiche du soir complète, sans sucre ajouté. Joker : 1 jour non rempli par semaine ne casse pas la série${j?` (utilisé cette semaine : ${fday(j)})`:' (disponible cette semaine)'}.`,[{label:'Ouvrir la fiche du soir',act:'evening'}]);break}
    case 'morning':morningSheet();break;
@@ -848,9 +988,12 @@ async function jobImport(file){if(!file)return;hud('Lecture du fichier…');
 const CTABS=[['jobs','Candidatures','<rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7M3 12.5h18"/>'],
  ['events','Événements','<rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>'],
  ['contacts','Contacts','<circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20c.8-3.8 3.8-6 7.5-6s6.7 2.2 7.5 6"/>'],
- ['stats','Bilan','<rect x="3" y="3" width="18" height="18" rx="5.6"/><path d="M7.6 15.2l3-3.6 2.6 2.1 3.4-4.5"/>']];
+ ['stats','Bilan','<rect x="3" y="3" width="18" height="18" rx="5.6"/><path d="M7.6 15.2l3-3.6 2.6 2.1 3.4-4.5"/>'],
+ ['coach','Coach','<path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z"/>']];
 try{S.car=localStorage.getItem(K+':car')||'jobs'}catch(e){S.car='jobs'}
+const ctabsHTML=(T,act,cur,label)=>`<nav class="tabs ctabs" aria-label="${label}"><div class="in" style="grid-template-columns:repeat(${T.length},1fr)">${T.map(([k,l,ic])=>`<button data-act="${act}" data-v="${k}" aria-label="${l}" title="${l}" aria-current="${k===cur?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg></button>`).join('')}</div></nav>`;
 function paintCareer(o={}){const v=$('#area'),tab=CTABS.find(x=>x[0]===S.car)||CTABS[0];
+  if(tab[0]==='coach'){v.innerHTML=`<div class="a-in cc">${HOMEBTN}${coachPage('carriere',{tabs:1})}</div>${ctabsHTML(CTABS,'carTab',tab[0],'Carrière')}`;if(o.top)v.scrollTop=v.scrollHeight;return}
   const body={jobs:carJobs,events:carEvents,contacts:carContacts,stats:carStats}[tab[0]]();
   v.innerHTML=`<div class="a-in car">${HOMEBTN}<div class="a-head"><p class="l2">Carrière</p><h1>${tab[1]}</h1></div>${body}</div>
   <nav class="tabs ctabs" aria-label="Carrière"><div class="in">${CTABS.map(([k,l,ic])=>`<button data-act="carTab" data-v="${k}" aria-label="${l}" title="${l}" aria-current="${k===tab[0]?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg></button>`).join('')}</div></nav>`;
@@ -1041,11 +1184,12 @@ const prioRank=p=>({haute:0,moyenne:1,basse:2}[p]??1);
 const TBUCKETS=[['late','En retard'],['today','Aujourd’hui'],['tomorrow','Demain'],['week','Dans les 7 jours'],['later','Plus tard'],['none','Sans échéance']];
 const todoBucket=(x,t)=>{if(!x.due)return 'none';const n=diff(t,x.due);return n<0?'late':n===0?'today':n===1?'tomorrow':n<=7?'week':'later'};
 function paintTodos(){const v=$('#area'),t=TODAY();
+  if(S.tdCoach){v.innerHTML=`<div class="a-in cc">${HOMEBTN}${coachPage('taches',{back:'tdCoach',backLabel:'Mes tâches'})}</div>`;return}
   const open=todos().filter(x=>!x.done).sort((a,b)=>prioRank(a.prio)-prioRank(b.prio)||(a.due||'9999').localeCompare(b.due||'9999')||(a.time||'99').localeCompare(b.time||'99'));
   const done=todos().filter(x=>x.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
   const cnt=k=>open.filter(x=>todoBucket(x,t)===k).length,week=Date.now()-7*864e5;
   const cell=x=>`<div class="cell td${x.done?' done':''}" style="--pc:${PRIO_C[x.prio]||PRIO_C.moyenne}"><button type="button" class="td-check" data-act="tdToggle" data-id="${x.id}" aria-label="${x.done?'Remettre à faire':'Marquer comme faite'}">${x.done?I.check:''}</button><button type="button" class="td-body" data-act="tdEdit" data-id="${x.id}"><span class="td-t">${esc(x.title)}</span><span class="fn">${[x.due?whenDay(x.due)+(x.time?' à '+esc(x.time):''):null,x.rep?'↻ '+REP_SHORT[x.rep]:null,x.cat&&esc(x.cat),x.note?'note':null].filter(Boolean).join(' · ')||'Sans échéance'}</span></button></div>`;
-  v.innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><h1>Tâches</h1></div>
+  v.innerHTML=`<div class="a-in">${HOMEBTN}<button type="button" class="a-coach" data-act="tdCoach">Coach</button><div class="a-head"><h1>Tâches</h1></div>
    <div class="kpis tilesrow"><div><span class="v">${cnt('late')}</span><span class="k">en retard</span></div><div><span class="v">${cnt('today')}</span><span class="k">aujourd’hui</span></div><div><span class="v">${cnt('tomorrow')+cnt('week')}</span><span class="k">7 jours</span></div><div><span class="v">${done.filter(x=>(x.doneAt||0)>=week).length+sum(todos().map(x=>(x.hist||[]).filter(h=>h>=week).length))}</span><span class="k">faites 7 j</span></div></div>
    ${sec('',addCell('Nouvelle tâche','tdNew'))}
    ${TBUCKETS.map(([k,l])=>{const xs=open.filter(x=>todoBucket(x,t)===k);return xs.length?sec(l,xs.map(cell).join('')):''}).join('')}
@@ -1119,8 +1263,9 @@ function brMediaBtns(where,labels){const signed=!!(sb&&A.user),ch=where==='note'
   return inp('photo','image/*','environment',false,L.photo)+inp('gallery','image/*','',where==='note',L.gallery)
     +(signed?`<button type="button" data-act="${where==='note'?'brRecord':'brRecIns'}">${L.rec}</button>`:`<button type="button" data-act="brNeedAcct">${L.rec}</button>`)
     +inp('film','video/*','environment',false,L.film)+inp('file','image/*,audio/*,video/*','',where==='note',L.file)}
-function paintBrain(){const v=$('#area');const n=S.note&&notes().find(x=>x.id===S.note);
-  v.innerHTML=`<div class="a-in br">${HOMEBTN}${n?brNoteView(n):brList()}</div>`;if(n)brHydrate()}
+function paintBrain(){const v=$('#area');if(S.brCoach){v.innerHTML=`<div class="a-in cc">${HOMEBTN}${coachPage('savoir',{back:'brCoach',backLabel:'Mes notes'})}</div>`;return}
+  const n=S.note&&notes().find(x=>x.id===S.note);
+  v.innerHTML=`<div class="a-in br">${HOMEBTN}${n?'':'<button type="button" class="a-coach" data-act="brCoach">Coach</button>'}${n?brNoteView(n):brList()}</div>`;if(n)brHydrate()}
 function brList(){const tag=S.brTag||'';
   const tags=[...new Set(notes().flatMap(n=>n.tags||[]))].sort((a,b)=>a.localeCompare(b,'fr'));
   return `<div class="a-head"><p class="l2">Deuxième cerveau</p><h1>Apprentissage</h1></div>
@@ -1358,7 +1503,8 @@ const INVT=['PEA','Assurance-vie','Compte-titres','PER','Crypto','Immobilier','A
 const FTABS=[['budget','Budget','<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h4"/>'],
  ['plans','À venir','<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'],
  ['save','Épargne','<path d="M5 11a7 6 0 0 1 13-2l2-1v4l-1.5 1a7 6 0 0 1-2.5 3.5V19h-3v-1.5h-3V19H7v-2.5A6 6 0 0 1 5 11Z"/><circle cx="15" cy="10.5" r=".6" fill="currentColor"/>'],
- ['inv','Placements','<path d="M4 19.5h16"/><path d="M6.5 16v-4M11 16V8M15.5 16v-6M20 5.5l-4.5 3-4-2.5L6 9.5"/>']];
+ ['inv','Placements','<path d="M4 19.5h16"/><path d="M6.5 16v-4M11 16V8M15.5 16v-6M20 5.5l-4.5 3-4-2.5L6 9.5"/>'],
+ ['coach','Coach','<path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z"/>']];
 try{S.fin=localStorage.getItem(K+':fin')||'budget'}catch(e){S.fin='budget'}
 const monthKey=d=>d.slice(0,7);
 const monthName=m=>new Date(m+'-15T12:00:00').toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
@@ -1368,6 +1514,7 @@ function planOcc(p,from,to){const out=[],step={month:1,quarter:3,year:12}[p.rep]
   while(d<=to&&k<600){if(d>=from&&!(p.paid||[]).includes(d))out.push(d);if(!step)break;d=addMonths(p.date,++k*step)}return out}
 const upcoming=(from,to)=>fin().plans.flatMap(p=>planOcc(p,from,to).map(d=>({p,d}))).sort((a,b)=>a.d.localeCompare(b.d));
 function paintFinance(o={}){const v=$('#area'),tab=FTABS.find(x=>x[0]===S.fin)||FTABS[0];
+  if(tab[0]==='coach'){v.innerHTML=`<div class="a-in cc">${HOMEBTN}${coachPage('finances',{tabs:1})}</div>${ctabsHTML(FTABS,'finTab',tab[0],'Finances')}`;if(o.top)v.scrollTop=v.scrollHeight;return}
   const body={budget:finBudget,plans:finPlans,save:finSave,inv:finInv}[tab[0]]();
   v.innerHTML=`<div class="a-in fin">${HOMEBTN}<div class="a-head"><p class="l2">Finances</p><h1>${tab[1]}</h1></div>${body}</div>
   <nav class="tabs ctabs" aria-label="Finances"><div class="in">${FTABS.map(([k,l,ic])=>`<button data-act="finTab" data-v="${k}" aria-label="${l}" title="${l}" aria-current="${k===tab[0]?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg></button>`).join('')}</div></nav>`;
@@ -1620,7 +1767,7 @@ async function cloudPull(onlyIfNewer){
   if(onlyIfNewer)return false;
   if(!mine){db=seed()}
   db.owner=A.user.id;writeLocal();return true}
-function refreshAll(){const pa=!$('#area').hidden&&(AREAS.find(x=>x.id===H.cur)?.paint||(H.cur==='reglages'&&paintPrefs));if(!$('#home').hidden)paintHome();else if(pa)pa();else if($('#area').hidden)render();const ini=$('#tabs .ini');if(ini)ini.textContent=(st().name||'?').trim().charAt(0).toUpperCase()}
+function refreshAll(){const pa=!$('#area').hidden&&!CC.busy&&(AREAS.find(x=>x.id===H.cur)?.paint||(H.cur==='reglages'&&paintPrefs)||(H.cur==='coach'&&paintCentral));if(!$('#home').hidden)paintHome();else if(pa)pa();else if($('#area').hidden)render();const ini=$('#tabs .ini');if(ini)ini.textContent=(st().name||'?').trim().charAt(0).toUpperCase()}
 async function cloudStart(user){
   A.user=user;A.sentName=null;try{localStorage.removeItem(AK)}catch(e){}
   const mine=!db.owner||db.owner===user.id;
