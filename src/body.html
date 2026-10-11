@@ -31,7 +31,7 @@ const LOC=LANG==='en'?'en-GB':'fr-FR';
 const T=(fr,en)=>LANG==='en'?en:fr;
 const EN=new Map(Object.entries({
  // accueil, barre, sections
- 'Accueil':'Home','Bonjour':'Hello','Ton coach':'Your coach','Il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Sees everything, plans ahead and relies on your specialist coaches','Ton coach : il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Your coach: sees everything, plans ahead and relies on your specialist coaches','Luck, ton coach':'Luck, your coach','Dans la journée':'During the day','nouveau':'new','déplacé':'moved','Liste':'List','Semaine':'Week','Durée estimée':'Estimated time','Carte des connexions':'Connection map','Heure habituelle de séance':'Usual workout time','Heure de séance enregistrée':'Workout time saved','Heure de séance retirée':'Workout time removed','Aperçu de ta semaine':'Your week at a glance',
+ 'Accueil':'Home','Bonjour':'Hello','Ton coach':'Your coach','Il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Sees everything, plans ahead and relies on your specialist coaches','Ton coach : il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Your coach: sees everything, plans ahead and relies on your specialist coaches','Luck, ton coach':'Luck, your coach','Dans la journée':'During the day','nouveau':'new','déplacé':'moved','Liste':'List','Semaine':'Week','Durée estimée':'Estimated time','Calendrier':'Calendar','Carte des connexions':'Connection map','Heure habituelle de séance':'Usual workout time','Heure de séance enregistrée':'Workout time saved','Heure de séance retirée':'Workout time removed','Aperçu de ta semaine':'Your week at a glance',
  'Aujourd’hui':'Today','Demain':'Tomorrow','Rien de prévu aujourd’hui. Profite !':'Nothing planned today. Enjoy!','En retard':'Overdue','Marquer comme faite':'Mark as done',
  'Forme':'Fitness','Carrière':'Career','Tâches':'Tasks','Finances':'Finances','Savoir':'Knowledge','Apprentissage':'Learning',
  'Sport, nutrition, sommeil':'Sport, nutrition, sleep','Candidatures, entretiens, réseau':'Applications, interviews, network','To-do, échéances, priorités':'To-dos, deadlines, priorities','Budget, épargne, placements':'Budget, savings, investments','Notes, apprentissage, deuxième cerveau':'Notes, learning, second brain',
@@ -439,8 +439,6 @@ function vSettings(){
    <label class="cell" for="sw2"><span class="body">Son à la fin du repos</span><input id="sw2" type="checkbox" class="switch" data-setting="sound" ${s.sound?'checked':''}></label>
    <label class="cell" for="sw3"><span class="body">+30 s si série à l’échec (RIR 0)</span><input id="sw3" type="checkbox" class="switch" data-setting="failureBonus" ${s.failureBonus?'checked':''}></label>`,
    'Chaque exercice a son propre temps de repos, défini dans le programme. L’écran reste allumé pendant la séance.')}
-  ${sec('Données Santé',`<div class="cell"><div class="body" style="display:block;font-size:15px">Pour récupérer poids, masse grasse et pas depuis l’app Santé : crée un raccourci qui lit ces valeurs (action <b>Rechercher des échantillons de santé</b>) puis copie un texte du type <span class="num">poids=81,2; mg=18,4; pas=8450</span> dans le presse-papiers. Ouvre ensuite Luck’In et touche le bouton ci-dessous.</div></div>
-   <button class="cell tap link" data-act="importHealth">Importer depuis le presse-papiers</button>`,'Clés reconnues : poids, mg, muscle, visceral, sommeil, pas, eau.')}
   `;
 }
 
@@ -796,6 +794,56 @@ function weekView(days,map){return days.map(d=>{const xs=map.get(d)||[],timed=xs
    ${timed.length?`<div class="wk-strip">${timed.map(o=>{const a=Math.max(WK_H0*60,o.s),b=Math.min(WK_H1*60,o.e??o.s+30);return b>a?`<i style="left:${((a-WK_H0*60)/span*100).toFixed(1)}%;width:${Math.max(1.5,(b-a)/span*100).toFixed(1)}%;background:${o.c}"></i>`:''}).join('')}</div><div class="wk-hours"><span>${WK_H0}h</span><span>12h</span><span>17h</span><span>${WK_H1}h</span></div>`:''}
    ${timed.map(row).join('')}${free.length?`<div class="wk-free">${T('Dans la journée','During the day')}</div>${free.map(row).join('')}`:''}${!xs.length?`<div class="wk-free">${T('Rien de prévu','Nothing planned')}</div>`:''}</div>`}).join('')}
 const next7=()=>Array.from({length:7},(_,k)=>addDays(TODAY(),k));
+/* ---------- calendrier avec les heures (accueil et Tâches) : vue Jour, 3 jours ou Semaine ---------- */
+const CAL={n:3,start:''};try{CAL.n=+localStorage.getItem(K+':caln')||3;S.homeView=localStorage.getItem(K+':hv')||'list'}catch(e){}
+const calDays=()=>{const s=CAL.start||TODAY();return Array.from({length:CAL.n},(_,k)=>addDays(s,k))};
+function calItems(from,to,focus){const t=TODAY(),out=[],push=o=>out.push(o);
+  if(areaOn('taches'))todos().filter(x=>!x.done&&x.due).forEach(x=>{let d=x.due,late=false;if(d<t){d=t;late=true}if(d<from||d>to)return;const s=late?null:toMinS(x.time);
+    push({d,s,e:s!=null?s+(x.dur||30):null,title:x.title,c:PRIO_C[x.prio]||PRIO_C.moyenne,act:'tdEdit',id:x.id,todo:1,late})});
+  gcalItems(from,to).forEach(x=>{const s=x.allDay?null:toMinS(x.time);push({d:x.d,s,e:toMinS(x.end)||(s!=null?s+60:null),title:x.title,c:'#4285F4',act:'gcalShow',id:x.d+'|'+(x.time||'')+'|'+x.title,fixed:1})});
+  if(areaOn('carriere')){jobs().filter(jobOpen).forEach(j=>(j.interviews||[]).forEach(i=>{if(i.date<from||i.date>to)return;const s=toMinS(i.time);push({d:i.date,s,e:s!=null?s+60:null,title:T('Entretien · ','Interview · ')+j.company,c:'#3E6FD8',act:'jobEdit',id:j.id,fixed:1})}));
+    events().forEach(e=>{if(e.date<from||e.date>to)return;const s=toMinS(e.time);push({d:e.date,s,e:s!=null?s+120:null,title:e.title,c:'#3E6FD8',act:'evEdit',id:e.id,fixed:1})})}
+  if(areaOn('forme'))sessionsAhead(from,to).forEach(x=>{const s=toMinS(x.time);push({d:x.d,s,e:s!=null?s+x.dur:null,title:T('Séance','Workout')+(x.name!=='Séance'?' · '+x.name:''),c:'#F2994A',act:x.d===t&&!x.done?'agWorkout':'',fixed:1,done:x.done})});
+  if(!focus){const {today,soon}=agendaItems();[...today,...soon].filter(o=>o.day>=from&&o.day<=to&&!['tdEdit','gcalShow','jobEdit','evEdit','agWorkout'].includes(o.act))
+    .forEach(o=>push({d:o.day,s:null,title:o.title,html:1,c:o.c,act:o.act,id:o.id,late:o.late}))}
+  return out}
+/* répartit les blocs qui se chevauchent en colonnes côte à côte */
+function calLanes(xs){xs.sort((a,b)=>a.s-b.s||(b.e-a.e));let cl=[],end=-1;const flush=()=>{const n=Math.max(...cl.map(o=>o.lane))+1;cl.forEach(o=>o.lanes=n);cl=[]};
+  xs.forEach(o=>{if(o.s>=end&&cl.length)flush();const used=new Set(cl.filter(x=>x.e>o.s).map(x=>x.lane));let l=0;while(used.has(l))l++;o.lane=l;cl.push(o);end=Math.max(end,o.e)});if(cl.length)flush();return xs}
+function calView(items,opt={}){const days=calDays(),n=days.length,t=TODAY(),by=d=>items.filter(o=>o.d===d);
+  items.forEach(o=>{if(o.s!=null)o.e=Math.max(o.e??o.s+30,o.s+15)});
+  const timed=items.filter(o=>o.s!=null);let h0=7,h1=22;timed.forEach(o=>{h0=Math.min(h0,Math.floor(o.s/60));h1=Math.max(h1,Math.ceil(o.e/60))});h1=Math.min(24,h1);
+  const HP=n===7?40:52,y=m=>((m-h0*60)/60*HP).toFixed(1),wd=d=>new Date(d+'T12:00:00').toLocaleDateString(LOC,{weekday:n===7?'narrow':'short'}).replace('.','');
+  const ttl=o=>o.html?o.title:esc(o.title);
+  const m0=new Date(days[0]+'T12:00:00'),m1=new Date(days[n-1]+'T12:00:00'),mo=m0.toLocaleDateString(LOC,{month:'long',year:'numeric'}),mo1=m1.toLocaleDateString(LOC,{month:'long',year:'numeric'});
+  const bar=`<div class="cal-bar"><b class="cal-mo">${mo===mo1?mo:m0.toLocaleDateString(LOC,{month:'short'})+' – '+m1.toLocaleDateString(LOC,{month:'short',year:'numeric'})}</b>
+    <span class="cal-nav"><button type="button" data-act="calMove" data-d="-1" aria-label="${T('Avant','Previous')}">‹</button><button type="button" data-act="calToday"${days.includes(t)?' disabled':''}>${T('Aujourd’hui','Today')}</button><button type="button" data-act="calMove" data-d="1" aria-label="${T('Après','Next')}">›</button></span></div>
+   <div class="cal-modes">${[[1,T('Jour','Day')],[3,T('3 jours','3 days')],[7,T('Semaine','Week')]].map(([k,l])=>`<button type="button" data-act="calMode" data-n="${k}" aria-pressed="${CAL.n===k}">${l}</button>`).join('')}</div>`;
+  const head=`<div class="cal-head" style="--n:${n}"><span></span>${days.map(d=>`<span class="${d===t?'is-today':''}"><small>${esc(wd(d))}</small><b>${+d.slice(8)}</b></span>`).join('')}</div>`;
+  const allDay=days.map(d=>{const xs=by(d).filter(o=>o.s==null);if(n===7)return `<div class="cal-ad">${xs.slice(0,4).map(o=>`<button type="button" class="cal-dot${o.late?' late':''}" style="--c:${o.c}" ${o.act?`data-act="${o.act}"`:''} ${o.id?`data-id="${esc(o.id)}"`:''} aria-label="${esc(String(o.title).replace(/<[^>]+>/g,''))}"></button>`).join('')}${xs.length>4?`<small>+${xs.length-4}</small>`:''}</div>`;
+    const max=n===1?8:3;return `<div class="cal-ad">${xs.slice(0,max).map(o=>`<button type="button" class="cal-chip${o.late?' late':''}${o.fixed&&opt.focus?' dim':''}" style="--c:${o.c}" ${o.act?`data-act="${o.act}"`:''} ${o.id?`data-id="${esc(o.id)}"`:''}><span class="no-tr">${ttl(o)}</span></button>`).join('')}${xs.length>max?`<button type="button" class="cal-more" data-act="calMode" data-n="1" data-d0="${d}">+${xs.length-max}</button>`:''}</div>`}).join('');
+  const hours=Array.from({length:h1-h0},(_,k)=>`<span style="top:${k*HP}px">${String(h0+k).padStart(2,'0')}h</span>`).join('');
+  const now=new Date(),nm=now.getHours()*60+now.getMinutes();
+  const cols=days.map(d=>{const xs=calLanes(by(d).filter(o=>o.s!=null));
+    return `<div class="cal-col${d===t?' is-today':''}" style="--hp:${HP}px" data-act="calNew" data-d="${d}" data-h0="${h0}" data-hp="${HP}">${xs.map(o=>{const h=+y(o.e)-+y(o.s),w=100/o.lanes;
+      return `<button type="button" class="cal-ev${o.fixed?' fixed':''}${o.fixed&&opt.focus?' dim':''}${o.done?' done':''}" style="--c:${o.c};top:${y(o.s)}px;height:${Math.max(18,h-2).toFixed(0)}px;left:calc(${(o.lane*w).toFixed(2)}% + 1px);width:calc(${w.toFixed(2)}% - 3px)" ${o.act?`data-act="${o.act}"`:'data-act="calNone"'} ${o.id?`data-id="${esc(o.id)}"`:''}><span class="no-tr">${ttl(o)}</span>${h>=34&&n<7?`<small>${minHM(o.s)}–${minHM(o.e)}</small>`:''}</button>`}).join('')}
+      ${d===t&&nm>=h0*60&&nm<=h1*60?`<i class="cal-now" style="top:${y(nm)}px"></i>`:''}</div>`}).join('');
+  return `<div class="cal" data-cal="${opt.where||''}">${bar}${head}<div class="cal-adrow" style="--n:${n}"><span class="cal-adl">${T('Journée','All day')}</span>${allDay}</div>
+   <div class="cal-grid" style="--n:${n};height:${(h1-h0)*HP}px"><div class="cal-hours">${hours}</div>${cols}</div>
+   <p class="sec-f">${T('Touche un créneau vide pour y ajouter une tâche. Glisse pour changer de jours.','Tap an empty slot to add a task there. Swipe to change days.')}</p></div>`}
+function calRepaint(){if(!$('#home').hidden)paintAgenda();else if(S.tdView==='week'&&!S.tdCoach)paintTodos()}
+function calAct(act,el,ev){switch(act){
+  case 'calMode':CAL.n=+el.dataset.n;if(el.dataset.d0)CAL.start=el.dataset.d0;try{localStorage.setItem(K+':caln',CAL.n)}catch(e){}break;
+  case 'calMove':CAL.start=addDays(CAL.start||TODAY(),+el.dataset.d*CAL.n);break;
+  case 'calToday':CAL.start='';break;
+  case 'calNone':return true;
+  case 'calNew':{const r=el.getBoundingClientRect(),m=+el.dataset.h0*60+Math.floor((ev.clientY-r.top)/+el.dataset.hp*2)*30;tdSheet();
+    const d=$('#tdd'),h=$('#tdh');if(d)d.value=el.dataset.d;if(h)h.value=minHM(Math.min(23*60+30,m));return true}
+  case 'homeView':S.homeView=el.dataset.v;try{localStorage.setItem(K+':hv',S.homeView)}catch(e){}break;
+  default:return false}
+  haptic(6);calRepaint();return true}
+{let sx=0,sy=0,on=false;document.addEventListener('touchstart',e=>{on=!!e.target.closest?.('.cal-grid,.cal-head,.cal-adrow');if(on){sx=e.touches[0].clientX;sy=e.touches[0].clientY}},{passive:true});
+ document.addEventListener('touchend',e=>{if(!on)return;on=false;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.abs(dx)>60&&Math.abs(dy)<45){CAL.start=addDays(CAL.start||TODAY(),(dx<0?1:-1)*CAL.n);haptic(6);calRepaint()}},{passive:true})}
 function planCard(raw,d,idx,applied){if(raw==='bad')return `<div class="note">Le planning proposé est illisible. Demande au coach de le renvoyer.</div>`;
   const p=cleanPlan(raw);if(!p)return applied?'':`<div class="note">Rien à appliquer dans ce planning (tâches introuvables ou déjà à jour).</div>`;const TM=new Map(todos().map(x=>[x.id,x]));
   /* semaine telle qu'elle sera après application */
@@ -1080,6 +1128,7 @@ document.addEventListener('click',ev=>{
   if(act==='agEvening'){eveningSheet();return}
   if(act==='agWeekly'){weeklySheet();return}
   if(act==='agWorkout'){S.tab='workout';openArea('forme');return}
+  if(calAct(act,el,ev))return;
   if(jobAct(act,id,el)||todoAct(act,id,el)||brainAct(act,id,el)||finAct(act,id,el)||coachAct(act,id,el)){if(!$('#home').hidden)paintAgenda();return} /* actions des sections Carrière et Tâches */
   switch(act){
    case 'sugarInfo':{const n=sugarStreak(),b=Math.max(n,sugarBest()),j=jokerWeek();asheet(`Série sans sucre ajouté : ${n} jour${n>1?'s':''} · record ${b} jour${b>1?'s':''}. Une journée compte une fois la fiche du soir complète, sans sucre ajouté. Joker : 1 jour non rempli par semaine ne casse pas la série${j?` (utilisé cette semaine : ${fday(j)})`:' (disponible cette semaine)'}.`,[{label:'Ouvrir la fiche du soir',act:'evening'}]);break}
@@ -1294,7 +1343,7 @@ const CTABS=[['jobs','Candidatures','<rect x="3" y="7" width="18" height="13" rx
  ['coach','Coach','<path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z"/>']];
 try{S.car=localStorage.getItem(K+':car')||'jobs'}catch(e){S.car='jobs'}
 const IC_LIST='<path d="M9 6.5h11M9 12h11M9 17.5h11"/><circle cx="4.6" cy="6.5" r="1.2"/><circle cx="4.6" cy="12" r="1.2"/><circle cx="4.6" cy="17.5" r="1.2"/>';
-const TTABS=()=>[['list','Liste',IC_LIST],['week','Semaine','<rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M3.5 10h17M8 3v4M16 3v4M7.5 14h3M13.5 14h3M7.5 17.2h3"/>'],['coach','Coach',CTABS[4][2]]];
+const TTABS=()=>[['list','Liste',IC_LIST],['week','Calendrier','<rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M3.5 10h17M8 3v4M16 3v4M7.5 14h3M13.5 14h3M7.5 17.2h3"/>'],['coach','Coach',CTABS[4][2]]];
 const BTABS=()=>[['list','Notes',IC_LIST],['map','Carte des connexions','<circle cx="6" cy="7" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="12" cy="17.5" r="2.4"/><path d="M8.2 7.9l7.5-1.4M7.2 9.1l3.7 6.3M16.9 8.1l-3.7 7.3"/>'],['coach','Coach',CTABS[4][2]]];
 const tdCur=()=>S.tdCoach?'coach':S.tdView==='week'?'week':'list',brCur=()=>S.brCoach?'coach':S.brView==='map'?'map':'list';
 const ctabsHTML=(T,act,cur,label)=>`<nav class="tabs ctabs" aria-label="${label}"><div class="in" style="grid-template-columns:repeat(${T.length},1fr)!important">${T.map(([k,l,ic])=>`<button data-act="${act}" data-v="${k}" aria-label="${l}" title="${l}" aria-current="${k===cur?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg></button>`).join('')}</div></nav>`;
@@ -1496,11 +1545,11 @@ function paintTodos(){const v=$('#area'),t=TODAY();
   const done=todos().filter(x=>x.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
   const cnt=k=>open.filter(x=>todoBucket(x,t)===k).length,week=Date.now()-7*864e5;
   const cell=x=>`<div class="cell td${x.done?' done':''}" style="--pc:${PRIO_C[x.prio]||PRIO_C.moyenne}"><button type="button" class="td-check" data-act="tdToggle" data-id="${x.id}" aria-label="${x.done?'Remettre à faire':'Marquer comme faite'}">${x.done?I.check:''}</button><button type="button" class="td-body" data-act="tdEdit" data-id="${x.id}"><span class="td-t">${esc(x.title)}</span><span class="fn">${[x.due?whenDay(x.due)+(x.time?' à '+esc(x.time):''):null,x.rep?'↻ '+REP_SHORT[x.rep]:null,x.cat&&esc(x.cat),x.note?'note':null].filter(Boolean).join(' · ')||'Sans échéance'}</span></button></div>`;
-  if(S.tdView==='week'){const days=next7(),late=open.filter(x=>x.due&&x.due<t).length;
+  if(S.tdView==='week'){const late=open.filter(x=>x.due&&x.due<t).length;
     v.innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><h1>Tâches</h1></div>
      ${late?`<button class="cell tap td-late" data-act="tdViewList">${late} ${T('tâche'+(late>1?'s':'')+' en retard : à replanifier','overdue task'+(late>1?'s':'')+': reschedule')}</button>`:''}
-     <div class="wk wk-page">${weekView(days,weekBlocks(days,todos()))}</div>
-     <p class="sec-f">${T('Tâches avec une heure et une durée = créneaux. Demande au coach (ou à Luck) « organise ma semaine » pour les placer.','Tasks with a time and duration = time slots. Ask the coach (or Luck) “organise my week” to place them.')}</p></div>${bar}`;return}
+     ${(()=>{const ds=calDays();return calView(calItems(ds[0],ds[ds.length-1],'taches'),{where:'td',focus:1})})()}
+     <p class="sec-f">${T('Donne une heure et une durée à tes tâches pour les voir en créneaux. Demande au coach (ou à Luck) « organise ma semaine » pour les placer.','Give tasks a time and duration to see them as slots. Ask the coach (or Luck) “organise my week” to place them.')}</p></div>${bar}`;return}
   v.innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><h1>Tâches</h1></div>
    <div class="kpis tilesrow"><div><span class="v">${cnt('late')}</span><span class="k">en retard</span></div><div><span class="v">${cnt('today')}</span><span class="k">aujourd’hui</span></div><div><span class="v">${cnt('tomorrow')+cnt('week')}</span><span class="k">7 jours</span></div><div><span class="v">${done.filter(x=>(x.doneAt||0)>=week).length+sum(todos().map(x=>(x.hist||[]).filter(h=>h>=week).length))}</span><span class="k">faites 7 j</span></div></div>
    ${sec('',addCell('Nouvelle tâche','tdNew'))}
@@ -1527,7 +1576,7 @@ function tdSheet(x){const isNew=!x;x=x||{title:'',due:'',time:'',prio:'moyenne',
 function todoSubmit(f,v){let x=todos().find(y=>y.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid(),created:Date.now(),done:false};todos().push(x)}
   Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),due:v.due||'',time:v.time||'',dur:+v.dur||null,prio:v.prio||'moyenne',rep:v.rep||'',cat:(v.catSel==='__new'?v.catNew||'':v.catSel||'').trim(),note:(v.note||'').trim()});
   if(x.rep){if(!x.due)x.due=TODAY();x.dom=+x.due.slice(8)}else delete x.dom;
-  save();closeSheet();paintTodos();haptic();hud(isNew?'Tâche ajoutée':'Tâche enregistrée')}
+  save();closeSheet();paintTodos();if(!$('#home').hidden)paintAgenda();haptic();hud(isNew?'Tâche ajoutée':'Tâche enregistrée')}
 function todoAct(act,id,el){const x=todos().find(y=>y.id===id);
   switch(act){
    case 'tdNew':tdSheet();break;
@@ -2024,10 +2073,13 @@ function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntri
   out.forEach(o=>o.c=C[o.area]||o.c);
   out.forEach(o=>{if(o.area==='gcal')o.c='#4285F4'});const kept=out.filter(o=>o.area==='gcal'||areaOn(o.area));out.length=0;out.push(...kept);
   return {today:out.filter(o=>o.day===t).sort((a,b)=>rank(a).localeCompare(rank(b))),soon:out.filter(o=>o.day>t).sort((a,b)=>(a.day+(a.time||'99')).localeCompare(b.day+(b.time||'99')))}}
-function paintAgenda(){const el=$('#agenda');if(!el)return;const {today,soon}=agendaItems(),t=TODAY();
+function paintAgenda(){const el=$('#agenda');if(!el)return;
+  const sw=`<div class="cal-sw">${[['list',T('Liste','List')],['cal',T('Calendrier','Calendar')]].map(([k,l])=>`<button type="button" data-act="homeView" data-v="${k}" aria-pressed="${(S.homeView==='cal')===(k==='cal')}">${l}</button>`).join('')}</div>`;
+  if(S.homeView==='cal'){const ds=calDays();el.innerHTML=sw+calView(calItems(ds[0],ds[ds.length-1]),{where:'home'});return}
+  const {today,soon}=agendaItems(),t=TODAY();
   const row=o=>`<div class="cell ag" style="--c:${o.c};--pc:${o.todo?PRIO_C[o.todo.prio]||PRIO_C.moyenne:o.c}">${o.todo?`<button type="button" class="td-check" data-act="tdToggle" data-id="${o.id}" aria-label="Marquer comme faite"></button>`:'<span class="ag-dot"></span>'}
     <button type="button" class="ag-body" data-act="${o.act}" ${o.id?`data-id="${o.id}"`:''}><span class="ag-t${o.todo||o.user?' no-tr':''}">${o.title}</span><span class="fn">${[o.time?esc(o.time):null,o.meta||null].filter(Boolean).join(' · ')}</span></button>${o.late?'<span class="pill late">En retard</span>':''}</div>`;
-  el.innerHTML=`<section class="sec"><div class="sec-h">Aujourd’hui${today.length?` · ${today.length}`:''}</div><div class="group">${today.length?today.map(row).join(''):`<div class="cell"><span class="body fn">Rien de prévu aujourd’hui. Profite !</span></div>`}</div></section>
+  el.innerHTML=sw+`<section class="sec"><div class="sec-h">Aujourd’hui${today.length?` · ${today.length}`:''}</div><div class="group">${today.length?today.map(row).join(''):`<div class="cell"><span class="body fn">Rien de prévu aujourd’hui. Profite !</span></div>`}</div></section>
    ${[...new Set(soon.map(o=>o.day))].map(d=>{const xs=soon.filter(o=>o.day===d);return `<section class="sec"><div class="sec-h">${esc(whenDay(d))} · ${xs.length}</div><div class="group">${xs.map(row).join('')}</div></section>`}).join('')}`}
 /* ================= accueil : cercles des aspects de vie ================= */
 const AREAS=[
