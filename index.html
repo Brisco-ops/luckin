@@ -881,10 +881,16 @@ const setTxt=s=>s.secs!=null?`${s.secs} s${s.load?' · '+fmt(s.load)+' kg':''}`:
 const e1rm=(l,r)=>l&&r?l*(1+r/30):null;
 const hasSugar=d=>{const D=peekDay(d);return D.meals.some(m=>m.sugar)||!!D.evening?.sugarExtra};
 const sugarFree=d=>eveningDone(d)&&!hasSugar(d);
-function sugarStreak(){const t=TODAY();if(hasSugar(t))return 0;let d=eveningDone(t)?t:addDays(t,-1);let n=0;while(sugarFree(d)&&n<9999){n++;d=addDays(d,-1)}return n}
+/* séries avec joker : 1 jour non rempli par semaine (lundi-dimanche) ne casse pas la série, jamais deux jours manqués de suite.
+   ok(d) = jour réussi ; miss(d) = jour simplement non rempli (rattrapable). Le jour du joker ne s'ajoute pas au compteur. */
+function runStreak(ok,miss){const t=TODAY();let d=ok(t)?t:addDays(t,-1),n=0,prev=false;const used=new Set();
+  for(let k=0;k<9999;k++){if(ok(d)){n++;prev=false}else{const w=weekStart(d);if(!miss(d)||prev||used.has(w))break;used.add(w);prev=true}d=addDays(d,-1)}
+  return n}
+const jokerWeek=()=>{const ws=weekStart(TODAY());for(let d=ws;d<TODAY();d=addDays(d,1))if(!morningDone(d)&&!eveningDone(d))return d;return null};
+function sugarStreak(){const t=TODAY();if(hasSugar(t))return 0;return runStreak(sugarFree,d=>!hasSugar(d)&&!eveningDone(d))}
 function sugarBest(){const ds=Object.keys(db.days).sort();if(!ds.length)return 0;let best=0,cur=0,d=ds[0];const end=TODAY();while(d<=end){if(sugarFree(d)){cur++;best=Math.max(best,cur)}else if(d!==end)cur=0;d=addDays(d,1)}return best}
 const FLAME='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.5 2c.4 3-1.3 4.8-2.8 6.4C8.1 10.1 6.5 11.8 6.5 14.6 6.5 18.7 9 22 12.6 22c3.7 0 6-2.8 6-6.6 0-2.9-1.4-4.7-2.5-6-.2 1.5-.8 2.6-1.8 3.2.3-3.6-.4-7.6-1.8-10.6Z"/></svg>';
-function streak(){let d=TODAY();if(!morningDone(d)&&!eveningDone(d))d=addDays(d,-1);let n=0;while((morningDone(d)||eveningDone(d))&&n<999){n++;d=addDays(d,-1)}return n}
+function streak(){return runStreak(d=>morningDone(d)||eveningDone(d),()=>true)}
 function weekStats(ref){
   const ws=weekStart(ref),days=Array.from({length:7},(_,k)=>addDays(ws,k)).filter(d=>d<=TODAY());
   const meals=days.flatMap(d=>peekDay(d).meals);
@@ -1392,7 +1398,7 @@ document.addEventListener('click',ev=>{
   if(act==='agWorkout'){S.tab='workout';openArea('forme');return}
   if(jobAct(act,id,el)||todoAct(act,id,el)||brainAct(act,id,el)){if(!$('#home').hidden)paintAgenda();return} /* actions des sections Carrière et Tâches */
   switch(act){
-   case 'sugarInfo':{const n=sugarStreak(),b=sugarBest();asheet(`Série sans sucre ajouté : ${n} jour${n>1?'s':''} · record ${b} jour${b>1?'s':''}. Une journée compte une fois la fiche du soir validée sans sucre ajouté (repas et hors repas).`,[{label:'Ouvrir la fiche du soir',act:'evening'}]);break}
+   case 'sugarInfo':{const n=sugarStreak(),b=Math.max(n,sugarBest()),j=jokerWeek();asheet(`Série sans sucre ajouté : ${n} jour${n>1?'s':''} · record ${b} jour${b>1?'s':''}. Une journée compte une fois la fiche du soir complète, sans sucre ajouté. Joker : 1 jour non rempli par semaine ne casse pas la série${j?` (utilisé cette semaine : ${fday(j)})`:' (disponible cette semaine)'}.`,[{label:'Ouvrir la fiche du soir',act:'evening'}]);break}
    case 'morning':morningSheet();break;
    case 'mealPhotoAgain':mealAnalyze();break;
    case 'bibleStart':{unlockAudio();const mn=Math.max(1,+st().reading?.min||10);db.reading={end:Date.now()+mn*60000,total:mn*60,fired:false};save();const go=()=>{closeSheet(true);paintReading()};if(document.querySelector('#bloom'))bloomFrom(el.querySelector('.ico')||el,'#A2845E',go);else go();try{if('wakeLock' in navigator&&!wakeLock)navigator.wakeLock.request('screen').then(w=>{wakeLock=w}).catch(()=>{})}catch(e){}break}
