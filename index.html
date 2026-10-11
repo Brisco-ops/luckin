@@ -810,6 +810,24 @@ a.cell{text-decoration:none}
 .td{align-items:center}
 .kpis .k{overflow:hidden;text-overflow:ellipsis}
 #sf textarea,#sf input{max-width:100%;box-sizing:border-box}
+/* Vue semaine par jour et par heure */
+.wk{display:flex;flex-direction:column;gap:10px;margin:8px 0}
+.wk-day{background:var(--card);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.wk-page .wk-day{background:var(--glass);border:1px solid var(--glass-line)}
+.wk-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.wk-h b{font:600 15px var(--display);text-transform:capitalize}.wk-h span{font-size:12px;color:var(--label2)}
+.wk-strip{position:relative;height:10px;border-radius:5px;background:var(--fill);overflow:hidden}
+.wk-strip i{position:absolute;top:0;bottom:0;border-radius:3px}
+.wk-hours{display:flex;justify-content:space-between;font-size:10px;color:var(--label3);margin-top:-2px}
+.wk-row{display:grid;grid-template-columns:86px 4px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:14px;min-height:22px}
+.wk-t{font-variant-numeric:tabular-nums;color:var(--label2);font-size:13px;white-space:nowrap}
+.wk-bar{width:4px;height:100%;min-height:18px;border-radius:2px}
+.wk-x{overflow-wrap:anywhere;line-height:1.3}
+.wk-fixed .wk-x{color:var(--label2)}
+.wk-new .wk-x,.wk-moved .wk-x{font-weight:600}
+.wk-row .pill{font-size:11px;padding:2px 7px}
+.wk-free{font-size:12px;color:var(--label3);margin-top:2px}
+.pl-det summary{cursor:pointer;color:var(--label2);font-size:13px;margin:6px 0}
+.td-late{color:var(--orange)!important;font-weight:600}
 </style>
 
 </head><body>
@@ -828,7 +846,7 @@ a.cell{text-decoration:none}
   <button data-view="settings" aria-label="Réglages Forme" title="Réglages Forme"><svg class="o" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8l1.6 2.4 2.8-.7.7 2.8 2.4 1.6-1.3 2.6 1.3 2.6-2.4 1.6-.7 2.8-2.8-.7L12 21.2l-1.6-2.4-2.8.7-.7-2.8-2.4-1.6L5.8 12 4.5 9.5l2.4-1.6.7-2.8 2.8.7Z"/></svg><svg class="f" viewBox="0 0 24 24"><path class="fill" d="M12 2.8l1.6 2.4 2.8-.7.7 2.8 2.4 1.6-1.3 2.6 1.3 2.6-2.4 1.6-.7 2.8-2.8-.7L12 21.2l-1.6-2.4-2.8.7-.7-2.8-2.4-1.6L5.8 12 4.5 9.5l2.4-1.6.7-2.8 2.8.7Z"/><circle cx="12" cy="12" r="3.2" fill="var(--pill-bg,#fff)" stroke="none"/></svg></button>
 </div></nav>
 <div id="layer"></div>
-<section id="home" aria-label="Accueil"><button type="button" class="h-me" data-act="openPrefs" aria-label="Réglages" id="hMe"></button><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote" id="hQuote" hidden></blockquote></div><button type="button" class="h-coach" data-act="openCoach"><span class="hc-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z"/></svg></span><span class="hc-txt"><b>Ton coach</b><span id="hcSub">Il voit tout, anticipe et s’appuie sur tes coachs spécialisés</span></span></button><div id="agenda"></div><div id="friends"></div><nav class="hbar" id="orbit" aria-label="Sections"></nav></section>
+<section id="home" aria-label="Accueil"><button type="button" class="h-me" data-act="openPrefs" aria-label="Réglages" id="hMe"></button><div class="h-top"><span class="h-date" id="hDate"></span><span class="h-name" id="hName"></span><blockquote class="h-quote" id="hQuote" hidden></blockquote></div><button type="button" class="h-coach" data-act="openCoach"><span class="hc-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8c4.8 0 8.6 3.2 8.6 7.2s-3.8 7.2-8.6 7.2c-1 0-2-.1-2.9-.4L4.6 19.6l1.3-3.7C4.3 14.6 3.4 12.9 3.4 11c0-4 3.8-7.2 8.6-7.2Z"/></svg></span><span class="hc-txt"><b>Luck</b><span id="hcSub">Ton coach : il voit tout, anticipe et s’appuie sur tes coachs spécialisés</span></span></button><div id="agenda"></div><div id="friends"></div><nav class="hbar" id="orbit" aria-label="Sections"></nav></section>
 <section id="area" hidden></section>
 <div id="bloom" hidden></div>
 
@@ -846,7 +864,7 @@ const LOC=LANG==='en'?'en-GB':'fr-FR';
 const T=(fr,en)=>LANG==='en'?en:fr;
 const EN=new Map(Object.entries({
  // accueil, barre, sections
- 'Accueil':'Home','Bonjour':'Hello','Ton coach':'Your coach','Il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Sees everything, plans ahead and relies on your specialist coaches',
+ 'Accueil':'Home','Bonjour':'Hello','Ton coach':'Your coach','Il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Sees everything, plans ahead and relies on your specialist coaches','Ton coach : il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Your coach: sees everything, plans ahead and relies on your specialist coaches','Luck, ton coach':'Luck, your coach','Dans la journée':'During the day','nouveau':'new','déplacé':'moved','Liste':'List','Semaine':'Week','Durée estimée':'Estimated time','Aperçu de ta semaine':'Your week at a glance',
  'Aujourd’hui':'Today','Demain':'Tomorrow','Rien de prévu aujourd’hui. Profite !':'Nothing planned today. Enjoy!','En retard':'Overdue','Marquer comme faite':'Mark as done',
  'Forme':'Fitness','Carrière':'Career','Tâches':'Tasks','Finances':'Finances','Savoir':'Knowledge','Apprentissage':'Learning',
  'Sport, nutrition, sommeil':'Sport, nutrition, sleep','Candidatures, entretiens, réseau':'Applications, interviews, network','To-do, échéances, priorités':'To-dos, deadlines, priorities','Budget, épargne, placements':'Budget, savings, investments','Notes, apprentissage, deuxième cerveau':'Notes, learning, second brain',
@@ -1374,7 +1392,7 @@ async function send(text){
    Le coach central voit un résumé de tout ; avec la clé API, il interroge les spécialistes via l'outil consulter_coach. */
 const COACH_DOMS={forme:'Forme',carriere:'Carrière',taches:'Tâches',finances:'Finances',savoir:'Savoir'};
 const COACH={
- central:{name:'Coach',color:'#2B3FC4',hello:n=>T(`Salut ${n}. Je vois l’ensemble de ta vie dans Luck’In : forme, carrière, tâches, finances et savoir. Je travaille avec un coach spécialisé pour chaque domaine. Que veux-tu regarder ?`,`Hi ${n}. I see your whole life in Luck’In: fitness, career, tasks, money and knowledge. I work with a specialist coach for each area. What would you like to look at?`),
+ central:{name:'Luck',color:'#2B3FC4',hello:n=>T(`Salut ${n}, moi c’est Luck. Je vois l’ensemble de ta vie dans Luck’In : forme, carrière, tâches, finances et savoir. Je travaille avec un coach spécialisé pour chaque domaine. Que veux-tu regarder ?`,`Hi ${n}, I’m Luck. I see your whole life in Luck’In: fitness, career, tasks, money and knowledge. I work with a specialist coach for each area. What would you like to look at?`),
   starters:T(['Fais-moi le point de ma journée et de ma semaine.','Qu’est-ce que je risque d’oublier dans les 7 prochains jours ?','Quelles sont mes 3 priorités cette semaine, tous domaines confondus ?','Aide-moi à organiser ma journée de demain.'],['Give me an overview of my day and my week.','What might I forget in the next 7 days?','What are my 3 priorities this week, across all areas?','Help me organise tomorrow.'])},
  carriere:{name:'Coach Carrière',hello:n=>T(`Salut ${n}. Je connais tes candidatures, tes événements et tes contacts. On regarde quoi ?`,`Hi ${n}. I know your applications, events and contacts. What shall we look at?`),
   starters:T(['Analyse mes candidatures : qu’est-ce qui bloque ?','Qui dois-je relancer ou recontacter cette semaine ?','Prépare-moi pour mon prochain entretien.','Quelles questions poser à mon prochain événement ?'],['Analyse my applications: what is holding me back?','Who should I follow up with or contact this week?','Prepare me for my next interview.','What questions should I ask at my next event?'])},
@@ -1386,7 +1404,7 @@ const COACH={
   starters:T(['Résume ce que j’ai appris récemment.','Quelles notes devrais-je relier entre elles ?','Quelles notes sont isolées ou à compléter ?','Pose-moi 5 questions pour réviser mes notes.'],['Summarise what I learned recently.','Which notes should I link together?','Which notes are isolated or incomplete?','Ask me 5 questions to review my notes.'])}};
 /* consignes d'expert de chaque coach (le coach Forme a les siennes dans rules()) */
 const ROLE={
- central:`Tu es le coach principal de Luck’In, l’app où ${'${name}'} pilote sa vie. Tu es un chef d’orchestre : tu supervises 5 coachs spécialisés — Forme (sport, nutrition, sommeil), Carrière (candidatures, entretiens, événements, réseau), Tâches (organisation), Finances (budget, épargne, placements) et Savoir (deuxième cerveau).
+ central:`Tu t’appelles Luck : tu es le coach principal de Luck’In, l’app où ${'${name}'} pilote sa vie. Tu es un chef d’orchestre : tu supervises 5 coachs spécialisés — Forme (sport, nutrition, sommeil), Carrière (candidatures, entretiens, événements, réseau), Tâches (organisation), Finances (budget, épargne, placements) et Savoir (deuxième cerveau).
 Ta valeur ajoutée, c’est la vue d’ensemble :
 - Anticiper : échéances des 7 prochains jours, oublis probables, retards qui s’accumulent, rituels non faits.
 - Arbitrer entre domaines : charge de la semaine (entretien + séance + échéance le même jour), énergie et sommeil avant un moment important, dépense importante avant la paie, temps d’étude vs recherche d’emploi.
@@ -1433,8 +1451,8 @@ const PROF={
 const PLAN_NOTE=`
 
 Réorganiser l’emploi du temps : si l’utilisateur te demande d’organiser, planifier ou réorganiser (sa journée, sa semaine, ses tâches), propose un planning réaliste (tâches majeures sur ses créneaux d’énergie, marges, en tenant compte des séances, entretiens, événements et échéances), explique-le brièvement, puis termine ton message par UN SEUL bloc :
-<planning>{"changes":[{"id":"…","due":"AAAA-MM-JJ","time":"HH:MM","prio":"haute|moyenne|basse"}],"new":[{"title":"…","due":"AAAA-MM-JJ","time":"HH:MM","prio":"moyenne","cat":"…"}],"remove":["id"]}</planning>
-JSON valide uniquement. « changes » : seulement les tâches existantes à modifier, avec leur id exact (n’invente jamais d’id), et seulement les champs qui changent (time vide "" pour retirer l’heure). « new » : tâches ou créneaux à créer (ex. étapes d’une grosse tâche, « Préparer l’entretien »). « remove » : seulement si l’utilisateur l’accepte ou si c’est un doublon évident. L’utilisateur verra le détail et appliquera d’un bouton ; ne mets pas de bloc si on ne te demande pas de planifier.`;
+<planning>{"changes":[{"id":"…","due":"AAAA-MM-JJ","time":"HH:MM","dur":60,"prio":"haute|moyenne|basse"}],"new":[{"title":"…","due":"AAAA-MM-JJ","time":"HH:MM","dur":45,"prio":"moyenne","cat":"…"}],"remove":["id"]}</planning>
+Découpe le travail en créneaux réalistes : donne à chaque tâche planifiée une heure (« time ») et une durée estimée en minutes (« dur »), sans chevaucher les rendez-vous fixes ni dépasser les horaires de l’utilisateur ; l’utilisateur verra sa semaine heure par heure. JSON valide uniquement. « changes » : seulement les tâches existantes à modifier, avec leur id exact (n’invente jamais d’id), et seulement les champs qui changent (time vide "" pour retirer l’heure). « new » : tâches ou créneaux à créer (ex. étapes d’une grosse tâche, « Préparer l’entretien »). « remove » : seulement si l’utilisateur l’accepte ou si c’est un doublon évident. L’utilisateur verra le détail et appliquera d’un bouton ; ne mets pas de bloc si on ne te demande pas de planifier.`;
 const prof=d=>(st().prof||{})[d]||{};
 const profFilled=d=>PROF[d].f.filter(([k])=>String(prof(d)[k]||'').trim()).length;
 function profText(d){const P=prof(d),r=PROF[d].f.filter(([k])=>String(P[k]||'').trim()).map(([k,l])=>`- ${l} : ${String(P[k]).trim().slice(0,k==='cv'?4000:600)}`);return r.length?r.join('\n'):'(non renseigné : si une information importante manque, pose une question et propose de compléter le profil du coach)'}
@@ -1565,7 +1583,7 @@ function coachPage(d,o={}){const k=COACH[d],c=chatOf(d),b=backend();
   return `${head}${profCell}<div class="cc-msgs">${c.length?'':`<div class="msg a">${md(k.hello(st().name))}</div><div class="chips">${k.starters.map(x=>`<button class="chip-s" data-act="ccStarter" data-dom="${d}">${esc(x)}</button>`).join('')}</div>`}
    ${items}<div id="cclive"${CC.busy&&CC.dom===d?'':' hidden'}>${CC.busy&&CC.dom===d?ccLiveHTML():''}</div>
    ${c.length&&!CC.busy?`<button class="note link" data-act="ccNew" data-dom="${d}" style="margin-top:6px">Nouvelle conversation</button>`:''}</div>
-   <div class="composer cc-comp${o.tabs?' with-tabs':''}"><div class="in"><textarea id="ccin" rows="1" placeholder="Écris à ${esc(k.name.toLowerCase().replace('coach','ton coach'))}…" aria-label="Message"></textarea>
+   <div class="composer cc-comp${o.tabs?' with-tabs':''}"><div class="in"><textarea id="ccin" rows="1" placeholder="${d==='central'?T('Écris à Luck…','Write to Luck…'):'Écris à '+esc(k.name.toLowerCase().replace('coach','ton coach'))+'…'}" aria-label="Message"></textarea>
    <button class="send" data-act="${CC.busy?'ccStop':'ccSend'}" data-dom="${d}" aria-label="${CC.busy?'Arrêter':'Envoyer'}">${CC.busy?I.stop:I.up}</button></div></div>`}
 function splitPlan(t){const i=t.indexOf('<planning>');if(i<0)return {text:t,plan:null,pending:false};const j=t.indexOf('</planning>',i);
   if(j<0)return {text:t.slice(0,i).trim(),plan:null,pending:true};let plan=null;
@@ -1574,22 +1592,46 @@ function splitPlan(t){const i=t.indexOf('<planning>');if(i<0)return {text:t,plan
 const PDATE=/^\d{4}-\d{2}-\d{2}$/,PTIME=/^([01]\d|2[0-3]):[0-5]\d$/;
 /* ne garde que ce qui est applicable (ids existants, dates et heures valides) */
 function cleanPlan(p){if(!p||p==='bad')return null;const T=todos(),byId=new Map(T.map(x=>[x.id,x])),pr=x=>['haute','moyenne','basse'].includes(x)?x:null;
-  const changes=(p.changes||[]).map(c=>{const x=byId.get(c.id);if(!x||x.done)return null;const o={id:c.id};if(PDATE.test(c.due||''))o.due=c.due;if(c.time===''||PTIME.test(c.time||''))o.time=c.time;if(pr(c.prio))o.prio=c.prio;
-    return (o.due&&o.due!==x.due)||(o.time!=null&&o.time!==(x.time||''))||(o.prio&&o.prio!==x.prio)?o:null}).filter(Boolean);
-  const add=(p.new||[]).filter(n=>n&&String(n.title||'').trim()).map(n=>({title:String(n.title).trim().slice(0,140),due:PDATE.test(n.due||'')?n.due:'',time:PTIME.test(n.time||'')?n.time:'',prio:pr(n.prio)||'moyenne',cat:String(n.cat||'').trim().slice(0,30)}));
+  const du=m=>Number.isFinite(+m)&&+m>=5&&+m<=600?Math.round(+m):null;
+  const changes=(p.changes||[]).map(c=>{const x=byId.get(c.id);if(!x||x.done)return null;const o={id:c.id};if(PDATE.test(c.due||''))o.due=c.due;if(c.time===''||PTIME.test(c.time||''))o.time=c.time;if(pr(c.prio))o.prio=c.prio;if(du(c.dur))o.dur=du(c.dur);
+    return (o.due&&o.due!==x.due)||(o.time!=null&&o.time!==(x.time||''))||(o.prio&&o.prio!==x.prio)||(o.dur&&o.dur!==x.dur)?o:null}).filter(Boolean);
+  const add=(p.new||[]).filter(n=>n&&String(n.title||'').trim()).map(n=>({title:String(n.title).trim().slice(0,140),due:PDATE.test(n.due||'')?n.due:'',time:PTIME.test(n.time||'')?n.time:'',prio:pr(n.prio)||'moyenne',dur:du(n.dur),cat:String(n.cat||'').trim().slice(0,30)}));
   const remove=(p.remove||[]).filter(id=>byId.has(id)&&!byId.get(id).done);
   return changes.length||add.length||remove.length?{changes,add,remove}:null}
 const pwhen=(d,t)=>d?(whenDay(d)+(t?' '+t:'')):(t||'sans échéance');
+/* ---------- vue de la semaine par jour et par heure (tâches, agenda, Carrière, séances) ---------- */
+const WK_H0=7,WK_H1=22,toMinS=t=>{const m=String(t||'').match(/^(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:null},minHM=m=>String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+function weekBlocks(days,todoList,marks){const map=new Map(days.map(d=>[d,[]])),put=(d,o)=>{if(map.has(d))map.get(d).push(o)};
+  todoList.filter(x=>!x.done&&x.due).forEach(x=>{const s=toMinS(x.time);put(x.due,{s,e:s!=null?s+(x.dur||30):null,title:x.title,c:PRIO_C[x.prio]||PRIO_C.moyenne,mark:marks?.get(x.id)||'',dur:x.dur})});
+  gcalItems(days[0],days[days.length-1]).forEach(x=>{const s=toMinS(x.time);put(x.d,{s,e:toMinS(x.end)||(s!=null?s+60:null),title:x.title,c:'#4285F4',fixed:1})});
+  if(areaOn('carriere')){jobs().filter(jobOpen).forEach(j=>(j.interviews||[]).forEach(i=>{const s=toMinS(i.time);put(i.date,{s,e:s!=null?s+60:null,title:T('Entretien · ','Interview · ')+j.company,c:'#3E6FD8',fixed:1})}));
+    events().forEach(e=>{const s=toMinS(e.time);put(e.date,{s,e:s!=null?s+120:null,title:e.title,c:'#3E6FD8',fixed:1})})}
+  if(areaOn('forme'))days.forEach(d=>{if(isTrainingDay(d))put(d,{s:null,title:T('Séance','Workout'),c:'#F2994A',fixed:1})});
+  return map}
+const durTxt=m=>m>=60?Math.floor(m/60)+' h'+(m%60?' '+String(m%60).padStart(2,'0'):''):m+' min';
+function weekView(days,map){return days.map(d=>{const xs=map.get(d)||[],timed=xs.filter(o=>o.s!=null).sort((a,b)=>a.s-b.s),free=xs.filter(o=>o.s==null),span=(WK_H1-WK_H0)*60;
+  const busy=sum(timed.filter(o=>!o.fixed).map(o=>Math.max(0,(o.e??o.s+30)-o.s)));
+  const mk=o=>o.mark==='new'?`<span class="pill ok">${T('nouveau','new')}</span>`:o.mark==='moved'?`<span class="pill tint">${T('déplacé','moved')}</span>`:'';
+  const row=o=>`<div class="wk-row${o.mark?' wk-'+o.mark:''}${o.fixed?' wk-fixed':''}"><span class="wk-t">${o.s!=null?minHM(o.s)+(o.e?'–'+minHM(o.e):''):''}</span><span class="wk-bar" style="background:${o.c}"></span><span class="wk-x no-tr">${esc(o.title)}</span>${mk(o)}</div>`;
+  return `<div class="wk-day"><div class="wk-h"><b>${esc(whenDay(d))}</b>${busy?`<span>${durTxt(busy)} ${T('de tâches','of tasks')}</span>`:''}</div>
+   ${timed.length?`<div class="wk-strip">${timed.map(o=>{const a=Math.max(WK_H0*60,o.s),b=Math.min(WK_H1*60,o.e??o.s+30);return b>a?`<i style="left:${((a-WK_H0*60)/span*100).toFixed(1)}%;width:${Math.max(1.5,(b-a)/span*100).toFixed(1)}%;background:${o.c}"></i>`:''}).join('')}</div><div class="wk-hours"><span>${WK_H0}h</span><span>12h</span><span>17h</span><span>${WK_H1}h</span></div>`:''}
+   ${timed.map(row).join('')}${free.length?`<div class="wk-free">${T('Dans la journée','During the day')}</div>${free.map(row).join('')}`:''}${!xs.length?`<div class="wk-free">${T('Rien de prévu','Nothing planned')}</div>`:''}</div>`}).join('')}
+const next7=()=>Array.from({length:7},(_,k)=>addDays(TODAY(),k));
 function planCard(raw,d,idx,applied){if(raw==='bad')return `<div class="note">Le planning proposé est illisible. Demande au coach de le renvoyer.</div>`;
-  const p=cleanPlan(raw);if(!p)return applied?'':`<div class="note">Rien à appliquer dans ce planning (tâches introuvables ou déjà à jour).</div>`;const T=new Map(todos().map(x=>[x.id,x]));
-  const rows=[...p.changes.map(c=>{const x=T.get(c.id),moved=(c.due&&c.due!==x.due)||(c.time!=null&&c.time!==(x.time||'')),pri=c.prio&&c.prio!==x.prio;
+  const p=cleanPlan(raw);if(!p)return applied?'':`<div class="note">Rien à appliquer dans ce planning (tâches introuvables ou déjà à jour).</div>`;const TM=new Map(todos().map(x=>[x.id,x]));
+  /* semaine telle qu'elle sera après application */
+  const marks=new Map(),virt=todos().filter(x=>!p.remove.includes(x.id)).map(x=>{const c=p.changes.find(y=>y.id===x.id);if(!c)return x;if((c.due&&c.due!==x.due)||(c.time!=null&&c.time!==(x.time||'')))marks.set(x.id,'moved');return Object.assign({},x,c)});
+  p.add.forEach((n,k)=>{virt.push(Object.assign({id:'nv'+k,done:false},n));marks.set('nv'+k,'new')});
+  const last=[...p.changes.map(c=>c.due),...p.add.map(n=>n.due)].filter(Boolean).sort().pop()||TODAY(),nd=Math.min(14,Math.max(7,diff(TODAY(),last)+1)),days=Array.from({length:nd},(_,k)=>addDays(TODAY(),k));
+  const daysShown=applied?[]:days.filter(d=>{const xs=weekBlocks([d],virt,marks).get(d);return xs.some(o=>!o.fixed)||xs.some(o=>o.s!=null)});
+  const rows=[...p.changes.map(c=>{const x=TM.get(c.id),moved=(c.due&&c.due!==x.due)||(c.time!=null&&c.time!==(x.time||'')),pri=c.prio&&c.prio!==x.prio;
       return `<li><b>${esc(x.title)}</b> : ${[moved?esc(pwhen(x.due,x.time))+' → '+esc(pwhen(c.due??x.due,c.time??x.time)):null,pri?'priorité '+x.prio+' → '+c.prio:null].filter(Boolean).join(' · ')}</li>`}),
     ...p.add.map(n=>`<li class="pl-add"><b>+ ${esc(n.title)}</b> : ${esc(pwhen(n.due,n.time))} · ${n.prio}</li>`),
-    ...p.remove.map(id=>`<li class="pl-rm"><b>− ${esc(T.get(id).title)}</b> : retirée</li>`)];
-  return `<div class="plan pl"><div class="ph"><b>Planning proposé</b><span class="l2" style="font-size:13px">${p.changes.length} modif. · ${p.add.length} ajout${p.add.length>1?'s':''}${p.remove.length?' · '+p.remove.length+' retrait'+(p.remove.length>1?'s':''):''}</span></div><ul>${rows.join('')}</ul>
+    ...p.remove.map(id=>`<li class="pl-rm"><b>− ${esc(TM.get(id).title)}</b> : retirée</li>`)];
+  return `<div class="plan pl"><div class="ph"><b>Planning proposé</b><span class="l2" style="font-size:13px">${p.changes.length} modif. · ${p.add.length} ajout${p.add.length>1?'s':''}${p.remove.length?' · '+p.remove.length+' retrait'+(p.remove.length>1?'s':''):''}</span></div>${daysShown.length?`<div class="wk">${weekView(daysShown,weekBlocks(daysShown,virt,marks))}</div><details class="pl-det"><summary>${T('Détail des changements','Change details')}</summary><ul>${rows.join('')}</ul></details>`:`<ul>${rows.join('')}</ul>`}
    <div class="pa">${applied?`<button class="btn-fill" disabled>Appliqué à tes tâches</button>`:`<button class="btn-fill" data-act="ccApplyPlan" data-dom="${d}" data-i="${idx}">Appliquer</button>`}</div></div>`}
 function applyPlan(raw){const p=cleanPlan(raw);if(!p)return 0;const T=new Map(todos().map(x=>[x.id,x]));
-  p.changes.forEach(c=>{const x=T.get(c.id);if(c.due)x.due=c.due;if(c.time!=null)x.time=c.time;if(c.prio)x.prio=c.prio;if(x.rep&&c.due)x.dom=+c.due.slice(8)});
+  p.changes.forEach(c=>{const x=T.get(c.id);if(c.due)x.due=c.due;if(c.time!=null)x.time=c.time;if(c.prio)x.prio=c.prio;if(c.dur)x.dur=c.dur;if(x.rep&&c.due)x.dom=+c.due.slice(8)});
   p.add.forEach(n=>todos().push(Object.assign({id:uid(),created:Date.now(),done:false,note:'Ajoutée par le coach'},n)));
   if(p.remove.length)db.todos=todos().filter(x=>!p.remove.includes(x.id));
   save();return p.changes.length+p.add.length+p.remove.length}
@@ -1951,6 +1993,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.setting){st()[t.dataset.setting]=t.checked;save();if(t.dataset.setting==='supps')render();return}
   if(t.dataset.tday!=null){const k=+t.dataset.tday;const a=new Set(st().trainingDays);t.checked?a.add(k):a.delete(k);st().trainingDays=[...a].sort();save();render();return}
   if(t.name==='evView'){S.evView=t.value;paintCareer();return}
+  if(t.name==='tdView'){S.tdView=t.value;paintTodos();return}
   if(t.name==='ctCh'){const m=t.value==='mail';const sj=$('.ct-subj');if(sj)sj.hidden=!m;const b=$('#ctgo');if(b)b.textContent=m?'Ouvrir dans Mail':'Ouvrir dans Messages';return}
   if(t.name==='brView'){S.brView=t.value;paintBrain();return}
   if(!t.closest('form')&&t.closest('.seg')){if(t.name==='coachMode'){st().coachMode=t.value;save();if(prefsOn())paintPrefs();hud('Coachs : '+(COACH_MODES.find(m=>m[0]===t.value)||[])[1])}if(t.name==='countMode'){st().countMode=t.value;save();hud(t.value==='mains'?'Portions de main activées':'Calories activées')}if(t.name==='muscleUnit'){st().muscleUnit=t.value;save()}return}
@@ -2264,7 +2307,14 @@ function paintTodos(){const v=$('#area'),t=TODAY();
   const done=todos().filter(x=>x.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
   const cnt=k=>open.filter(x=>todoBucket(x,t)===k).length,week=Date.now()-7*864e5;
   const cell=x=>`<div class="cell td${x.done?' done':''}" style="--pc:${PRIO_C[x.prio]||PRIO_C.moyenne}"><button type="button" class="td-check" data-act="tdToggle" data-id="${x.id}" aria-label="${x.done?'Remettre à faire':'Marquer comme faite'}">${x.done?I.check:''}</button><button type="button" class="td-body" data-act="tdEdit" data-id="${x.id}"><span class="td-t">${esc(x.title)}</span><span class="fn">${[x.due?whenDay(x.due)+(x.time?' à '+esc(x.time):''):null,x.rep?'↻ '+REP_SHORT[x.rep]:null,x.cat&&esc(x.cat),x.note?'note':null].filter(Boolean).join(' · ')||'Sans échéance'}</span></button></div>`;
+  if(S.tdView==='week'){const days=next7(),late=open.filter(x=>x.due&&x.due<t).length;
+    v.innerHTML=`<div class="a-in">${HOMEBTN}<button type="button" class="a-coach" data-act="tdCoach">Coach</button><div class="a-head"><h1>Tâches</h1></div>
+     <div class="ev-seg">${seg('tdView',[['list',T('Liste','List')],['week',T('Semaine','Week')]],'week')}</div>
+     ${late?`<button class="cell tap td-late" data-act="tdViewList">${late} ${T('tâche'+(late>1?'s':'')+' en retard : à replanifier','overdue task'+(late>1?'s':'')+': reschedule')}</button>`:''}
+     <div class="wk wk-page">${weekView(days,weekBlocks(days,todos()))}</div>
+     <p class="sec-f">${T('Tâches avec une heure et une durée = créneaux. Demande au coach (ou à Luck) « organise ma semaine » pour les placer.','Tasks with a time and duration = time slots. Ask the coach (or Luck) “organise my week” to place them.')}</p></div>`;return}
   v.innerHTML=`<div class="a-in">${HOMEBTN}<button type="button" class="a-coach" data-act="tdCoach">Coach</button><div class="a-head"><h1>Tâches</h1></div>
+   <div class="ev-seg">${seg('tdView',[['list',T('Liste','List')],['week',T('Semaine','Week')]],'list')}</div>
    <div class="kpis tilesrow"><div><span class="v">${cnt('late')}</span><span class="k">en retard</span></div><div><span class="v">${cnt('today')}</span><span class="k">aujourd’hui</span></div><div><span class="v">${cnt('tomorrow')+cnt('week')}</span><span class="k">7 jours</span></div><div><span class="v">${done.filter(x=>(x.doneAt||0)>=week).length+sum(todos().map(x=>(x.hist||[]).filter(h=>h>=week).length))}</span><span class="k">faites 7 j</span></div></div>
    ${sec('',addCell('Nouvelle tâche','tdNew'))}
    ${TBUCKETS.map(([k,l])=>{const xs=open.filter(x=>todoBucket(x,t)===k);return xs.length?sec(l,xs.map(cell).join('')):''}).join('')}
@@ -2280,6 +2330,7 @@ function tdSheet(x){const isNew=!x;x=x||{title:'',due:'',time:'',prio:'moyenne',
      <label class="cell field" for="tdd"><span>Échéance</span><input id="tdd" name="due" type="date" value="${x.due||''}"></label>
      <div class="cell"><div class="foods">${[[0,'Aujourd’hui'],[1,'Demain'],[7,'Dans 1 semaine'],['','Aucune']].map(([d,l])=>`<button type="button" data-act="tdQuick" data-d="${d}">${l}</button>`).join('')}</div></div>
      <label class="cell field" for="tdh"><span>Heure</span><input id="tdh" name="time" type="time" value="${x.time||''}"></label>
+     <label class="cell field" for="tdu"><span>Durée estimée</span><select id="tdu" name="dur"><option value="">—</option>${[15,30,45,60,90,120,180,240].map(m=>`<option value="${m}" ${+x.dur===m?'selected':''}>${m<60?m+' min':Math.floor(m/60)+' h'+(m%60?' '+(m%60):'')}</option>`).join('')}</select></label>
      <label class="cell field" for="tdr"><span>Répéter</span><select id="tdr" name="rep">${REPEAT.map(([k,l])=>`<option value="${k}" ${k===(x.rep||'')?'selected':''}>${l}</option>`).join('')}</select></label>
      <label class="cell field" for="tdcs"><span>Catégorie</span><select id="tdcs" name="catSel"><option value="">Aucune</option>${cats.map(c=>`<option ${c===x.cat?'selected':''}>${esc(c)}</option>`).join('')}<option value="__new">Nouvelle catégorie</option></select></label>
      <label class="cell field" for="tdcn" id="tdcnw" hidden><span>Nom</span><input id="tdcn" name="catNew" placeholder="Ex. Voyage" autocomplete="off"></label>`,'Rappel le jour de l’échéance dans le résumé de 08:00, et 15 min avant si tu indiques une heure.')}
@@ -2287,7 +2338,7 @@ function tdSheet(x){const isNew=!x;x=x||{title:'',due:'',time:'',prio:'moyenne',
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="tdAskDel" data-id="${x.id}">Supprimer la tâche</button>`)}
   </form>`)}
 function todoSubmit(f,v){let x=todos().find(y=>y.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid(),created:Date.now(),done:false};todos().push(x)}
-  Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),due:v.due||'',time:v.time||'',prio:v.prio||'moyenne',rep:v.rep||'',cat:(v.catSel==='__new'?v.catNew||'':v.catSel||'').trim(),note:(v.note||'').trim()});
+  Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),due:v.due||'',time:v.time||'',dur:+v.dur||null,prio:v.prio||'moyenne',rep:v.rep||'',cat:(v.catSel==='__new'?v.catNew||'':v.catSel||'').trim(),note:(v.note||'').trim()});
   if(x.rep){if(!x.due)x.due=TODAY();x.dom=+x.due.slice(8)}else delete x.dom;
   save();closeSheet();paintTodos();haptic();hud(isNew?'Tâche ajoutée':'Tâche enregistrée')}
 function todoAct(act,id,el){const x=todos().find(y=>y.id===id);
@@ -2297,6 +2348,7 @@ function todoAct(act,id,el){const x=todos().find(y=>y.id===id);
    case 'tdToggle':if(!x.done&&x.rep){const h=x.hist||(x.hist=[]);h.push(Date.now());if(h.length>60)h.splice(0,h.length-60);x.due=nextDue(x);save();haptic(12);paintTodos();hud('Faite · prochaine '+whenDay(x.due).toLowerCase());break}
      x.done=!x.done;x.doneAt=x.done?Date.now():null;save();haptic(x.done?12:6);paintTodos();if(x.done)hud('Bien joué !');break;
    case 'tdQuick':{const d=$('#tdd');if(d)d.value=el.dataset.d===''?'':addDays(TODAY(),+el.dataset.d);break}
+   case 'tdViewList':S.tdView='list';paintTodos();break;
    case 'tdOld':S.tdOld=!S.tdOld;paintTodos();break;
    case 'tdClear':asheet('Effacer toutes les tâches faites ?',[{label:'Effacer les tâches faites',act:'tdClearDo',danger:true}]);break;
    case 'tdClearDo':db.todos=todos().filter(y=>!y.done);S.tdOld=false;save();paintTodos();hud('Tâches faites effacées');break;
@@ -2970,7 +3022,7 @@ function paintWelcome(dir){const g=$('#gate'),{step,d}=S.ob;g.hidden=false;g.dat
    ()=>`<h1 class="g-h">C’est prêt${d.name?', '+esc(d.name):''} !</h1><p class="g-sub left">Ton app en 3 points :</p>
      <div class="ob-tour">
       <div><span class="ob-n">1</span><span><b>L’accueil</b>Ce que tu as à faire aujourd’hui et les jours suivants, toutes sections confondues.</span></div>
-      <div><span class="ob-n">2</span><span><b>Ton coach</b>Il voit tout, anticipe et peut réorganiser tes tâches. Chaque section a aussi son coach spécialisé.</span></div>
+      <div><span class="ob-n">2</span><span><b>Luck, ton coach</b>Il voit tout, anticipe et peut réorganiser tes tâches. Chaque section a aussi son coach spécialisé.</span></div>
       <div><span class="ob-n">3</span><span><b>La barre du bas</b>Tes sections. Le rond à ton initiale, en haut à droite, ouvre tes réglages.</span></div></div>${nav('C’est parti')}`][step];
   g.innerHTML=`<div class="g-in ob ${dir?'ob-'+dir:''}">${dots}${body()}</div>`;g.scrollTop=0}
 function obCollect(){const d=S.ob.d,v=id=>$('#'+id)?.value;
