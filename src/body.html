@@ -83,7 +83,7 @@ function seed(){
   let old={};try{old=JSON.parse(localStorage.getItem('cap-objectifs-v1')||'{}').settings||{}}catch(e){}
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
     countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
-    apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',career:{goal:5,relance:7}},
+    apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',coachMode:'eq',career:{goal:5,relance:7}},
     days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[],notes:[],fin:{tx:[],plans:[],goals:[],inv:[],budget:null}};
 }
 let db;
@@ -97,6 +97,7 @@ if(db.settings.onboarded==null){db.settings.onboarded=1;if(db.settings.reading==
 /* section Carrière : objectif hebdomadaire et liste des candidatures */
 if(!db.todos){db.todos=[];writeLocal()}
 /* repos lancé automatiquement : réglage absent des anciennes installations (donc éteint), on l'active une fois */
+if(db.settings.coachMode==null){db.settings.coachMode=/haiku/.test(db.settings.model||'')?'eco':/opus/.test(db.settings.model||'')?'max':'eq';writeLocal()}
 if(db.settings.strictFrom==null){db.settings.strictFrom=TODAY();writeLocal()}
 if(!db.settings.autoFix){db.settings.autoTimer=true;db.settings.autoFix=1;if(db.settings.restBetween==null)db.settings.restBetween=0;writeLocal()}
 if(!db.notes){db.notes=[];writeLocal()}
@@ -350,7 +351,7 @@ function paintPrefs(){const s=st();
   ${sec('Profil',`<label class="cell field" for="pn"><span>Prénom</span><input id="pn" data-change="name" value="${esc(s.name||'')}" autocomplete="given-name"></label>`,'Les réglages propres à une section (objectif de poids, programmes, objectif de candidatures…) restent dans la section.')}
   ${accountSec()}
   ${sec('Coach IA',`<label class="cell field" for="ak"><span>Clé API</span><input id="ak" data-change="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(s.apiKey||'')}"></label>
-     <div class="cell block"><span>Modèle</span>${seg('model',MODELS,s.model||'claude-sonnet-5-5')}</div>`,
+     <div class="cell block"><span>Coachs</span>${seg('coachMode',COACH_MODES.map(m=>[m[0],m[1]]),s.coachMode||'eq')}</div><div class="cell"><span class="body fn">${esc((COACH_MODES.find(m=>m[0]===(s.coachMode||'eq'))||COACH_MODES[1])[2])}</span></div>`,
      C.sample?'Dans l’aperçu Claude, le coach passe par ton compte Claude : la clé n’est pas nécessaire ici.':'Clé Anthropic (console.anthropic.com › API Keys), stockée uniquement sur ce téléphone. Fixe une limite de dépense mensuelle sur la console.')}
   ${sec('Données',`<button class="cell tap link" data-act="export">Exporter une sauvegarde</button>
      <button class="cell tap link" data-act="copy">Copier les données</button>
@@ -365,7 +366,21 @@ let chat=[];try{chat=JSON.parse(localStorage.getItem(CK)||'[]')}catch(e){}
 const saveChat=()=>{try{localStorage.setItem(CK,JSON.stringify(chat.slice(-40)))}catch(e){}};
 const C={busy:false,ctl:null,live:'',sample:null};
 try{window.claude?.use?.('sample').then(s=>{C.sample=s||null;if(S.tab==='coach'||S.tab==='settings')render();if(prefsOn())paintPrefs()}).catch(()=>{})}catch(e){}
-const MODELS=[['claude-haiku-4-5-20251001','Rapide'],['claude-sonnet-5-5','Équilibré'],['claude-opus-5-5','Expert']];
+/* Répartition des modèles selon le rôle (coût faible, modèle pertinent) :
+   - réponses des coachs : exécutant rapide et peu cher, qui consulte un conseiller plus fort (outil advisor) seulement pour les questions difficiles ;
+   - consultations internes du coach central vers les spécialistes : extraction factuelle, modèle le moins cher. */
+const M_HAIKU='claude-haiku-4-5',M_SONNET='claude-sonnet-5-5',M_OPUS='claude-opus-5-5';
+const COACH_MODES=[['eco','Économique','Haiku 4.5 seul : le moins cher (≈ 0,5 centime par message), pour les questions simples.'],
+ ['eq','Équilibré','Haiku 4.5 répond et consulte Opus 5.5 en conseiller seulement pour les questions difficiles (≈ 0,5 centime, ≈ 3 centimes quand il consulte).'],
+ ['max','Expert','Sonnet 5.5 répond et consulte Opus 5.5 en conseiller pour les questions difficiles (≈ 1,5 centime, ≈ 4 centimes avec conseil).']];
+function route(role){const m=st().coachMode||'eq';
+  if(role==='consult')return m==='max'?{model:M_SONNET,effort:'low'}:{model:M_HAIKU};
+  if(m==='eco')return {model:M_HAIKU};
+  if(m==='max')return {model:M_SONNET,effort:'medium',advisor:M_OPUS};
+  return {model:M_HAIKU,advisor:M_OPUS}}
+const ADVISOR_NOTE=`
+
+Tu as un outil « advisor » adossé à un modèle plus fort. Consulte-le une fois avant de répondre quand la question demande un vrai arbitrage, un plan sur plusieurs jours, l’analyse de tendances dans les données ou un conseil important ; pas pour une question simple, factuelle ou de suivi. Donne du poids à son avis, puis réponds toi-même.`;
 const backend=()=>C.sample?'claude':st().apiKey?'api':null;
 function dataContext(){
   const t=TODAY(),s=st();const lines=[];
@@ -427,16 +442,7 @@ function liveHTML(){const p=splitProg(C.live);if(!C.live)return `<div class="msg
   return (p.text?`<div class="msg a">${md(p.text)}</div>`:'')+(p.pending?`<div class="note">Préparation du programme…</div>`:'')}
 function paintLive(){const el=$('#live');if(el){el.hidden=false;el.innerHTML=liveHTML();window.scrollTo(0,document.body.scrollHeight)}}
 const errCopy={not_granted:'Accès refusé : autorise le coach à utiliser Claude pour continuer.',rate_limited:'Trop de demandes pour le moment. Réessaie dans un instant.',session_expired:'Reconnecte-toi à Claude puis réessaie.',refused:'Le coach n’a pas pu répondre à ce message. Reformule-le.',prompt_too_large:'La conversation est trop longue. Démarre une nouvelle conversation.',sampling_disabled:'Claude n’est pas disponible pour ce compte.'};
-async function callApi(turns,signal,onText){
-  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal,headers:{'content-type':'application/json','x-api-key':st().apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-    body:JSON.stringify({model:st().model||'claude-sonnet-5-5',max_tokens:6000,stream:true,system:rules(),messages:turns})});
-  if(!r.ok){let m='';try{m=(await r.json()).error?.message||''}catch(e){}throw {code:'api',message:r.status===401?'Clé API invalide. Vérifie-la dans Réglages.':r.status===429?'Limite de requêtes atteinte. Réessaie dans un instant.':/credit/i.test(m)?'Crédit API épuisé : recharge ton compte sur console.anthropic.com.':'Erreur du service ('+r.status+') '+m}}
-  const rd=r.body.getReader(),dec=new TextDecoder();let buf='',text='';
-  for(;;){const {done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});const parts=buf.split('\n');buf=parts.pop();
-    for(const ln of parts){if(!ln.startsWith('data:'))continue;let ev;try{ev=JSON.parse(ln.slice(5))}catch(e){continue}
-      if(ev.type==='content_block_delta'&&ev.delta?.type==='text_delta'){text+=ev.delta.text;onText(text)}if(ev.type==='error')throw {code:'api',message:ev.error?.message||'Erreur du service'}}}
-  return text;
-}
+async function callApi(turns,signal,onText){return (await claudeCall({system:rules(),messages:turns,stream:true,onText,signal,...route('chat')})).text}
 async function send(text){
   text=text.trim();if(!text||C.busy)return;const ci=$('#cin');if(ci)ci.value='';
   chat.push({role:'user',content:text});saveChat();C.busy=true;C.live='';C.ctl=new AbortController();render();window.scrollTo(0,document.body.scrollHeight);
@@ -517,18 +523,36 @@ Données :
 ${CTX[d]()}`}
 const CONSULT_TOOL={name:'consulter_coach',description:'Pose une question précise à un coach spécialisé de Luck’In. Il a accès au détail complet de son domaine (toutes les données) et te répond pour que tu fasses la synthèse.',strict:true,
   input_schema:{type:'object',additionalProperties:false,required:['domaine','question'],properties:{domaine:{type:'string',enum:Object.keys(COACH_DOMS)},question:{type:'string'}}}};
-async function claudeCall({system,messages,tools,stream,onText,signal,effort}){
-  const model=st().model||'claude-sonnet-5-5',fb=/^claude-(sonnet-5-5|opus-5-5|opus-5$|fable)/.test(model),haiku=/haiku/.test(model);
-  const headers={'content-type':'application/json','x-api-key':st().apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};if(fb)headers['anthropic-beta']='server-side-fallback-2026-07-01';
-  const body={model,max_tokens:8000,system,messages};if(tools)body.tools=tools;if(fb)body.fallbacks='default';if(effort&&!haiku)body.output_config={effort};if(stream)body.stream=true;
-  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal,headers,body:JSON.stringify(body)});
-  if(!r.ok){let m='';try{m=(await r.json()).error?.message||''}catch(e){}throw {code:'api',message:r.status===401?'Clé API invalide. Vérifie-la dans Réglages.':r.status===429?'Limite de requêtes atteinte. Réessaie dans un instant.':/credit/i.test(m)?'Crédit API épuisé : recharge ton compte sur console.anthropic.com.':m||'Erreur '+r.status}}
-  if(!stream){const j=await r.json();if(j.stop_reason==='refusal')throw {code:'refused'};return j}
-  const rd=r.body.getReader(),dec=new TextDecoder();let buf='',text='';
-  for(;;){const {done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});const parts=buf.split('\n');buf=parts.pop();
-    for(const ln of parts){if(!ln.startsWith('data:'))continue;let ev;try{ev=JSON.parse(ln.slice(5))}catch(e){continue}
-      if(ev.type==='content_block_delta'&&ev.delta?.type==='text_delta'){text+=ev.delta.text;onText&&onText(text)}if(ev.type==='error')throw {code:'api',message:ev.error?.message||'Erreur du service'}}}
-  return {text}}
+async function claudeCall({system,messages,tools,stream,onText,signal,effort,model,advisor}){
+  model=model||M_HAIKU;const fb=/^claude-(sonnet-5-5|opus-5-5|opus-5$|fable)/.test(model),haiku=/haiku/.test(model),betas=[];
+  tools=(tools||[]).slice();let msgs=messages;
+  if(advisor){tools.push({type:'advisor_20260301',name:'advisor',model:advisor,max_uses:1,max_tokens:1024});betas.push('advisor-tool-2026-03-01');system+=ADVISOR_NOTE;
+    /* consigne de concision pour le conseiller, ajoutée au dernier message (pas affichée) */
+    const last=msgs[msgs.length-1];if(last&&last.role==='user'&&typeof last.content==='string')msgs=[...msgs.slice(0,-1),{role:'user',content:last.content+'\n\n(Advisor : moins de 120 mots, va à l’essentiel.)'}]}
+  if(fb)betas.push('server-side-fallback-2026-07-01');
+  const headers={'content-type':'application/json','x-api-key':st().apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};if(betas.length)headers['anthropic-beta']=betas.join(',');
+  let text='',out=null;
+  for(let pass=0;pass<3;pass++){
+    const body={model,max_tokens:haiku?4096:8000,system,messages:msgs,cache_control:{type:'ephemeral'}};if(tools.length)body.tools=tools;if(fb)body.fallbacks='default';if(effort&&!haiku)body.output_config={effort};if(stream)body.stream=true;
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal,headers,body:JSON.stringify(body)});
+    if(!r.ok){let m='';try{m=(await r.json()).error?.message||''}catch(e){}throw {code:'api',message:r.status===401?'Clé API invalide. Vérifie-la dans Réglages.':r.status===429?'Limite de requêtes atteinte. Réessaie dans un instant.':/credit/i.test(m)?'Crédit API épuisé : recharge ton compte sur console.anthropic.com.':m||'Erreur '+r.status}}
+    if(!stream){out=await r.json()}
+    else{/* reconstruit les blocs du message pour pouvoir reprendre après une pause (consultation du conseiller) */
+      const rd=r.body.getReader(),dec=new TextDecoder(),blocks=[];let buf='',stop=null;
+      for(;;){const {done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});const parts=buf.split('\n');buf=parts.pop();
+        for(const ln of parts){if(!ln.startsWith('data:'))continue;let ev;try{ev=JSON.parse(ln.slice(5))}catch(e){continue}
+          if(ev.type==='content_block_start')blocks[ev.index]=JSON.parse(JSON.stringify(ev.content_block));
+          else if(ev.type==='content_block_delta'){const b=blocks[ev.index]||(blocks[ev.index]={type:'text',text:''}),d=ev.delta;
+            if(d.type==='text_delta'){b.text=(b.text||'')+d.text;text+=d.text;onText&&onText(text)}else if(d.type==='input_json_delta')b._json=(b._json||'')+d.partial_json;
+            else if(d.type==='thinking_delta')b.thinking=(b.thinking||'')+d.thinking;else if(d.type==='signature_delta')b.signature=d.signature}
+          else if(ev.type==='content_block_stop'){const b=blocks[ev.index];if(b&&b._json!=null){try{b.input=JSON.parse(b._json||'{}')}catch(e){b.input={}}delete b._json}}
+          else if(ev.type==='message_delta'&&ev.delta?.stop_reason)stop=ev.delta.stop_reason;
+          else if(ev.type==='error')throw {code:'api',message:ev.error?.message||'Erreur du service'}}}
+      out={content:blocks.filter(Boolean),stop_reason:stop}}
+    if(out.stop_reason==='refusal')throw {code:'refused'};
+    if(out.stop_reason!=='pause_turn')break;
+    msgs=[...msgs,{role:'assistant',content:out.content}]}
+  return stream?{text,content:out?.content||[]}:out}
 const textOf=j=>(j.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('').trim();
 /* historique par coach (le coach Forme garde l'historique d'origine) */
 const chats={};
@@ -537,7 +561,7 @@ function saveChatOf(d){if(d==='forme')return saveChat();try{localStorage.setItem
 const CC={busy:false,dom:null,live:'',status:'',ctl:null};
 async function askSpecialist(d,question,signal){
   if(backend()==='claude'){const r=await C.sample([{role:'user',content:systemFor(d,true)+'\n\n---\nQuestion du coach principal : '+question}],{cache:false,signal});return r.text}
-  const j=await claudeCall({system:systemFor(d,true),messages:[{role:'user',content:question}],signal,effort:'low'});return textOf(j)||'(pas de réponse)'}
+  const j=await claudeCall({system:systemFor(d,true),messages:[{role:'user',content:question}],signal,...route('consult')});return textOf(j)||'(pas de réponse)'}
 async function coachSend(d,text){text=String(text||'').trim();if(!text||CC.busy||C.busy)return;const c=chatOf(d);const ci=$('#ccin');if(ci)ci.value='';
   c.push({role:'user',content:text});saveChatOf(d);Object.assign(CC,{busy:true,dom:d,live:'',status:'',ctl:new AbortController()});coachRepaint();
   const turns=c.filter(m=>!m.err).slice(-20).map(m=>({role:m.role,content:m.content}));while(turns.length&&turns[0].role!=='user')turns.shift();
@@ -546,10 +570,10 @@ async function coachSend(d,text){text=String(text||'').trim();if(!text||CC.busy|
     if(backend()==='claude'){
       const sys=d==='central'?systemFor('central')+'\n\nDétail des domaines :\n'+Object.keys(COACH_DOMS).filter(k=>k!=='forme').map(k=>`### ${COACH_DOMS[k]}\n${CTX[k]()}`).join('\n\n')+`\n\n### Forme\n${dataContext()}`:systemFor(d);
       const r=await C.sample([{role:'user',content:sys+'\n\n---\nLa conversation commence ci-dessous.'},...turns],{cache:false,signal:CC.ctl.signal,onText:({text})=>live(text)});out=r.text}
-    else if(d!=='central'){out=(await claudeCall({system:systemFor(d),messages:turns,stream:true,onText:live,signal:CC.ctl.signal})).text}
+    else if(d!=='central'){out=(await claudeCall({system:systemFor(d),messages:turns,stream:true,onText:live,signal:CC.ctl.signal,...route('chat')})).text}
     else{let msgs=turns.slice();const sys=systemFor('central');
       for(let round=0;round<3;round++){CC.status=round?'Je fais la synthèse…':'Je regarde l’ensemble…';ccLive();
-        const j=await claudeCall({system:sys,messages:msgs,tools:[CONSULT_TOOL],signal:CC.ctl.signal});
+        const j=await claudeCall({system:sys,messages:msgs,tools:[CONSULT_TOOL],signal:CC.ctl.signal,...route('central')});if(j.stop_reason==='pause_turn'){msgs.push({role:'assistant',content:j.content});continue}
         const uses=(j.content||[]).filter(b=>b.type==='tool_use');if(!uses.length||round===2){out=textOf(j);break}
         const names=[...new Set(uses.map(u=>COACH_DOMS[u.input.domaine]||u.input.domaine))];via.push(...names);
         CC.status='Je consulte '+(names.length>1?'les coachs '+names.slice(0,-1).join(', ')+' et '+names.slice(-1):'le coach '+names[0])+'…';ccLive();
@@ -859,7 +883,7 @@ document.addEventListener('click',ev=>{
      try{navigator.clipboard.writeText(s).then(()=>hud('Données copiées'),fb)}catch(e){fb()}break}
    case 'pasteSheet':sheet('Coller une sauvegarde',`<form id="sf" data-form="paste">${sec('',`<div class="cell"><textarea name="t" rows="8" required placeholder="{…}"></textarea></div>`,'Tes données actuelles seront remplacées.')}</form>`,{save:'Importer'});break;
    case 'askReset':asheet('Effacer tout ton journal ? Exporte d’abord une sauvegarde si besoin.',[{label:'Tout effacer',act:'reset',danger:true}]);break;
-   case 'reset':{const k=st().apiKey,mo=st().model;db=seed();db.settings.apiKey=k;db.settings.model=mo;save();refreshView();hud('Journal effacé');break}
+   case 'reset':{const k=st().apiKey,mo=st().model,cm=st().coachMode;db=seed();db.settings.apiKey=k;db.settings.model=mo;db.settings.coachMode=cm;save();refreshView();hud('Journal effacé');break}
   }
 });
 document.addEventListener('input',ev=>{const t=ev.target;
@@ -883,7 +907,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.name==='evView'){S.evView=t.value;paintCareer();return}
   if(t.name==='ctCh'){const m=t.value==='mail';const sj=$('.ct-subj');if(sj)sj.hidden=!m;const b=$('#ctgo');if(b)b.textContent=m?'Ouvrir dans Mail':'Ouvrir dans Messages';return}
   if(t.name==='brView'){S.brView=t.value;paintBrain();return}
-  if(!t.closest('form')&&t.closest('.seg')){if(t.name==='model'){st().model=t.value;save();hud('Modèle mis à jour')}if(t.name==='countMode'){st().countMode=t.value;save();hud(t.value==='mains'?'Portions de main activées':'Calories activées')}if(t.name==='muscleUnit'){st().muscleUnit=t.value;save()}return}
+  if(!t.closest('form')&&t.closest('.seg')){if(t.name==='coachMode'){st().coachMode=t.value;save();if(prefsOn())paintPrefs();hud('Coachs : '+(COACH_MODES.find(m=>m[0]===t.value)||[])[1])}if(t.name==='countMode'){st().countMode=t.value;save();hud(t.value==='mains'?'Portions de main activées':'Calories activées')}if(t.name==='muscleUnit'){st().muscleUnit=t.value;save()}return}
 });
 function importJSON(s){try{const d=JSON.parse(s);if(!d.days||!d.settings)throw 0;db=d;save();closeSheet(true);render({top:true});hud('Données importées')}catch(e){hud('Ce n’est pas une sauvegarde Luck’In Forme valide')}}
 document.addEventListener('submit',()=>{if(!$('#home').hidden)setTimeout(paintAgenda,30)});
