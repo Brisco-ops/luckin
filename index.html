@@ -2117,7 +2117,7 @@ document.addEventListener('submit',ev=>{
   if(f.dataset.form==='ev'){evSubmit(f,v);return}
   if(f.dataset.form==='ct'){ctSubmit(f,v);return}
   if(f.dataset.form==='todo'){todoSubmit(f,v);return}
-  if(/^fi/.test(f.dataset.form||'')){finSubmit(f,v);return}
+  if(/^fi[A-Z]/.test(f.dataset.form||'')){finSubmit(f,v);return}
   if(f.dataset.form==='ccProf'){const d=f.dataset.dom,P={};PROF[d].f.forEach(([k])=>{const x=String(v[k]||'').trim();if(x)P[k]=x});st().prof=Object.assign({},st().prof,{[d]:P});save();closeSheet();CC.dom=d;coachRepaint();hud('Profil enregistré');return}
   if(f.dataset.form==='brNote'||f.dataset.form==='brLink'){brainSubmit(f,v);return}
   switch(f.dataset.form){
