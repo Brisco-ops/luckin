@@ -2556,7 +2556,7 @@ function fiPaySheet(){const tok=(()=>{try{return localStorage.getItem(PAYK)||''}
      :on?`<div class="cell"><span class="body fn">Activé depuis un autre appareil. Recrée un code ici si tu dois refaire le raccourci (l’ancien ne marchera plus).</span></div><button type="button" class="cell tap link" data-act="payNew">Recréer un code</button><button type="button" class="cell tap danger" data-act="payOff">Désactiver</button>`
      :`<button type="button" class="cell tap link" data-act="payNew">Créer mon code</button>`,'Ce code permet seulement d’ajouter des dépenses à ton compte. Ne le partage pas.')}
    ${sec('2. Le raccourci (une seule fois, 3 min)',`<div class="cell"><div class="pay-steps">
-     ${step(1,'Ouvre l’app <b>Raccourcis</b> › onglet <b>Automatisation</b> › <b>+</b> › <b>Transaction</b>.')}
+     ${step(1,'Ouvre l’app <b>Raccourcis</b> › onglet <b>Automatisation</b> › <b>+</b> › <b>Wallet</b> (appelé <b>Transaction</b> sur certaines versions d’iOS).')}
      ${step(2,'Choisis tes cartes (toutes les catégories), coche <b>Exécuter immédiatement</b>, puis <b>Suivant</b> › <b>Nouveau raccourci vierge</b>.')}
      ${step(3,'Ajoute l’action <b>Obtenir le contenu de l’URL</b>. Mets cette adresse :')}
      <div class="pay-code"><code class="no-tr">${FN_URL}</code><button type="button" class="link" data-act="payCopy" data-v="${FN_URL}">Copier</button></div>
