@@ -31,7 +31,7 @@ const LOC=LANG==='en'?'en-GB':'fr-FR';
 const T=(fr,en)=>LANG==='en'?en:fr;
 const EN=new Map(Object.entries({
  // accueil, barre, sections
- 'Accueil':'Home','Bonjour':'Hello','Ton coach':'Your coach','Il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Sees everything, plans ahead and relies on your specialist coaches','Ton coach : il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Your coach: sees everything, plans ahead and relies on your specialist coaches','Luck, ton coach':'Luck, your coach','Dans la journée':'During the day','nouveau':'new','déplacé':'moved','Liste':'List','Semaine':'Week','Durée estimée':'Estimated time','journée suivie':'tracked day','Ton objectif':'Your goal','Suivis en plus':'Extra tracking','Série sans sucre ajouté':'No-added-sugar streak','Case « sucre ajouté » dans les repas et le soir, flamme en haut':'“Added sugar” box in meals and evening, flame at the top','Ballonnements':'Bloating','Note de 0 à 3 par repas dans la fiche du soir':'0–3 score per meal in the evening form','Facultatif : active seulement ce que tu veux suivre.':'Optional: turn on only what you want to track.','Calendrier':'Calendar','Carte des connexions':'Connection map','Heure habituelle de séance':'Usual workout time','Heure de séance enregistrée':'Workout time saved','Heure de séance retirée':'Workout time removed','Aperçu de ta semaine':'Your week at a glance',
+ 'Accueil':'Home','Bonjour':'Hello','Ton coach':'Your coach','Il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Sees everything, plans ahead and relies on your specialist coaches','Ton coach : il voit tout, anticipe et s’appuie sur tes coachs spécialisés':'Your coach: sees everything, plans ahead and relies on your specialist coaches','Luck, ton coach':'Luck, your coach','Dans la journée':'During the day','nouveau':'new','déplacé':'moved','Liste':'List','Semaine':'Week','Durée estimée':'Estimated time','Notes du réveil':'Morning notes','Rêves, humeur, idées, intentions pour la journée…':'Dreams, mood, ideas, intentions for the day…','Se déconnecter de cet appareil ? Les données le quittent mais restent dans ton compte. Tes autres appareils restent connectés.':'Sign out of this device? Your data leaves it but stays in your account. Your other devices stay signed in.','journée suivie':'tracked day','Ton objectif':'Your goal','Suivis en plus':'Extra tracking','Série sans sucre ajouté':'No-added-sugar streak','Case « sucre ajouté » dans les repas et le soir, flamme en haut':'“Added sugar” box in meals and evening, flame at the top','Ballonnements':'Bloating','Note de 0 à 3 par repas dans la fiche du soir':'0–3 score per meal in the evening form','Facultatif : active seulement ce que tu veux suivre.':'Optional: turn on only what you want to track.','Calendrier':'Calendar','Carte des connexions':'Connection map','Heure habituelle de séance':'Usual workout time','Heure de séance enregistrée':'Workout time saved','Heure de séance retirée':'Workout time removed','Aperçu de ta semaine':'Your week at a glance',
  'Aujourd’hui':'Today','Demain':'Tomorrow','Rien de prévu aujourd’hui. Profite !':'Nothing planned today. Enjoy!','En retard':'Overdue','Marquer comme faite':'Mark as done',
  'Forme':'Fitness','Carrière':'Career','Tâches':'Tasks','Finances':'Finances','Savoir':'Knowledge','Apprentissage':'Learning',
  'Sport, nutrition, sommeil':'Sport, nutrition, sleep','Candidatures, entretiens, réseau':'Applications, interviews, network','To-do, échéances, priorités':'To-dos, deadlines, priorities','Budget, épargne, placements':'Budget, savings, investments','Notes, apprentissage, deuxième cerveau':'Notes, learning, second brain',
@@ -501,6 +501,7 @@ function dataContext(){
     if(!D.meals.length&&!D.morning&&!D.evening&&!workoutsOn(d).length)continue;
     const bl=D.meals.map(x=>x.bloat?.score||0);
     lines.push(`${d} | poids ${m.weight??'-'} | MG ${m.fat??'-'} | sommeil ${m.sleepH??'-'}h q${m.sleepQ??'-'} | ${tt.kcal??'-'} kcal | ${tt.prot??'-'} g prot | repas ${tt.n} dont hors plan ${tt.off} | séance ${workoutsOn(d).map(w=>w.name).join('+')||'-'} | pas ${e.steps??'-'} | eau ${e.water??'-'} L | énergie/faim/stress ${e.energy??'-'}/${e.hunger??'-'}/${e.stress??'-'} | ballonnement max ${bl.length?Math.max(...bl):'-'} | compléments ${suppsTaken(d).map(x=>x.name+(x.time?' '+x.time:'')).join(', ')||'-'} | bible ${m.bible?'oui':'-'} | sans sucre ajouté ${eveningDone(d)?(hasSugar(d)?'non':'oui'):'?'} | alcool ${e.alcohol??'-'}${e.pains?.length?' | douleurs '+e.pains.map(p=>p.zone+' '+p.intensity+'/10').join(', '):''}`)}
+  const mnotes=Object.keys(db.days).sort().slice(-7).filter(d=>db.days[d].morning?.note).map(d=>`${d} : ${cut(db.days[d].morning.note,200)}`);
   const meals=Object.keys(db.days).sort().slice(-5).flatMap(d=>db.days[d].meals.map(m=>`${d} ${m.type}: ${m.foods||'?'} (${m.source}, ${m.speed||'?'}${m.bloat?.score?', ballonnement '+m.bloat.score+'/3':''})`)).slice(-15);
   const wos=db.workouts.filter(w=>w.end).slice(-6).map(w=>`${w.date} ${w.name}: `+(w.kind==='muscu'?w.exercises.filter(e=>e.logged.length).map(e=>`${e.name} ${e.logged.map(x=>x.secs!=null?x.secs+'s':`${x.load??'PDC'}x${x.reps}@${x.rir}`).join(' ')}`).join('; '):`${w.cardio?.type} ${w.duration} min ${w.cardio?.distance??''} km`));
   const wk=Object.keys(db.weekly).sort().slice(-3).map(d=>{const x=db.weekly[d];return `${d}: taille ${x.waist??'-'} cm${x.belt!=null?', cran '+x.belt:''}, victoires: ${x.wins||'-'}, difficultés: ${x.struggles||'-'}, questions: ${x.questions||'-'}`});
@@ -508,6 +509,7 @@ function dataContext(){
 Programmes : ${db.templates.map(t=>t.name+' ('+t.exercises.map(e=>`${e.name} ${e.sets}x${e.reps} repos ${e.rest}s`).join(', ')+')').join(' ; ')||'aucun'}
 Journal des 14 derniers jours :
 ${lines.join('\n')||'(vide)'}
+Notes du réveil : ${mnotes.join(' ; ')||'(aucune)'}
 Derniers repas : ${meals.join(' ; ')||'(aucun)'}
 Dernières séances : ${wos.join(' ; ')||'(aucune)'}
 Bilans hebdomadaires : ${wk.join(' ; ')||'(aucun)'}`;
@@ -979,7 +981,7 @@ function morningSheet(d=TODAY()){const m=peekDay(d).morning||{};const s=st(),pas
    ${sec('Sommeil',`${fieldNum('sleepH','Durée',m.sleepH,'h','7,5')}<div class="cell block"><span>Qualité</span>${scale('sleepQ',1,5,m.sleepQ)}</div>`)}
    ${s.reading?.on&&past?sec(esc(s.reading.label||'Lecture'),`<label class="cell" for="mbi"><span class="body">Lecture faite ce jour-là</span><input id="mbi" name="bible" type="checkbox" class="switch" ${m.bible?'checked':''}></label>`):''}
    ${s.reading?.on&&!past?sec(esc(s.reading.label||'Lecture'),`<button type="button" class="cell tap" data-act="bibleStart"><span class="ico" style="background:#A2845E">${I.book}</span><span class="body"><span>${m.bible?'Lecture faite · relancer':'Démarrer · '+(s.reading.min||10)+' min'}</span></span>${m.bible?state(true):`<span class="plus" style="background:#A2845E">▶</span>`}</button>`):''}
-   ${sec('',`<button type="button" class="cell tap link" data-act="importHealth">Importer depuis le presse-papiers (Raccourci Santé)</button>`)}
+   ${sec('Notes du réveil',`<div class="cell"><textarea name="note" rows="4" placeholder="Rêves, humeur, idées, intentions pour la journée…">${esc(m.note||'')}</textarea></div>`)}
   </form>`)}
 function mealSheet(m){const isNew=!m;const s=st();S.mealImg=null;m=m||{type:defaultMealType(),foods:'',source:'maison',speed:'pose',time:nowHM()};
   const recent=db.foods.slice(0,14);
@@ -1253,7 +1255,7 @@ document.addEventListener('submit',ev=>{
    case 'suppItem':{const name=String(v.name||'').trim();if(!name)break;const L=st().suppList||(st().suppList=[]);let x=L.find(y=>y.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid()};L.push(x)}
      Object.assign(x,{name,dose:String(v.dose||'').trim(),when:v.when||'repas',meals:fd.getAll('meals'),daily:!!v.daily,season:v.season||'all',tip:String(v.tip||'').trim()});if(x.when==='repas'&&!x.meals.length)x.meals=ALLM.slice();
      if(isNew)st().supps=true;save();closeSheet();render();hud(isNew?'Complément ajouté':'Complément enregistré');break}
-   case 'morning':{const dd=f.dataset.d||t,D=day(dd);D.morning=Object.assign(D.morning||{},{weight:num(v.weight),fat:num(v.fat),muscle:num(v.muscle),visceral:num(v.visceral),time:v.time||nowHM(),sleepH:num(v.sleepH),sleepQ:v.sleepQ?+v.sleepQ:null},f.querySelector('#mbi')?{bible:!!v.bible}:{});save();closeSheet();render();haptic();hud(dd===t?'Réveil enregistré':'Réveil rattrapé');break}
+   case 'morning':{const dd=f.dataset.d||t,D=day(dd);D.morning=Object.assign(D.morning||{},{weight:num(v.weight),fat:num(v.fat),muscle:num(v.muscle),visceral:num(v.visceral),time:v.time||nowHM(),sleepH:num(v.sleepH),sleepQ:v.sleepQ?+v.sleepQ:null,note:String(v.note||'').trim()},f.querySelector('#mbi')?{bible:!!v.bible}:{});save();closeSheet();render();haptic();hud(dd===t?'Réveil enregistré':'Réveil rattrapé');break}
    case 'meal':{const D=day(t);const o={type:v.type,time:v.time,foods:(v.foods||'').trim(),source:v.source,speed:v.speed,comment:(v.comment||'').trim(),supps:fd.getAll('msupp'),sugar:!!v.sugar};
      if(st().countMode==='mains'){o.hands={p:num(v.h_p)||0,c:num(v.h_c)||0,f:num(v.h_f)||0,v:num(v.h_v)||0};o.kcal=num(v.ai_kcal);o.prot=num(v.ai_prot)}else{o.kcal=num(v.kcal);o.prot=num(v.prot)}
      if(f.dataset.id)Object.assign(D.meals.find(m=>m.id===f.dataset.id),o);else D.meals.push(Object.assign({id:uid()},o));
@@ -2192,6 +2194,8 @@ window.addEventListener('online',()=>{if(A.dirty)cloudFlush()});
 document.addEventListener('visibilitychange',()=>{if(!A.user)return;
   if(document.visibilityState==='hidden'){if(A.dirty)cloudFlush()}
   else{cloudPull(true).then(ch=>{if(ch)refreshAll()});loadGroup(true)}});
+/* plusieurs appareils (téléphone + ordinateur) : une page restée ouverte récupère les changements faits ailleurs */
+setInterval(()=>{if(A.user&&document.visibilityState==='visible')cloudPull(true).then(ch=>{if(ch)refreshAll()})},60e3);
 
 const blankLocal=()=>!Object.keys(db.days).length&&!db.workouts.length;
 /* Récupère les données du compte. Renvoie true si les données locales ont été remplacées. */
@@ -2468,9 +2472,9 @@ document.addEventListener('click',async ev=>{const el=ev.target.closest('[data-a
      if(r.error){hud('Erreur : '+r.error.message);break}
      if(g.owner===A.user.id&&A.members.length<=1)await sb.from('groups').delete().eq('id',g.id);
      A.group=null;A.members=[];A.shares=[];paintFriends();refreshView();hud('Groupe quitté');break}
-   case 'logout':asheet('Se déconnecter ? Les données quittent ce téléphone mais restent dans ton compte.',[{label:'Se déconnecter',act:'logoutGo',danger:true}]);break;
+   case 'logout':asheet('Se déconnecter de cet appareil ? Les données le quittent mais restent dans ton compte. Tes autres appareils restent connectés.',[{label:'Se déconnecter',act:'logoutGo',danger:true}]);break;
    case 'logoutGo':{if(A.dirty||A.flushing){const ok=await cloudFlush();if(!ok){hud('Hors ligne : connecte-toi au réseau d’abord');break}}
-     try{await sb.auth.signOut()}catch(e){}
+     try{await sb.auth.signOut({scope:'local'})}catch(e){} /* seulement cet appareil : les autres restent connectés */
      A.user=null;A.group=null;A.members=[];A.shares=[];A.dirty=false;clearTimeout(A.t);
      db=seed();writeLocal();try{localStorage.removeItem(CK)}catch(e){}chat=[];S.tab='today';
      showHome(false);render();showGate('login','Déconnecté.');break}
