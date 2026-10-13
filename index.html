@@ -885,6 +885,8 @@ a.cell{text-decoration:none}
 .fin-amt.save{color:var(--tint)}
 .bk-row{align-items:center;gap:10px}.bk-row input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:var(--area)}
 .bk-row select{font:inherit;color:var(--label2);background:var(--fill);border:0;border-radius:6px;padding:1px 4px;max-width:150px}
+.tbl.tbl4{grid-template-columns:1fr auto auto auto}
+.bl-l{display:block;font-size:14px;margin-top:6px}.bl-l small{color:var(--label2);font-size:12px;margin-left:4px}
 </style>
 
 </head><body>
@@ -1057,7 +1059,7 @@ function seedTemplates(){
 function seed(){
   let old={};try{old=JSON.parse(localStorage.getItem('cap-objectifs-v1')||'{}').settings||{}}catch(e){}
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
-    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,trainTime:'',formeGoal:'',sugarTrack:false,bloatTrack:false,payOn:false,suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
+    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,trainTime:'',formeGoal:'',sugarTrack:false,bloatTrack:false,payOn:false,lastBackup:'',suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
     apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',coachMode:'eq',career:{goal:5,relance:7}},
     days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[],notes:[],fin:{tx:[],plans:[],goals:[],inv:[],budget:null}};
 }
@@ -1070,6 +1072,7 @@ if(!db.settings.restFix){db.templates.forEach(t=>t.exercises.forEach(e=>e.rest=4
 /* installations existantes : on garde le rituel et les compléments déjà en place */
 if(db.settings.trainTime==null)db.settings.trainTime='';
 if(db.settings.payOn==null)db.settings.payOn=false;
+if(db.settings.lastBackup==null)db.settings.lastBackup='';
 /* suivis personnels (sans sucre, ballonnements) : gardés pour les journaux déjà utilisés, éteints pour les nouveaux */
 if(db.settings.sugarTrack==null){const used=Object.values(db.days||{}).some(D=>D.evening||(D.meals||[]).length);db.settings.sugarTrack=used;db.settings.bloatTrack=used;
   if(db.settings.formeGoal==null)db.settings.formeGoal=used?'Recomposition corporelle : perdre du gras, silhouette plus athlétique, en conservant ou gagnant du muscle.':'';writeLocal()}
@@ -1289,8 +1292,8 @@ function vStats(){
   // bloating by source
   const meals30=Object.keys(db.days).filter(d=>d>addDays(t,-30)).flatMap(d=>db.days[d].meals);
   const withB=meals30.filter(m=>m.bloat&&m.bloat.score!=null);
-  const bySrc=SOURCES.map(([k,l])=>{const a=withB.filter(m=>m.source===k);return [l,a.length,avg(a.map(m=>m.bloat.score))]}).filter(x=>x[1]);
-  const bySpeed=[['rapide','Repas rapide'],['pose','Repas posé']].map(([k,l])=>{const a=withB.filter(m=>m.speed===k);return [l,a.length,avg(a.map(m=>m.bloat.score))]}).filter(x=>x[1]);
+  const bySrc=SOURCES.map(([k,l])=>{const a=withB.filter(m=>m.source===k);return [l,a.length,avg(a.map(m=>m.bloat.score)),avg(a.map(m=>m.bloat.dist||0))]}).filter(x=>x[1]);
+  const bySpeed=[['rapide','Repas rapide'],['pose','Repas posé']].map(([k,l])=>{const a=withB.filter(m=>m.speed===k);return [l,a.length,avg(a.map(m=>m.bloat.score)),avg(a.map(m=>m.bloat.dist||0))]}).filter(x=>x[1]);
   const wk8=Array.from({length:8},(_,k)=>addDays(weekStart(t),(k-7)*7));
   return `<div class="lt"><span class="eyebrow">14 derniers jours et plus</span><h1>Suivi</h1></div>
   ${sec('Cette semaine',`<div class="kpis tilesrow"><div><span class="v">${W.morning}/${W.days}</span><span class="k">réveils</span></div><div><span class="v">${W.evening}/${W.days}</span><span class="k">soirs</span></div><div><span class="v">${W.sessions}/${W.planned}</span><span class="k">séances</span></div><div><span class="v">${W.meals?Math.round(W.home/W.meals*100)+' %':'–'}</span><span class="k">repas maison</span></div></div>`,
@@ -1304,7 +1307,7 @@ function vStats(){
   ${sec('Sommeil (h)',barChart({days:d14,vals:d14.map(d=>peekDay(d).morning?.sleepH),target:7.5,color:'#5856D6',fmtV:v=>fmt(v,1)}),'Trait vert : 7 h 30.')}
   ${sec('Séances par semaine',barChart({days:wk8,vals:wk8.map(w=>db.workouts.filter(x=>x.end&&x.date>=w&&x.date<=addDays(w,6)).length),target:s.trainingDays.length,color:'var(--tint)',fmtV:v=>fmt(v,0)}),'8 dernières semaines (date du lundi).')}
   ${names.length?sec(`<span>Progression</span><span></span>`,`<label class="cell field" for="exsel"><span>Exercice</span><select id="exsel" data-change="exsel">${names.map(n=>`<option ${n===exn?'selected':''}>${esc(n)}</option>`).join('')}</select></label>`+lineChart({series:[{pts:prog,color:'var(--tint)',end:true,dots:true}],h:150}),'1RM estimé (formule d’Epley) de la meilleure série de chaque séance.'):''}
-  ${bySrc.length?sec('Ballonnements (30 jours)',`<div class="tbl"><span class="h">Repas</span><span class="h">Nb</span><span class="h">Note moy.</span>${bySrc.concat(bySpeed).map(([l,n,a])=>`<span>${l}</span><span class="num l2">${n}</span><span class="num" style="color:${a>=1.5?'var(--red)':a>=0.8?'var(--orange)':'var(--green)'}">${fmt(a,1)} / 3</span>`).join('')}</div>`,'Moyenne des notes de ballonnement saisies le soir, par provenance et par vitesse de repas.'):''}`;
+  ${bySrc.length?sec('Ballonnement et ventre gonflé (30 jours)',`<div class="tbl tbl4"><span class="h">Repas</span><span class="h">Nb</span><span class="h">Ballon.</span><span class="h">Gonflé</span>${bySrc.concat(bySpeed).map(([l,n,a,g])=>{const c=x=>x>=1.5?'var(--red)':x>=0.8?'var(--orange)':'var(--green)';return `<span>${l}</span><span class="num l2">${n}</span><span class="num" style="color:${c(a)}">${fmt(a,1)}</span><span class="num" style="color:${c(g)}">${fmt(g,1)}</span>`}).join('')}</div>`,'Moyennes sur 3 des notes du soir, par provenance et par vitesse de repas. Ballonnement = sensation ; gonflé = ventre visiblement distendu.'):''}`;
 }
 
 /* ================= views: settings ================= */
@@ -1357,9 +1360,11 @@ function paintPrefs(){const s=st();
   ${sec('Coach IA',`<label class="cell field" for="ak"><span>Clé API</span><input id="ak" data-change="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(s.apiKey||'')}"></label>
      <div class="cell block"><span>Coachs</span>${seg('coachMode',COACH_MODES.map(m=>[m[0],m[1]]),s.coachMode||'eq')}</div><div class="cell"><span class="body fn">${esc((COACH_MODES.find(m=>m[0]===(s.coachMode||'eq'))||COACH_MODES[1])[2])}</span></div>`,
      C.sample?'Dans l’aperçu Claude, le coach passe par ton compte Claude : la clé n’est pas nécessaire ici.':'Clé Anthropic (console.anthropic.com › API Keys), stockée uniquement sur ce téléphone. Fixe une limite de dépense mensuelle sur la console.')}
-  ${sec('Données',`<button class="cell tap link" data-act="export">Exporter une sauvegarde</button>
+  ${sec('Données',`<button class="cell tap link" data-act="backupFull">Sauvegarde complète${st().lastBackup?` · dernière le ${fdate(st().lastBackup)}`:''}</button>
+     <button class="cell tap link" data-act="histOpen">Versions précédentes (historique en ligne)</button>
+     <button class="cell tap link" data-act="export">Exporter le journal seul (.json)</button>
      <button class="cell tap link" data-act="copy">Copier les données</button>
-     <label class="cell tap link" for="imp">Importer un fichier<input id="imp" type="file" accept="application/json,.json" hidden></label>
+     <label class="cell tap link" for="imp">Restaurer depuis un fichier (.zip ou .json)<input id="imp" type="file" accept="application/json,.json,.zip,application/zip" hidden></label>
      <button class="cell tap link" data-act="pasteSheet">Coller une sauvegarde</button>
      <button class="cell tap link" data-act="brExport">Exporter mes notes (Apprentissage)</button>
      <button class="cell tap danger" data-act="askReset">Tout effacer</button>`,A.user?'Tes données sont sauvegardées dans ton compte et sur ce téléphone.':'Les données restent sur ce téléphone. Exporte-les chaque semaine.')}
@@ -1390,10 +1395,10 @@ function dataContext(){
   const t=TODAY(),s=st();const lines=[];
   for(let k=13;k>=0;k--){const d=addDays(t,-k),D=peekDay(d),m=D.morning||{},e=D.evening||{},tt=totals(d);
     if(!D.meals.length&&!D.morning&&!D.evening&&!workoutsOn(d).length)continue;
-    const bl=D.meals.map(x=>x.bloat?.score||0);
-    lines.push(`${d} | poids ${m.weight??'-'} | MG ${m.fat??'-'} | sommeil ${m.sleepH??'-'}h q${m.sleepQ??'-'} | ${tt.kcal??'-'} kcal | ${tt.prot??'-'} g prot | repas ${tt.n} dont hors plan ${tt.off} | séance ${workoutsOn(d).map(w=>w.name).join('+')||'-'} | pas ${e.steps??'-'} | eau ${e.water??'-'} L | énergie/faim/stress ${e.energy??'-'}/${e.hunger??'-'}/${e.stress??'-'} | ballonnement max ${bl.length?Math.max(...bl):'-'} | compléments ${suppsTaken(d).map(x=>x.name+(x.time?' '+x.time:'')).join(', ')||'-'} | bible ${m.bible?'oui':'-'} | sans sucre ajouté ${eveningDone(d)?(hasSugar(d)?'non':'oui'):'?'} | alcool ${e.alcohol??'-'}${e.pains?.length?' | douleurs '+e.pains.map(p=>p.zone+' '+p.intensity+'/10').join(', '):''}`)}
+    const bl=D.meals.map(x=>x.bloat?.score||0),gf=D.meals.map(x=>x.bloat?.dist||0);
+    lines.push(`${d} | poids ${m.weight??'-'} | MG ${m.fat??'-'} | sommeil ${m.sleepH??'-'}h q${m.sleepQ??'-'} | ${tt.kcal??'-'} kcal | ${tt.prot??'-'} g prot | repas ${tt.n} dont hors plan ${tt.off} | séance ${workoutsOn(d).map(w=>w.name).join('+')||'-'} | pas ${e.steps??'-'} | eau ${e.water??'-'} L | énergie/faim/stress ${e.energy??'-'}/${e.hunger??'-'}/${e.stress??'-'} | ballonnement (sensation) max ${bl.length?Math.max(...bl):'-'} | ventre gonflé (visible) max ${gf.length?Math.max(...gf):'-'}${m.belly!=null?' | ventre au réveil '+m.belly+'/3':''} | compléments ${suppsTaken(d).map(x=>x.name+(x.time?' '+x.time:'')).join(', ')||'-'} | bible ${m.bible?'oui':'-'} | sans sucre ajouté ${eveningDone(d)?(hasSugar(d)?'non':'oui'):'?'} | alcool ${e.alcohol??'-'}${e.pains?.length?' | douleurs '+e.pains.map(p=>p.zone+' '+p.intensity+'/10').join(', '):''}`)}
   const mnotes=Object.keys(db.days).sort().slice(-7).filter(d=>db.days[d].morning?.note).map(d=>`${d} : ${cut(db.days[d].morning.note,200)}`);
-  const meals=Object.keys(db.days).sort().slice(-5).flatMap(d=>db.days[d].meals.map(m=>`${d} ${m.type}: ${m.foods||'?'} (${m.source}, ${m.speed||'?'}${m.bloat?.score?', ballonnement '+m.bloat.score+'/3':''})`)).slice(-15);
+  const meals=Object.keys(db.days).sort().slice(-5).flatMap(d=>db.days[d].meals.map(m=>`${d} ${m.type}: ${m.foods||'?'} (${m.source}, ${m.speed||'?'}${m.bloat?.score?', ballonnement '+m.bloat.score+'/3':''}${m.bloat?.dist?', ventre gonflé '+m.bloat.dist+'/3':''})`)).slice(-15);
   const wos=db.workouts.filter(w=>w.end).slice(-6).map(w=>`${w.date} ${w.name}: `+(w.kind==='muscu'?w.exercises.filter(e=>e.logged.length).map(e=>`${e.name} ${e.logged.map(x=>x.secs!=null?x.secs+'s':`${x.load??'PDC'}x${x.reps}@${x.rir}`).join(' ')}`).join('; '):`${w.cardio?.type} ${w.duration} min ${w.cardio?.distance??''} km`));
   const wk=Object.keys(db.weekly).sort().slice(-3).map(d=>{const x=db.weekly[d];return `${d}: taille ${x.waist??'-'} cm${x.belt!=null?', cran '+x.belt:''}, victoires: ${x.wins||'-'}, difficultés: ${x.struggles||'-'}, questions: ${x.questions||'-'}`});
   return `Profil : ${s.name}, ${s.height} cm, départ ${s.startWeight} kg, cible ${s.targetWeight??'non fixée'}${s.targetDate?' le '+s.targetDate:''}. Cibles : ${s.kcalTarget??'?'} kcal, ${s.protTarget??'?'} g de protéines. Contraintes alimentaires : ${s.diet||'aucune'}. Entraînement prévu ${s.trainingDays.length} jours par semaine. Comptage : ${s.countMode==='mains'?'portions de main':'calories'}.
@@ -1409,7 +1414,7 @@ function rules(){return `${LANG==='en'?'IMPORTANT : réponds en anglais (le tél
 Objectif de l'utilisateur : ${st().formeGoal||'pas encore précisé. S’il est utile, demande-le-lui (perte de poids, muscle, endurance, santé, sport précis…) et adapte tout le reste à sa réponse.'}${st().sex?' Sexe : '+({f:'femme',h:'homme'}[st().sex]||'non précisé')+'.':''}${st().birth?' Âge : '+Math.floor((Date.now()-new Date(st().birth))/31557600000)+' ans.':''}
 Appuie-toi sur ses données ci-dessous : cite des chiffres, repère les tendances (moyenne de poids sur 7 jours, protéines, sommeil, repas hors plan, ${st().bloatTrack?'ballonnements par provenance ou vitesse de repas, ':''}progression des charges) et propose 1 à 3 actions prioritaires.
 Méthodes : surcharge progressive avec RIR 1 à 3, volume de 10 à 20 séries par groupe musculaire et par semaine selon le niveau, protéines autour de 1,6 à 2,2 g par kg, déficit modéré, perte de 0,5 à 1 % du poids par semaine, sommeil 7 à 9 h, indicateurs d'action (séances, protéines, pas) plutôt que le seul poids. Respecte ses contraintes alimentaires dans toute suggestion de repas.
-Sécurité : pas de diagnostic ni de conseil médical. Douleur persistante ou intense, ballonnements fréquents ou accompagnés d'autres signes : recommande un médecin ou un kinésithérapeute.
+Sécurité : pas de diagnostic ni de conseil médical. Distingue le ballonnement (sensation : gaz, tension) du ventre gonflé (distension visible, parfois sans sensation) : causes et pistes ne sont pas les mêmes (fermentation, aliments FODMAP, vitesse de repas, sel, transit, posture, cycle…). Douleur persistante ou intense, ballonnements ou ventre gonflé fréquents ou accompagnés d'autres signes : recommande un médecin ou un kinésithérapeute.
 Si tu proposes un programme de musculation et que l'utilisateur est d'accord, termine ton message par UN bloc <programme>…</programme> contenant uniquement du JSON valide :
 {"templates":[{"name":"Haut du corps A","exercises":[{"name":"Développé couché","sets":4,"reps":"6-8","rest":150}]}]}
 (rest en secondes). L'utilisateur l'ajoutera d'un bouton.
@@ -1872,6 +1877,7 @@ function morningSheet(d=TODAY()){const m=peekDay(d).morning||{};const s=st(),pas
    ${sec('Balance',`${fieldNum('weight','Poids',m.weight,'kg','0,0')}${fieldNum('fat','Masse grasse',m.fat,'%','0,0')}${fieldNum('muscle','Muscle squelettique',m.muscle,esc(s.muscleUnit),'0,0')}${fieldNum('visceral','Graisse viscérale',m.visceral,'indice','0')}
      <label class="cell field" for="time"><span>Heure de pesée</span><input id="time" name="time" type="time" value="${m.time||nowHM()}"></label>`,'Pèse-toi après être allé aux toilettes, avant de boire ou manger.')}
    ${sec('Sommeil',`${fieldNum('sleepH','Durée',m.sleepH,'h','7,5')}<div class="cell block"><span>Qualité</span>${scale('sleepQ',1,5,m.sleepQ)}</div>`)}
+   ${s.bloatTrack?sec('Ventre au réveil',`<div class="cell block"><span>Ventre gonflé (visible)</span>${scale('belly',0,3,m.belly??0)}</div>`,'0 = plat, 3 = très gonflé. À comparer avec le soir : un ventre plat le matin et gonflé le soir n’a pas la même cause qu’un ventre gonflé dès le réveil.'):''}
    ${s.reading?.on&&past?sec(esc(s.reading.label||'Lecture'),`<label class="cell" for="mbi"><span class="body">Lecture faite ce jour-là</span><input id="mbi" name="bible" type="checkbox" class="switch" ${m.bible?'checked':''}></label>`):''}
    ${s.reading?.on&&!past?sec(esc(s.reading.label||'Lecture'),`<button type="button" class="cell tap" data-act="bibleStart"><span class="ico" style="background:#A2845E">${I.book}</span><span class="body"><span>${m.bible?'Lecture faite · relancer':'Démarrer · '+(s.reading.min||10)+' min'}</span></span>${m.bible?state(true):`<span class="plus" style="background:#A2845E">▶</span>`}</button>`):''}
    ${sec('Notes du réveil',`<div class="cell"><textarea name="note" rows="4" placeholder="Rêves, humeur, idées, intentions pour la journée…">${esc(m.note||'')}</textarea></div>`)}
@@ -1895,11 +1901,13 @@ function mealSheet(m){const isNew=!m;const s=st();S.mealImg=null;m=m||{type:defa
   </form>`)}
 function eveningSheet(d=TODAY()){const t=d,D=peekDay(t),e=D.evening||{},tt=totals(t);
   const bloatRow=m=>{const b=m.bloat||{};const lab=(MEALTYPES.find(x=>x[0]===m.type)||[])[1]||'Repas';
-    return `<div class="cell block"><span>${esc(lab)} ${esc(m.time||'')} · ${esc((m.foods||'').slice(0,40))}</span>${scale('b_'+m.id,0,3,b.score??0)}
-     <div class="mini three" data-bdet="${m.id}" ${b.score?'':'hidden'}><label>Délai (min)<input name="bd_${m.id}" inputmode="numeric" value="${b.delay??''}" placeholder="30"></label><label>Durée (h)<input name="bu_${m.id}" inputmode="decimal" value="${b.duration??''}" placeholder="2"></label><label>Autres signes<input name="bs_${m.id}" value="${esc(b.signs||'')}" placeholder="gaz, reflux…"></label></div></div>`};
+    return `<div class="cell block"><span>${esc(lab)} ${esc(m.time||'')} · ${esc((m.foods||'').slice(0,40))}</span>
+     <span class="bl-l">Ballonnement <small>sensation : gaz, tension, inconfort</small></span>${scale('b_'+m.id,0,3,b.score??0)}
+     <span class="bl-l">Ventre gonflé <small>visible : ventre distendu, pantalon serré</small></span>${scale('g_'+m.id,0,3,b.dist??0)}
+     <div class="mini three" data-bdet="${m.id}" ${b.score||b.dist?'':'hidden'}><label>Délai (min)<input name="bd_${m.id}" inputmode="numeric" value="${b.delay??''}" placeholder="30"></label><label>Durée (h)<input name="bu_${m.id}" inputmode="decimal" value="${b.duration??''}" placeholder="2"></label><label>Autres signes<input name="bs_${m.id}" value="${esc(b.signs||'')}" placeholder="gaz, reflux…"></label></div></div>`};
   const pains=(e.pains||[]).map(p=>painRow(p)).join('');
   sheet(dayTitle('Soir',d),`<form id="sf" data-form="evening" data-d="${d}">
-   ${st().bloatTrack?'':'<!--'}${sec('Ballonnements de la journée',D.meals.length?D.meals.map(bloatRow).join(''):'<div class="cell l2" style="font-size:15px">Aucun repas saisi aujourd’hui.</div>','0 = aucun, 3 = fort. Délai après le repas, durée, autres signes.')}${st().bloatTrack?'':'-->'}
+   ${st().bloatTrack?'':'<!--'}${sec('Ballonnement et ventre gonflé',D.meals.length?D.meals.map(bloatRow).join(''):'<div class="cell l2" style="font-size:15px">Aucun repas saisi aujourd’hui.</div>','0 = rien, 3 = fort. Deux choses différentes : tu peux avoir le ventre gonflé sans te sentir ballonné, et l’inverse. Délai après le repas, durée, autres signes.')}${st().bloatTrack?'':'-->'}
    ${sec('Calculé automatiquement',`<div class="cell"><span class="body">Calories</span><span class="acc num">${tt.kcal!=null?fmt(tt.kcal,0)+' kcal':'–'}</span></div><div class="cell"><span class="body">Protéines</span><span class="acc num">${tt.prot!=null?fmt(tt.prot,0)+' g':'–'}</span></div><div class="cell"><span class="body">Repas hors plan</span><span class="acc num">${tt.off} / ${tt.n}</span></div>`)}
    ${st().sugarTrack?'':'<!--'}${sec('Sans sucre ajouté',`<div class="cell"><span class="body"><span>Repas avec sucre ajouté</span></span><span class="acc num" style="color:${D.meals.some(m=>m.sugar)?'var(--orange)':'var(--green)'}">${D.meals.filter(m=>m.sugar).length} / ${D.meals.length}</span></div>
      <label class="cell" for="sx"><span class="body"><span>Sucre ajouté hors repas</span><span class="fn">Boisson sucrée, bonbon, grignotage…</span></span><input id="sx" name="sugarExtra" type="checkbox" class="switch" ${e.sugarExtra?'checked':''}></label>`,'La journée compte dans ta série si aucun repas n’a de sucre ajouté et que cet interrupteur reste éteint.')}${st().sugarTrack?'':'-->'}
@@ -2031,6 +2039,7 @@ document.addEventListener('click',ev=>{
   if(act==='agWorkout'){S.tab='workout';openArea('forme');return}
   if(calAct(act,el,ev))return;
   if(/^(fiPaySetup|pay[A-Z])/.test(act)){payAct(act,el);return}
+  if(/^(backupFull|hist[A-Z]|restoreGo|guard[A-Z])/.test(act)){histAct(act,el);return}
   if(jobAct(act,id,el)||todoAct(act,id,el)||brainAct(act,id,el)||finAct(act,id,el)||coachAct(act,id,el)){if(!$('#home').hidden)paintAgenda();return} /* actions des sections Carrière et Tâches */
   switch(act){
    case 'sugarInfo':{const n=sugarStreak(),b=Math.max(n,sugarBest()),j=jokerWeek();asheet(`Série sans sucre ajouté : ${n} jour${n>1?'s':''} · record ${b} jour${b>1?'s':''}. Une journée compte une fois la fiche du soir complète, sans sucre ajouté. Joker : 1 jour non rempli par semaine ne casse pas la série${j?` (utilisé cette semaine : ${fday(j)})`:' (disponible cette semaine)'}.`,[{label:'Ouvrir la fiche du soir',act:'evening'}]);break}
@@ -2107,7 +2116,7 @@ document.addEventListener('click',ev=>{
 });
 document.addEventListener('input',ev=>{const t=ev.target;
   if(t.name==='pi'){t.style.setProperty('--p',t.value*10+'%');t.closest('label').querySelector('output').textContent=t.value}
-  if(t.name&&t.name.startsWith('b_')){const box=document.querySelector(`[data-bdet="${t.name.slice(2)}"]`);if(box)box.hidden=+t.value===0}
+  if(t.name&&/^[bg]_/.test(t.name)){const id=t.name.slice(2),f=t.form,val=k=>+(f?.querySelector(`[name="${k}_${id}"]:checked`)?.value||0),box=document.querySelector(`[data-bdet="${id}"]`);if(box)box.hidden=!val('b')&&!val('g')}
 });
 document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.change==='restBetween'){st().restBetween=+t.value;save();hud('Repos entre exercices : '+(+t.value?mmss(+t.value):'comme les séries'));return}
@@ -2116,7 +2125,9 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.change==='brFile'){brainFiles(t.files,t.dataset.kind);t.value='';return}
   if(t.dataset.change==='brIns'){brInsFile(t.files[0],t.dataset.kind);t.value='';return}
   if(t.id==='tdcs'){const w=$('#tdcnw');w.hidden=t.value!=='__new';if(!w.hidden)$('#tdcn').focus();return}
-  if(t.id==='imp'){const f=t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>importJSON(r.result);r.readAsText(f);return}
+  if(t.id==='imp'){const f=t.files[0];t.value='';if(!f)return;
+    if(/\.zip$/i.test(f.name)){(async()=>{try{const Z=await loadZip(),z=await Z.loadAsync(f),j=Object.values(z.files).find(x=>/journal\.json$/i.test(x.name));if(!j)throw 0;importJSON(await j.async('string'))}catch(e){hud('Pas de journal dans ce fichier .zip')}})();return}
+    const r=new FileReader();r.onload=()=>importJSON(r.result);r.readAsText(f);return}
   if(t.dataset.areaToggle){const k=t.dataset.areaToggle,cur=new Set(st().areas||[]);t.checked?cur.add(k):cur.delete(k);if(!cur.size){t.checked=true;hud('Garde au moins une section');return}st().areas=AREA_PICK.map(a=>a[0]).filter(x=>cur.has(x));save();notifSync();hud(t.checked?'Section activée':'Section masquée');return}
   if(t.dataset.change==='lang'){st().lang=t.value;writeLocal();save();setTimeout(()=>location.reload(),150);return}
   if(t.dataset.change==='name'){st().name=t.value.trim()||'toi';save();hud('Prénom enregistré');return}
@@ -2135,7 +2146,8 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.name==='brView'){S.brView=t.value;paintBrain();return}
   if(!t.closest('form')&&t.closest('.seg')){if(t.name==='coachMode'){st().coachMode=t.value;save();if(prefsOn())paintPrefs();hud('Coachs : '+(COACH_MODES.find(m=>m[0]===t.value)||[])[1])}if(t.name==='countMode'){st().countMode=t.value;save();hud(t.value==='mains'?'Portions de main activées':'Calories activées')}if(t.name==='muscleUnit'){st().muscleUnit=t.value;save()}return}
 });
-function importJSON(s){try{const d=JSON.parse(s);if(!d.days||!d.settings)throw 0;db=d;save();closeSheet(true);render({top:true});hud('Données importées')}catch(e){hud('Ce n’est pas une sauvegarde Luck’In Forme valide')}}
+function importJSON(s){let d;try{d=JSON.parse(s);if(!d.days||!d.settings)throw 0}catch(e){hud('Ce n’est pas une sauvegarde Luck’In valide');return}
+  asheet(`Remplacer toutes tes données par cette sauvegarde (${dataCount(d)} éléments) ? Ta version actuelle (${dataCount(db)} éléments) est gardée dans l’historique.`,[{label:'Remplacer par la sauvegarde',act:'restoreGo',danger:true}]);S.restore=d}
 document.addEventListener('submit',()=>{if(!$('#home').hidden)setTimeout(paintAgenda,30)});
 document.addEventListener('submit',ev=>{
   const f=ev.target;if(!f.dataset.form)return;ev.preventDefault();const fd=new FormData(f);const v=Object.fromEntries(fd);const t=TODAY();
@@ -2152,14 +2164,14 @@ document.addEventListener('submit',ev=>{
    case 'suppItem':{const name=String(v.name||'').trim();if(!name)break;const L=st().suppList||(st().suppList=[]);let x=L.find(y=>y.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid()};L.push(x)}
      Object.assign(x,{name,dose:String(v.dose||'').trim(),when:v.when||'repas',meals:fd.getAll('meals'),daily:!!v.daily,season:v.season||'all',tip:String(v.tip||'').trim()});if(x.when==='repas'&&!x.meals.length)x.meals=ALLM.slice();
      if(isNew)st().supps=true;save();closeSheet();render();hud(isNew?'Complément ajouté':'Complément enregistré');break}
-   case 'morning':{const dd=f.dataset.d||t,D=day(dd);D.morning=Object.assign(D.morning||{},{weight:num(v.weight),fat:num(v.fat),muscle:num(v.muscle),visceral:num(v.visceral),time:v.time||nowHM(),sleepH:num(v.sleepH),sleepQ:v.sleepQ?+v.sleepQ:null,note:String(v.note||'').trim()},f.querySelector('#mbi')?{bible:!!v.bible}:{});save();closeSheet();render();haptic();hud(dd===t?'Réveil enregistré':'Réveil rattrapé');break}
+   case 'morning':{const dd=f.dataset.d||t,D=day(dd);D.morning=Object.assign(D.morning||{},{weight:num(v.weight),fat:num(v.fat),muscle:num(v.muscle),visceral:num(v.visceral),time:v.time||nowHM(),sleepH:num(v.sleepH),sleepQ:v.sleepQ?+v.sleepQ:null,note:String(v.note||'').trim(),...(v.belly!=null?{belly:+v.belly}:{})},f.querySelector('#mbi')?{bible:!!v.bible}:{});save();closeSheet();render();haptic();hud(dd===t?'Réveil enregistré':'Réveil rattrapé');break}
    case 'meal':{const D=day(t);const o={type:v.type,time:v.time,foods:(v.foods||'').trim(),source:v.source,speed:v.speed,comment:(v.comment||'').trim(),supps:fd.getAll('msupp'),sugar:!!v.sugar};
      if(st().countMode==='mains'){o.hands={p:num(v.h_p)||0,c:num(v.h_c)||0,f:num(v.h_f)||0,v:num(v.h_v)||0};o.kcal=num(v.ai_kcal);o.prot=num(v.ai_prot)}else{o.kcal=num(v.kcal);o.prot=num(v.prot)}
      if(f.dataset.id)Object.assign(D.meals.find(m=>m.id===f.dataset.id),o);else D.meals.push(Object.assign({id:uid()},o));
      o.foods.split(/[,;]+/).map(x=>x.trim().toLowerCase()).filter(x=>x&&x.length<30).reverse().forEach(x=>{db.foods=[x,...db.foods.filter(y=>y!==x)]});db.foods=db.foods.slice(0,30);
      D.meals.sort((a,b)=>(a.time||'').localeCompare(b.time||''));save();closeSheet();render();haptic();hud('Repas enregistré');break}
    case 'evening':{const dd=f.dataset.d||t,D=day(dd);
-     D.meals.forEach(m=>{const sc=+(v['b_'+m.id]||0);m.bloat=sc?{score:sc,delay:num(v['bd_'+m.id]),duration:num(v['bu_'+m.id]),signs:(v['bs_'+m.id]||'').trim()}:{score:0}});
+     D.meals.forEach(m=>{const sc=+(v['b_'+m.id]||0),gd=+(v['g_'+m.id]||0);if(!f.querySelector('[name="b_'+m.id+'"]'))return;m.bloat=sc||gd?{score:sc,dist:gd,delay:num(v['bd_'+m.id]),duration:num(v['bu_'+m.id]),signs:(v['bs_'+m.id]||'').trim()}:{score:0,dist:0}});
      const pz=fd.getAll('pz'),pi=fd.getAll('pi');
      D.evening={done:true,sugarExtra:!!v.sugarExtra,water:num(v.water),steps:num(v.steps),energy:v.energy?+v.energy:null,hunger:v.hunger?+v.hunger:null,stress:v.stress?+v.stress:null,supps:fd.getAll('supp'),suppT:Object.fromEntries(fd.getAll('supp').map(x=>[x,(D.evening?.suppT||{})[x]||((D.evening?.supps||[]).includes(x)&&x==='Magnésium'&&D.evening.magTime)||nowHM()])),alcohol:+v.alcohol||0,
        pains:pz.map((z,k)=>({zone:z.trim(),intensity:+pi[k]})).filter(p=>p.zone),note:(v.note||'').trim()};
@@ -2685,7 +2697,7 @@ async function brInsFile(file,kind){if(!file)return;brPopClose();const type=brKi
 let ZIPp=null;
 const loadZip=()=>ZIPp||(ZIPp=new Promise((ok,ko)=>{if(window.JSZip)return ok(window.JSZip);const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';sc.onload=()=>ok(window.JSZip);sc.onerror=()=>{ZIPp=null;ko(new Error('Connexion nécessaire'))};document.head.appendChild(sc)}));
 const fileSafe=t=>String(t).replace(/[\\/:*?"<>|#^[\]]/g,' ').replace(/\s+/g,' ').trim().slice(0,100)||'Sans titre';
-async function brExport(){if(!notes().length){hud('Aucune note à exporter');return}if(needNet())return;
+async function brExport(full){if(!full&&!notes().length){hud('Aucune note à exporter');return}if(needNet()&&!full)return;S.brZipFull=!!full;
   hud('Préparation de l’export…');
   try{const Z=await loadZip(),zip=new Z(),root='Deuxième cerveau',used=new Set(),names=new Map();let nm=0,miss=0;
     notes().forEach(n=>{const f=fileSafe(n.title);let k=f,i=2;while(used.has(k.toLowerCase()))k=f+' '+i++;used.add(k.toLowerCase());names.set(n.id,k)});
@@ -2699,13 +2711,15 @@ async function brExport(){if(!notes().length){hud('Aucune note à exporter');ret
         +((n.links||[]).length?`\n## Liens\n\n${n.links.map(l=>`- [${(l.title||l.url).replace(/[\[\]]/g,'')}](${l.url})`).join('\n')}\n`:'');
       zip.file(`${root}/${names.get(n.id)}.md`,md);
       for(const m of n.media||[]){try{if(!sb||!A.user)throw 0;const r=await fetch(await brUrl(m.path));if(!r.ok)throw 0;zip.file(`${root}/Médias/${mfile(m)}`,await r.blob());nm++}catch(e){miss++}}}
+    if(full)zip.file('Luckin-journal.json',JSON.stringify(cloudCopy(),null,1));
     const blob=await zip.generateAsync({type:'blob'});
-    S.brZip=new File([blob],`Luckin-deuxieme-cerveau-${TODAY()}.zip`,{type:'application/zip'});
-    sheet('Export prêt',sec('',`<div class="cell"><span class="body"><span>${notes().length} note${notes().length>1?'s':''}${nm?` · ${nm} média${nm>1?'s':''}`:''}</span><span class="fn">${blob.size<1048576?Math.max(1,Math.round(blob.size/1024))+' Ko':(blob.size/1048576).toLocaleString(LOC,{maximumFractionDigits:1})+' Mo'}${miss?` · ${miss} média${miss>1?'s':''} non récupéré${miss>1?'s':''}`:''}</span></span></div>
-      <button type="button" class="cell tap link center" data-act="brSaveZip">Enregistrer le fichier</button>`,'Un dossier « Deuxième cerveau » : une note = un fichier .md (texte lisible partout, liens [[ ]] reconnus par Obsidian), médias dans « Médias ». Enregistre-le dans Fichiers ou iCloud Drive.'),{save:''})}
+    S.brZip=new File([blob],full?`Luckin-sauvegarde-${TODAY()}.zip`:`Luckin-deuxieme-cerveau-${TODAY()}.zip`,{type:'application/zip'});
+    sheet(full?'Sauvegarde prête':'Export prêt',sec('',`<div class="cell"><span class="body"><span>${full?'Journal complet ('+dataCount(db)+' éléments) · ':''}${notes().length} note${notes().length>1?'s':''}${nm?` · ${nm} média${nm>1?'s':''}`:''}</span><span class="fn">${blob.size<1048576?Math.max(1,Math.round(blob.size/1024))+' Ko':(blob.size/1048576).toLocaleString(LOC,{maximumFractionDigits:1})+' Mo'}${miss?` · ${miss} média${miss>1?'s':''} non récupéré${miss>1?'s':''}`:''}</span></span></div>
+      <button type="button" class="cell tap link center" data-act="brSaveZip">Enregistrer le fichier</button>`,full?'Enregistre-le dans Fichiers › iCloud Drive (un dossier « Luck’In » par exemple). Pour revenir à cette sauvegarde : Réglages › Données › Restaurer depuis un fichier.':'Un dossier « Deuxième cerveau » : une note = un fichier .md (texte lisible partout, liens [[ ]] reconnus par Obsidian), médias dans « Médias ». Enregistre-le dans Fichiers ou iCloud Drive.'),{save:''})}
   catch(e){hud('Export impossible : '+(e?.message||e))}}
-async function brSaveZip(){const f=S.brZip;if(!f)return;
-  try{if(navigator.canShare?.({files:[f]})){await navigator.share({files:[f],title:f.name});return}}catch(e){if(e?.name==='AbortError')return}
+async function brSaveZip(){const f=S.brZip;if(!f)return;const done=()=>{if(S.brZipFull){st().lastBackup=TODAY();save();if(prefsOn())paintPrefs();hud('Sauvegarde enregistrée')}};
+  try{if(navigator.canShare?.({files:[f]})){await navigator.share({files:[f],title:f.name});done();return}}catch(e){if(e?.name==='AbortError')return}
+  done();
   const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
 const REC={};
 document.addEventListener('input',ev=>{if(ev.target.id!=='brq')return;S.brQ=ev.target.value;const r=$('#brres');if(r)r.innerHTML=brResults()});
@@ -2994,6 +3008,8 @@ function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntri
   if(dow(t)===6&&!weeklyFull(t))add({day:t,area:'forme',title:'Bilan du dimanche',meta:db.weekly[t]?miss(weeklyMissing(t)):'Mensurations et bilan',act:'agWeekly'});
   {const c=catchUps();if(c.length)add({day:t,area:'forme',title:'Rattraper '+(c.some(x=>x.d===addDays(t,-1))?'hier':'avant-hier'),meta:[...new Set(c.map(x=>x.label.toLowerCase()))].join(' et ')+' à compléter',act:'catchUp'})}
   if(!eveningFull(t))add({day:t,area:'forme',title:'Soir',meta:peekDay(t).evening?miss(eveningMissing(t).filter(y=>y!=='fiche du soir')):'Clôturer la journée',act:'agEvening'});
+  // Sauvegarde complète : rappel si la dernière date de plus de 30 jours
+  {const lb=st().lastBackup;if(dataCount(db)>20&&(!lb||diff(lb,t)>30))add({day:t,area:'backup',title:'Sauvegarde complète',meta:lb?`Dernière il y a ${diff(lb,t)} jours · 1 min, dans iCloud Drive`:'Jamais faite · 1 min, dans iCloud Drive',act:'backupFull'})}
   // Carrière : entretiens, événements, relances, contacts
   jobs().filter(jobOpen).forEach(j=>(j.interviews||[]).forEach(i=>{if(i.date>=t&&i.date<=end)add({day:i.date,time:i.time||'',area:'carriere',title:'Entretien · '+esc(j.company),meta:[(IVKIND.find(k=>k[0]===i.kind)||[])[1],j.role&&esc(j.role)].filter(Boolean).join(' · '),act:'jobEdit',id:j.id})}));
   events().forEach(e=>{if(e.date>=t&&e.date<=end)add({day:e.date,time:e.time||'',area:'carriere',title:esc(e.title),meta:[(EVKIND.find(k=>k[0]===e.kind)||[])[1],e.place&&esc(e.place)].filter(Boolean).join(' · '),act:'evEdit',id:e.id})});
@@ -3007,7 +3023,7 @@ function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntri
   todos().filter(x=>!x.done&&x.due&&x.due<=end).forEach(x=>add({day:x.due<t?t:x.due,late:x.due<t,time:x.time||'',area:'taches',title:esc(x.title),meta:[x.rep?'↻ '+REP_SHORT[x.rep]:null,x.cat&&esc(x.cat)].filter(Boolean).join(' · '),act:'tdEdit',id:x.id,todo:x}));
   const rank=o=>(o.late?'0':'1')+(o.time||'99:99')+(o.todo?prioRank(o.todo.prio):3);
   out.forEach(o=>o.c=C[o.area]||o.c);
-  out.forEach(o=>{if(o.area==='gcal')o.c='#4285F4'});const kept=out.filter(o=>o.area==='gcal'||areaOn(o.area));out.length=0;out.push(...kept);
+  out.forEach(o=>{if(o.area==='gcal')o.c='#4285F4';if(o.area==='backup')o.c='#8E8E93'});const kept=out.filter(o=>o.area==='gcal'||o.area==='backup'||areaOn(o.area));out.length=0;out.push(...kept);
   return {today:out.filter(o=>o.day===t).sort((a,b)=>rank(a).localeCompare(rank(b))),soon:out.filter(o=>o.day>t).sort((a,b)=>(a.day+(a.time||'99')).localeCompare(b.day+(b.time||'99')))}}
 function paintAgenda(){const el=$('#agenda');if(!el)return;
   const sw=`<div class="cal-sw">${[['list',T('Liste','List')],['cal',T('Calendrier','Calendar')]].map(([k,l])=>`<button type="button" data-act="homeView" data-v="${k}" aria-pressed="${(S.homeView==='cal')===(k==='cal')}">${l}</button>`).join('')}</div>`;
@@ -3097,6 +3113,17 @@ const A={user:null,group:null,members:[],shares:[],cheers:[],dirty:false,t:0,flu
 const LOGO=(()=>{const g=document.querySelector('#splash svg');return g?g.outerHTML.replace('class="lk"','class="lk lk-static"'):'Luck’In'})();
 
 function cloudQueue(){if(!sb||!A.user)return;A.dirty=true;clearTimeout(A.t);A.t=setTimeout(cloudFlush,1500)}
+/* nombre d'éléments du journal : sert au garde-fou anti-écrasement */
+const dataCount=d=>{if(!d)return 0;const f=d.fin||{};return Object.keys(d.days||{}).length+(d.workouts||[]).length+(d.jobs||[]).length+(d.events||[]).length+(d.contacts||[]).length+(d.todos||[]).length+(d.notes||[]).length+(f.tx||[]).length+(f.plans||[]).length+(f.goals||[]).length+(f.inv||[]).length};
+/* remplace tout le journal (version de l'historique ou fichier de sauvegarde) : copie de l'état actuel d'abord, pour pouvoir revenir en arrière */
+async function restoreData(d,label){if(!d||!d.settings){hud('Sauvegarde illisible');return}
+  if(sb&&A.user){try{await sb.from('user_data_history').insert({user_id:A.user.id,data:cloudCopy()})}catch(e){}}
+  const key=st().apiKey;db=d;db.settings.apiKey=key||'';if(A.user)db.owner=A.user.id;A.force=true;save();closeSheet(true);
+  if(!$('#home').hidden)paintHome();else refreshAll();hud(label||'Données restaurées')}
+async function cloudAdopt(){const r=await sb.from('user_data').select('data').eq('user_id',A.user.id).maybeSingle();const d=r.data?.data;if(!d?.settings){hud('Pas de version en ligne');return}
+  const key=st().apiKey;db=d;db.settings.apiKey=key||'';db.owner=A.user.id;writeLocal();A.remoteN=dataCount(d);A.dirty=false;closeSheet(true);refreshAll();hud('Version en ligne gardée')}
+function guardSheet(nLoc,nRem){asheet(`Cet appareil a beaucoup moins de données que ton compte en ligne (${nLoc} éléments contre ${nRem}). Pour ne rien perdre, l’envoi est en pause.`,[
+  {label:'Garder la version en ligne (conseillé)',act:'guardKeep'},{label:'Envoyer cette version quand même',act:'guardPush',danger:true}])}
 const cloudCopy=()=>{const c=JSON.parse(JSON.stringify(db));if(c.settings)c.settings.apiKey='';return c};
 function progressPct(ref){const s=st();const a=lastWeightAvg(ref);
   if(s.startWeight==null||s.targetWeight==null||a==null||s.startWeight===s.targetWeight)return null;
@@ -3107,9 +3134,12 @@ function activeOn(d){const dk=ms=>ms&&new Date(ms).toLocaleDateString('sv')===d;
 function shareRow(d){const f=areaOn('forme'),a=f?null:activeOn(d);return {user_id:A.user.id,day:d,morning:f?morningDone(d):a,evening:f?eveningDone(d):a,session:workoutsOn(d).length>0,progress:f?progressPct(d):null}}
 async function cloudFlush(){
   if(!sb||!A.user||A.flushing)return false;if(!navigator.onLine){A.dirty=true;return false}
+  /* garde-fou : un appareil avec bien moins de données que le compte (vieux téléphone, bug) ne doit pas l'écraser */
+  {const nl=dataCount(db),nr=A.remoteN||0;if(!A.force&&nr>30&&nl<nr*0.6){A.dirty=true;if(!A.guarded||!$('#layer').innerHTML){A.guarded=true;guardSheet(nl,nr)}return false}}
   A.flushing=true;A.dirty=false;const me=A.user.id;let ok=true;
   try{
     const r=await sb.from('user_data').upsert({user_id:me,data:cloudCopy(),updated_at:new Date().toISOString()});if(r.error)throw r.error;
+    A.remoteN=dataCount(db);A.force=false;A.guarded=false;
     const t=TODAY();const rows=Array.from({length:7},(_,k)=>shareRow(addDays(t,-k)));
     const r2=await sb.from('daily_share').upsert(rows,{onConflict:'user_id,day'});if(r2.error)throw r2.error;
     const nm=st().name||'';if(A.sentName!==nm){const r3=await sb.from('profiles').upsert({id:me,name:nm});if(!r3.error)A.sentName=nm}
@@ -3131,7 +3161,7 @@ async function cloudPull(onlyIfNewer){
   if(onlyIfNewer&&(A.dirty||A.flushing||db.active||$('#layer').innerHTML))return false;
   let res;try{res=await sb.from('user_data').select('data').eq('user_id',A.user.id).maybeSingle()}catch(e){return false}
   if(res.error)return false;
-  const mine=!db.owner||db.owner===A.user.id;const remote=res.data?.data;
+  const mine=!db.owner||db.owner===A.user.id;const remote=res.data?.data;if(remote&&mine)A.remoteN=dataCount(remote);
   if(remote&&remote.settings){
     /* appareil jamais relié à un compte (ex. ordinateur) qui se connecte à un compte existant : le compte gagne, pour ne jamais écraser le téléphone */
     if(!mine||(!db.owner&&!onlyIfNewer)||blankLocal()||(remote.mod||0)>(db.mod||0)){const key=mine?st().apiKey:'';db=remote;db.settings.apiKey=key||'';db.owner=A.user.id;writeLocal();return true}
@@ -3458,6 +3488,20 @@ function fiPaySheet(){const tok=(()=>{try{return localStorage.getItem(PAYK)||''}
      ${step(4,'Touche la flèche de l’action : <b>Méthode</b> POST, <b>Corps de la requête</b> JSON. Ajoute 4 champs de type <b>Texte</b> :<br><b>kind</b> → <code>pay</code><br><b>token</b> → ton code (étape 1)<br><b>amount</b> → la variable <b>Entrée du raccourci</b>, puis touche-la et choisis <b>Montant</b><br><b>merchant</b> → <b>Entrée du raccourci</b> › <b>Commerçant</b>')}
      ${step(5,'Termine. Paie avec Apple Pay : la dépense arrive dans Finances dès que tu ouvres Luck’In.')}
    </div></div>`)}`,{save:''})}
+async function histAct(act,el){switch(act){
+  case 'backupFull':brExport(true);return true;
+  case 'histOpen':{if(!sb||!A.user){hud('Connecte-toi pour voir l’historique en ligne');return true}if(needNet())return true;
+    const {data,error}=await sb.from('user_data_history').select('id,saved_at').order('saved_at',{ascending:false}).limit(150);
+    if(error){hud(/relation|does not exist|schema cache/i.test(error.message)?'Historique pas encore activé : colle supabase/history.sql dans Supabase':'Erreur : '+error.message);return true}
+    sheet('Versions précédentes',data.length?sec('',data.map(r=>{const d=new Date(r.saved_at);return `<button type="button" class="cell tap" data-act="histPick" data-id="${r.id}"><span class="body"><span>${d.toLocaleDateString(LOC,{weekday:'short',day:'numeric',month:'long'})} à ${d.toLocaleTimeString(LOC,{hour:'2-digit',minute:'2-digit'})}</span></span>${I.chev}</button>`}).join(''),'Une copie est gardée à chaque changement (au plus toutes les 15 min), puis une par jour pendant 90 jours. Restaurer garde aussi ta version actuelle ici.')
+      :sec('',`<div class="cell"><span class="body fn">Pas encore de version : la première sera gardée à ta prochaine modification.</span></div>`),{save:''});return true}
+  case 'histPick':{const {data,error}=await sb.from('user_data_history').select('data,saved_at').eq('id',el.dataset.id).maybeSingle();if(error||!data){hud('Version introuvable');return true}
+    const d=data.data,f=d.fin||{},when=new Date(data.saved_at).toLocaleString(LOC,{weekday:'short',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});S.restore=d;
+    asheet(`Version du ${when} : ${Object.keys(d.days||{}).length} jours, ${(d.jobs||[]).length} candidatures, ${(d.todos||[]).length} tâches, ${(d.notes||[]).length} notes, ${(f.tx||[]).length} opérations (${dataCount(d)} éléments ; aujourd’hui ${dataCount(db)}).`,[{label:'Restaurer cette version',act:'restoreGo',danger:true}]);return true}
+  case 'restoreGo':{const d=S.restore;S.restore=null;await restoreData(d,'Version restaurée');return true}
+  case 'guardKeep':await cloudAdopt();A.guarded=false;return true;
+  case 'guardPush':A.force=true;A.guarded=false;closeSheet(true);cloudFlush().then(ok=>hud(ok?'Version envoyée':'Envoi impossible pour le moment'));return true;
+  default:return false}}
 async function payAct(act,el){switch(act){
   case 'fiPaySetup':fiPaySheet();return true;
   case 'payCopy':try{await navigator.clipboard.writeText(el.dataset.v);hud(T('Copié','Copied'))}catch(e){hud(el.dataset.v)}return true;
