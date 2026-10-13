@@ -2569,17 +2569,23 @@ const moveLabel=l=>{const t=normLabel(l),me=[st().lastName,st().name].filter(x=>
 /* analyse du relevé pour le compte choisi : doublons, virements entre comptes, échéances prévues, catégories */
 function bankAnalyze(){const I2=S.imp,acc=I2.acc==='__new'?'__new':I2.acc||'',F=fin(),seen={},used=new Set(),usedOcc=new Set(),pairUsed=new Set(),out=[];let already=0,matched=0,moves=0;
   const cardAcc=c=>c&&accounts().find(a=>(a.cards||[]).includes(c))?.id;
-  I2.src.forEach(r=>{const kind=r.amount<0?'out':'in',amount=Math.round(Math.abs(r.amount)*100)/100,base=`${r.date}|${amount}|${kind}|${normH(r.label)}`,k=seen[base]=(seen[base]||0)+1,fp=fpHash(base+'|'+k);
+  const vir=v=>/\bvir|virement|transfert|interne/.test(normH(v.raw||v.note||''))||['Autre','Autre revenu',MV].includes(v.cat)||!!v.plan;
+  const pairOf=new Map(),freed=new Set();
+  if(acc)I2.src.forEach((r,i)=>{const kind=r.amount<0?'out':'in',amount=Math.round(Math.abs(r.amount)*100)/100;
+    const x=F.tx.find(x=>x.src==='bank'&&x.acc&&x.acc!==acc&&!pairUsed.has(x.id)&&x.kind!==kind&&Math.abs(x.amount-amount)<0.01&&Math.abs(diff(x.date,r.date))<=3&&vir(x)&&(vir({raw:r.label})||/^Autre/.test(catGuess(r.label,kind).cat)));
+    if(x){pairUsed.add(x.id);pairOf.set(i,x);if(x.plan&&x.occ)freed.add(x.plan+'|'+x.occ)}});
+  /* échéances disponibles : non payées, ou libérées par un virement entre comptes reconnu */
+  const occs=(p,from,to)=>[...planOcc(p,from,to),...[...freed].filter(k=>k.startsWith(p.id+'|')).map(k=>k.slice(p.id.length+1)).filter(d=>d>=from&&d<=to)];
+  I2.src.forEach((r,i)=>{const kind=r.amount<0?'out':'in',amount=Math.round(Math.abs(r.amount)*100)/100,base=`${r.date}|${amount}|${kind}|${normH(r.label)}`,k=seen[base]=(seen[base]||0)+1,fp=fpHash(base+'|'+k);
     if(F.tx.some(x=>x.id===fp||x.bank===fp)){already++;return}
     /* déjà saisie : à la main, Apple Pay (si la carte n'est pas connue d'un autre compte), échéance payée */
     const twin=F.tx.find(x=>!used.has(x.id)&&!x.bank&&x.src!=='bank'&&x.kind===kind&&Math.abs(x.amount-amount)<0.01&&diff(x.date,r.date)>=-1&&diff(x.date,r.date)<=5&&(!acc||acc==='__new'||!x.acc||x.acc===acc)&&(!acc||acc==='__new'||!cardAcc(x.card)||cardAcc(x.card)===acc));
     if(twin){used.add(twin.id);matched++;out.push({fp,twin:twin.id,card:twin.card});return}
     /* virement entre mes comptes : la ligne inverse (même montant, ±3 jours) est déjà importée depuis un autre compte */
-    const vir=v=>/\bvir|virement|transfert|interne/.test(normH(v.raw||v.note||''))||['Autre','Autre revenu',MV].includes(v.cat);
-    const pair=acc&&F.tx.find(x=>x.src==='bank'&&x.acc&&x.acc!==acc&&!pairUsed.has(x.id)&&x.kind!==kind&&Math.abs(x.amount-amount)<0.01&&Math.abs(diff(x.date,r.date))<=3&&vir(x)&&(vir({raw:r.label})||!catGuess(r.label,kind).cat.match(/^(?!Autre)/)));
-    if(pair){pairUsed.add(pair.id);moves++;out.push({fp,kind,amount,date:r.date,raw:r.label,note:cleanLabel(r.label),cat:MV,to:'',pair:pair.id,on:true});return}
-    const pl=F.plans.find(p=>(pIn(p)?'in':'out')===kind&&Math.abs(p.amount-amount)<0.01&&planOcc(p,addDays(r.date,-5),addDays(r.date,3)).some(d=>!usedOcc.has(p.id+'|'+d)));
-    if(pl){const d=planOcc(pl,addDays(r.date,-5),addDays(r.date,3)).find(d=>!usedOcc.has(pl.id+'|'+d));usedOcc.add(pl.id+'|'+d);
+    const pair=pairOf.get(i);
+    if(pair){moves++;out.push({fp,kind,amount,date:r.date,raw:r.label,note:cleanLabel(r.label),cat:MV,to:'',pair:pair.id,on:true});return}
+    const pl=!moveLabel(r.label)&&F.plans.find(p=>(pIn(p)?'in':'out')===kind&&Math.abs(p.amount-amount)<0.01&&occs(p,addDays(r.date,-5),addDays(r.date,3)).some(d=>!usedOcc.has(p.id+'|'+d)));
+    if(pl){const d=occs(pl,addDays(r.date,-5),addDays(r.date,3)).find(d=>!usedOcc.has(pl.id+'|'+d));usedOcc.add(pl.id+'|'+d);
       out.push({fp,kind,amount,date:r.date,raw:r.label,note:pl.title,cat:pl.cat||(kind==='in'?'Autre revenu':'Autre'),to:pl.to||'',plan:pl.id,occ:d,on:true});return}
     if(moveLabel(r.label)){moves++;out.push({fp,kind,amount,date:r.date,raw:r.label,note:cleanLabel(r.label),cat:MV,to:'',on:true});return}
     const g=catGuess(r.label,kind);out.push({fp,kind,amount,date:r.date,raw:r.label,note:cleanLabel(r.label),cat:g.cat,to:g.to,on:true})});
@@ -2597,8 +2603,8 @@ function bankCommit(f){const I2=S.imp;if(!I2)return;const F=fin(),keep=new Set(n
   f.querySelectorAll('[data-bkcat]').forEach(sl=>{const r=I2.rows.find(x=>x.fp===sl.dataset.bkcat);if(r&&r.cat!==sl.value){r.cat=sl.value;if(!isSaveCat(r.cat))r.to=''}});
   I2.rows.forEach(r=>{if(r.twin){const x=F.tx.find(y=>y.id===r.twin);if(x){x.bank=r.fp;x.acc=x.acc||acc;if(r.card&&A&&!(A.cards||(A.cards=[])).includes(r.card))A.cards.push(r.card)}return}
     if(!keep.has(r.fp))return;const x={id:r.fp,kind:r.kind,amount:r.amount,cat:r.cat,note:r.note,raw:r.raw,date:r.date,src:'bank',to:r.to||'',acc};
-    if(r.plan){x.plan=r.plan;const p=F.plans.find(y=>y.id===r.plan);if(p)(p.paid||(p.paid=[])).push(r.occ)}
-    if(r.pair&&r.cat===MV){x.pair=r.pair;const o=F.tx.find(y=>y.id===r.pair);if(o){txLink(o,true);o.cat=MV;o.to='';o.pair=x.id}}
+    if(r.pair&&r.cat===MV){x.pair=r.pair;const o=F.tx.find(y=>y.id===r.pair);if(o){txLink(o,true);if(o.plan){const p=F.plans.find(y=>y.id===o.plan);if(p)p.paid=(p.paid||[]).filter(d=>d!==o.occ);delete o.plan;delete o.occ;o.note=cleanLabel(o.raw||o.note)}o.cat=MV;o.to='';o.pair=x.id}}
+    if(r.plan){x.plan=r.plan;x.occ=r.occ;const p=F.plans.find(y=>y.id===r.plan);if(p&&!(p.paid||(p.paid=[])).includes(r.occ))p.paid.push(r.occ)}
     F.tx.push(x);txLink(x);n++});
   F.tx.sort((a,b)=>a.date.localeCompare(b.date));
   /* montrer tout de suite le mois des opérations importées (le Budget n'affiche qu'un mois à la fois) */
