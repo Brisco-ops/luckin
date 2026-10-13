@@ -3078,7 +3078,8 @@ async function cloudPull(onlyIfNewer){
   if(res.error)return false;
   const mine=!db.owner||db.owner===A.user.id;const remote=res.data?.data;
   if(remote&&remote.settings){
-    if(!mine||blankLocal()||(remote.mod||0)>(db.mod||0)){const key=mine?st().apiKey:'';db=remote;db.settings.apiKey=key||'';db.owner=A.user.id;writeLocal();return true}
+    /* appareil jamais relié à un compte (ex. ordinateur) qui se connecte à un compte existant : le compte gagne, pour ne jamais écraser le téléphone */
+    if(!mine||(!db.owner&&!onlyIfNewer)||blankLocal()||(remote.mod||0)>(db.mod||0)){const key=mine?st().apiKey:'';db=remote;db.settings.apiKey=key||'';db.owner=A.user.id;writeLocal();return true}
     return false}
   if(onlyIfNewer)return false;
   if(!mine){db=seed()}
@@ -3237,7 +3238,7 @@ function memberStats(id){
   return {rows,prog,reg:rows.filter(r=>r.morning&&r.evening).length,sess:rows.filter(r=>r.session).length}}
 const hueOf=s=>{let h=0;for(const c of String(s))h=(h*31+c.charCodeAt(0))%360;return h};
 function paintFriends(){const el=$('#friends');if(!el)return;
-  if(!A.user){el.innerHTML='';return}
+  if(!A.user){el.innerHTML=sb?`<button type="button" class="fr-card fr-empty" data-act="gateOpen"><span class="fr-plus">${I.plus}</span><span><b>Se connecter</b><small>Retrouve ton compte et tes données sur cet appareil, ou crée un compte</small></span></button>`:'';return}
   if(!A.group){el.innerHTML=`<button type="button" class="fr-card fr-empty" data-act="groupMenu"><span class="fr-plus">${I.plus}</span><span><b>Invite tes amis</b><small>Crée un groupe ou rejoins-en un avec un code</small></span></button>`;return}
   const list=[...A.members].sort((a,b)=>(b.id===A.user.id)-(a.id===A.user.id));
   el.innerHTML=`<div class="fr-card"><div class="fr-h"><span>${esc(A.group.name)}</span><button type="button" class="fr-code" data-act="groupMenu" aria-label="Options du groupe">${esc(A.group.code)}</button></div>
