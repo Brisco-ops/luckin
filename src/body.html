@@ -2483,7 +2483,7 @@ const CAT_KW=[['Courses',/carrefour|leclerc|auchan|lidl|aldi|monoprix|franprix|i
 /* catégorie : celle déjà choisie pour ce commerçant, sinon devinée par mots-clés */
 /* libellé de banque nettoyé : « CB CARREFOUR CITY 12/10 » → « carrefour city » (sert à reconnaître un commerçant d'une fois sur l'autre) */
 const normLabel=x=>normH(x).replace(/\b(paiement par carte|achat cb|carte|cb|prlv sepa|prelevement|prlv|vir(ement)?( sepa)?( inst(antane)?)?( recu| emis)?|facture carte|du \d{2}\/\d{2}(\/\d{2,4})?)\b/g,' ').replace(/\b\d{1,2}[\/.]\d{1,2}([\/.]\d{2,4})?\b/g,' ').replace(/\b[x*]?\d{4,}\b/g,' ').replace(/[^a-z0-9&' ]+/g,' ').replace(/\s+/g,' ').trim();
-const SAVE_KW=[['Épargne',/tontine|livret|epargne|\bldds\b|\blep\b|\bpel\b|\bcel\b|cagnotte/i],['Placement',/club d.?invest|investissement|\bpea\b|bourse|assurance.?vie|trade ?republic|degiro|bitpanda|binance|coinbase|yomoni|linxea|ramify|nalo/i]];
+const SAVE_KW=[['Épargne',/tontine|livret|epargne|vers (le )?lep|\bldds\b|\blep\b|\bpel\b|\bcel\b|cagnotte/i],['Placement',/club d.?invest|investissement|\bpea\b|bourse|assurance.?vie|trade ?republic|degiro|bitpanda|binance|coinbase|yomoni|linxea|ramify|nalo/i]];
 const IN_KW=[['Salaire',/salaire|paie\b|remuneration|payroll/i],['Remboursement',/rembours|rembt|\bcaf\b|cpam|ameli|mutuelle|avoir/i],['Prime',/prime|bonus|interessement|participation/i]];
 /* catégorie (et cible d'épargne) : ce que tu as déjà choisi pour ce libellé, sinon mots-clés */
 function catGuess(m,kind='out'){const t=normLabel(m);if(!t)return {cat:kind==='in'?'Autre revenu':'Autre',to:''};
@@ -2518,23 +2518,27 @@ async function bankImport(file){if(!file)return;hud('Lecture du relevé…');
     else rows=tableRows(csvRows(text()));
     rows=(rows||[]).filter(r=>r.date&&r.amount);
     if(!rows.length){hud('Aucune opération reconnue : il faut des colonnes Date, Libellé et Montant (ou Débit/Crédit)');return}
-    const F=fin(),seen={},used=new Set(),out=[];let already=0,matched=0;
+    const F=fin(),seen={},used=new Set(),usedOcc=new Set(),out=[];let already=0,matched=0;
     rows.sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>{const kind=r.amount<0?'out':'in',amount=Math.round(Math.abs(r.amount)*100)/100,base=`${r.date}|${amount}|${kind}|${normH(r.label)}`,k=seen[base]=(seen[base]||0)+1,fp=fpHash(base+'|'+k);
       if(F.tx.some(x=>x.id===fp||x.bank===fp)){already++;return}
       const twin=F.tx.find(x=>!used.has(x.id)&&!x.bank&&x.src!=='bank'&&x.kind===kind&&Math.abs(x.amount-amount)<0.01&&diff(x.date,r.date)>=-1&&diff(x.date,r.date)<=5);
       if(twin){used.add(twin.id);matched++;out.push({fp,twin:twin.id});return}
-      const g=catGuess(r.label,kind);out.push({fp,kind,amount,date:r.date,raw:r.label,note:nameCase(r.label.replace(/\s+/g,' ').replace(/^((paiement par carte|achat cb|facture carte|carte( x?\*?\d+)?|cb|prlv sepa|prelevement|prlv|vir(ement)?( sepa)?( inst(antane)?)?( recu| emis)?)\s+)+/i,'').replace(/\s+(du\s+)?\d{2}[\/.]\d{2}([\/.]\d{2,4})?$/i,'').trim()||r.label).slice(0,80),cat:g.cat,to:g.to,on:true})});
+      /* échéance prévue (virement vers le LEP, tontine, salaire, loyer…) : même sens, même montant, date de 3 jours avant à 5 jours après, même si le libellé est vide */
+      const pl=F.plans.find(p=>(pIn(p)?'in':'out')===kind&&Math.abs(p.amount-amount)<0.01&&planOcc(p,addDays(r.date,-5),addDays(r.date,3)).some(d=>!usedOcc.has(p.id+'|'+d)));
+      if(pl){const d=planOcc(pl,addDays(r.date,-5),addDays(r.date,3)).find(d=>!usedOcc.has(pl.id+'|'+d));usedOcc.add(pl.id+'|'+d);
+        out.push({fp,kind,amount,date:r.date,raw:r.label,note:pl.title,cat:pl.cat||(kind==='in'?'Autre revenu':'Autre'),to:pl.to||'',plan:pl.id,occ:d,on:true});return}
+      const g=catGuess(r.label,kind);out.push({fp,kind,amount,date:r.date,raw:r.label,note:nameCase(r.label.replace(/\s+/g,' ').replace(/^((paiement par carte|achat cb|facture carte|carte( x?\*?\d+)?|cb|prlv sepa|prelevement|prlv|vir(ement)?( sepa)?( inst(antane)?)?( recu| emis)?)\s+)+/i,'').replace(/\s+(du\s+)?\d{2}[\/.]\d{2}([\/.]\d{2,4})?$/i,'').trim()||r.label||'Sans libellé').slice(0,80),cat:g.cat,to:g.to,on:true})});
     S.imp={rows:out,already,matched,total:rows.length};bankPreview()}
   catch(e){hud('Fichier illisible : '+(e.message||e))}}
 function bankPreview(){const I2=S.imp,add=I2.rows.filter(r=>!r.twin);
   sheet('Importer le relevé',`<form id="sf" data-form="bankImp">
-   ${sec('',`<div class="cell"><span class="body"><span>${I2.total} opérations dans le fichier</span><span class="fn">${add.length} nouvelle${add.length>1?'s':''} · ${I2.matched} déjà saisie${I2.matched>1?'s':''} (Apple Pay, à la main, échéances) · ${I2.already} déjà importée${I2.already>1?'s':''}</span></span></div>`,'Les opérations déjà dans Luck’In ne sont pas ajoutées une 2e fois : même montant, même sens, date proche (la banque enregistre souvent 1 à 3 jours plus tard). Décoche ce que tu ne veux pas importer (virement entre tes comptes…).')}
-   ${add.length?sec('À ajouter',add.map((r,k)=>`<label class="cell bk-row" for="bk${k}"><input id="bk${k}" type="checkbox" name="bk" value="${r.fp}" ${r.on?'checked':''}><span class="body"><span class="no-tr">${esc(r.note)}</span><span class="fn">${fday(r.date)} · <select data-bkcat="${r.fp}">${(r.kind==='out'?FCATS_OUT:FCATS_IN).map(c=>`<option ${c===r.cat?'selected':''}>${c}</option>`).join('')}</select></span></span><span class="fin-amt ${r.kind==='in'?'in':isSaveCat(r.cat)?'save':'out'}">${r.kind==='out'?'−':'+'}${eur(r.amount)}</span></label>`).join(''),'Catégorie devinée : touche-la pour la changer. Elle sera retenue pour ce libellé.','notile'):''}
+   ${sec('',`<div class="cell"><span class="body"><span>${I2.total} opérations dans le fichier</span><span class="fn">${add.length} nouvelle${add.length>1?'s':''} · ${I2.matched} déjà saisie${I2.matched>1?'s':''} (Apple Pay, à la main, échéances) · ${I2.already} déjà importée${I2.already>1?'s':''}</span></span></div>`,'Les opérations déjà dans Luck’In ne sont pas ajoutées une 2e fois : même montant, même sens, date proche (la banque enregistre souvent 1 à 3 jours plus tard). Une ligne qui correspond à une échéance prévue (même montant, date proche, libellé vide ou pas) prend sa catégorie et la marque payée. Décoche ce que tu ne veux pas importer.')}
+   ${add.length?sec('À ajouter',add.map((r,k)=>`<label class="cell bk-row" for="bk${k}"><input id="bk${k}" type="checkbox" name="bk" value="${r.fp}" ${r.on?'checked':''}><span class="body"><span class="no-tr">${esc(r.note)}</span><span class="fn">${fday(r.date)}${r.plan?' · <b>échéance prévue</b>':''} · <select data-bkcat="${r.fp}">${(r.kind==='out'?FCATS_OUT:FCATS_IN).map(c=>`<option ${c===r.cat?'selected':''}>${c}</option>`).join('')}</select></span></span><span class="fin-amt ${r.kind==='in'?'in':isSaveCat(r.cat)?'save':'out'}">${r.kind==='out'?'−':'+'}${eur(r.amount)}</span></label>`).join(''),'Catégorie devinée : touche-la pour la changer. Elle sera retenue pour ce libellé.','notile'):''}
   </form>`,{save:add.length?'Importer':''})}
 function bankCommit(f){const I2=S.imp;if(!I2)return;const F=fin(),keep=new Set(new FormData(f).getAll('bk'));let n=0;
   f.querySelectorAll('[data-bkcat]').forEach(sl=>{const r=I2.rows.find(x=>x.fp===sl.dataset.bkcat);if(r&&r.cat!==sl.value){r.cat=sl.value;if(!isSaveCat(r.cat))r.to=''}});
   I2.rows.forEach(r=>{if(r.twin){const x=F.tx.find(y=>y.id===r.twin);if(x)x.bank=r.fp;return}
-    if(!keep.has(r.fp))return;const x={id:r.fp,kind:r.kind,amount:r.amount,cat:r.cat,note:r.note,raw:r.raw,date:r.date,src:'bank',to:r.to||''};F.tx.push(x);txLink(x);n++});
+    if(!keep.has(r.fp))return;const x={id:r.fp,kind:r.kind,amount:r.amount,cat:r.cat,note:r.note,raw:r.raw,date:r.date,src:'bank',to:r.to||''};if(r.plan){x.plan=r.plan;const p=F.plans.find(y=>y.id===r.plan);if(p)(p.paid||(p.paid=[])).push(r.occ)}F.tx.push(x);txLink(x);n++});
   F.tx.sort((a,b)=>a.date.localeCompare(b.date));S.imp=null;save();closeSheet();paintFinance();hud(`${n} opération${n>1?'s':''} importée${n>1?'s':''}`)}
 let payBusy=false;
 async function payPull(){if(!sb||!A.user||!st().payOn||payBusy)return;payBusy=true;
