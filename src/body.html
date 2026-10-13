@@ -664,7 +664,7 @@ Faites ces 14 derniers jours : ${todos().filter(x=>x.done&&(x.doneAt||0)>Date.no
  finances(){const F=fin(),t=TODAY(),m=monthKey(t),tx=F.tx.filter(x=>monthKey(x.date)===m),out=sum(tx.filter(spend).map(x=>x.amount)),inn=sum(tx.filter(earned).map(x=>x.amount)),sv=sum(tx.filter(saved).map(x=>x.amount))-sum(tx.filter(wd).map(x=>x.amount));
   const cats={};tx.filter(spend).forEach(x=>cats[x.cat]=(cats[x.cat]||0)+x.amount);
   const prev=addMonths(m+'-15',-1).slice(0,7),pout=sum(F.tx.filter(x=>monthKey(x.date)===prev&&spend(x)).map(x=>x.amount));
-  return `Mois en cours (${m}) : revenus ${eur(inn)}, dépenses ${eur(out)}, épargne nette (versements − retraits) ${eur(sv)}${F.budget?' sur un budget de '+eur(F.budget):''}. Mois précédent : dépenses ${eur(pout)}.
+  return `Mois en cours (${m}) : revenus ${eur(inn)}, dépenses ${eur(out)}, épargne nette (versements − retraits) ${eur(sv)} (virements entre ses comptes exclus)${accounts().length?'. Comptes : '+accounts().map(a=>a.name).join(', '):''}${F.budget?' sur un budget de '+eur(F.budget):''}. Mois précédent : dépenses ${eur(pout)}.
 Par catégorie ce mois : ${Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+' '+eur(v)).join(', ')||'-'}.
 Dernières opérations : ${F.tx.slice(-25).map(x=>`${x.date} ${x.kind==='out'?'-':'+'}${eur(x.amount)} ${x.cat}${x.note?' ('+cut(x.note,40)+')':''}`).join(' ; ')||'aucune'}
 Récurrent : revenus ${eur(sum(F.plans.filter(p=>p.rep&&pIn(p)).map(monthlyEq)))} / mois, charges ${eur(sum(F.plans.filter(p=>p.rep&&!pIn(p)).map(monthlyEq)))} / mois (lissées) : ${F.plans.filter(p=>p.rep).map(p=>`${p.title} ${pIn(p)?'+':'-'}${eur(p.amount)} ${repTxt(p)}`).join(' ; ')||'rien'}.
@@ -1242,6 +1242,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.change==='apikey'){st().apiKey=t.value.trim();save();hud(t.value.trim()?'Clé enregistrée':'Clé retirée');return}
   if(t.name==='cat'&&t.closest('[data-form=fiTx],[data-form=fiPlan]')){const c=$('#ftoc');if(c)c.hidden=!isSaveCat(t.value);return}
   if(t.dataset.change==='bankImport'){bankImport(t.files[0]);t.value='';return}
+  if(t.dataset.change==='bkAcc'&&S.imp){S.imp.acc=t.value;bankAnalyze();bankPreview();return}
   if(t.name==='when'&&t.closest('[data-form=suppItem]')){const r=t.value==='repas';$('#spmeals').hidden=!r;$('#spdaily').hidden=!r;return}
   if(t.name==='type'&&t.closest('[data-form=meal]')){t.closest('form').querySelectorAll('#msupps [data-types]').forEach(l=>{const on=l.dataset.types.split(' ').includes(t.value);l.hidden=!on;if(!on)l.querySelector('input').checked=false});return}
   if(t.dataset.change==='trainTime'){st().trainTime=t.value;save();hud(t.value?'Heure de séance enregistrée':'Heure de séance retirée');return}
@@ -1886,10 +1887,12 @@ const fin=()=>db.fin||(db.fin={tx:[],plans:[],goals:[],inv:[],budget:null});
 const eur=(n,sign)=>{if(n==null||isNaN(n))return '–';const v=Math.round(n*100)/100;return (sign&&v>0?'+':'')+v.toLocaleString(LOC,{style:'currency',currency:'EUR',minimumFractionDigits:v%1?2:0,maximumFractionDigits:2})};
 /* montant court pour les compteurs : arrondi à l'euro, en k€ au-delà de 10 000 € */
 const eurK=(n,sign)=>{if(n==null||isNaN(n))return '–';const a=Math.abs(n),t=a>=1e4?(a/1e3).toLocaleString(LOC,{maximumFractionDigits:1})+' k€':Math.round(a).toLocaleString(LOC)+' €';return (n<0?'−':sign&&n>0?'+':'')+t};
-const FCATS_OUT=['Logement','Courses','Restaurants','Transport','Abonnements','Loisirs','Shopping','Santé','Voyages','Impôts','Cadeaux','Épargne','Placement','Autre'];
+const FCATS_OUT=['Logement','Courses','Restaurants','Transport','Abonnements','Loisirs','Shopping','Santé','Voyages','Impôts','Cadeaux','Épargne','Placement','Virement entre mes comptes','Autre'];
 /* Épargne (tontine, livret…) et Placement (club d'investissement, PEA…) : l'argent sort du compte mais n'est pas dépensé */
 /* Retrait d'épargne (LEP → compte courant) : l'argent revient sur le compte mais ce n'est pas un revenu ; il diminue l'objectif ou le placement d'origine */
-const WD='Retrait d’épargne',isSaveCat=c=>c==='Épargne'||c==='Placement'||c===WD,spend=x=>x.kind==='out'&&!isSaveCat(x.cat),saved=x=>x.kind==='out'&&isSaveCat(x.cat),wd=x=>x.kind==='in'&&x.cat===WD,earned=x=>x.kind==='in'&&x.cat!==WD;
+const WD='Retrait d’épargne',isSaveCat=c=>c==='Épargne'||c==='Placement'||c===WD,MV='Virement entre mes comptes',isMove=x=>x.cat===MV,spend=x=>x.kind==='out'&&!isSaveCat(x.cat)&&!isMove(x),saved=x=>x.kind==='out'&&isSaveCat(x.cat),wd=x=>x.kind==='in'&&x.cat===WD,earned=x=>x.kind==='in'&&x.cat!==WD&&!isMove(x);
+/* comptes bancaires (plusieurs banques) : fin.accounts = [{id, name, sig (format de fichier reconnu), cards (cartes Apple Pay de ce compte)}] */
+const accounts=()=>fin().accounts||(fin().accounts=[]),accName=id=>accounts().find(a=>a.id===id)?.name||'';
 /* relie une opération d'épargne à son objectif (g:id) ou placement (i:id) : versement ajouté, retiré si on change ou supprime l'opération */
 function txLink(x,del){const F=fin();
   F.goals.forEach(g=>{if((g.hist||[]).some(h=>h.tx===x.id)){g.hist=g.hist.filter(h=>h.tx!==x.id);g.saved=Math.max(0,sum(g.hist.map(h=>h.amt)))}});
@@ -1898,7 +1901,7 @@ function txLink(x,del){const F=fin();
   if(k==='g'){const g=F.goals.find(y=>y.id===id);if(g){(g.hist||(g.hist=[])).push({d:x.date,amt,tx:x.id});g.saved=Math.max(0,sum(g.hist.map(h=>h.amt)))}}
   if(k==='i'){const a=F.inv.find(y=>y.id===id);if(a){const v0=invVal(a);(a.flows||(a.flows=[])).push({d:x.date,amt,tx:x.id});if((a.vals||[]).length){a.vals.push({d:x.date,v:v0+amt,tx:x.id});a.vals.sort((p,q)=>p.d.localeCompare(q.d))}}}}
 const toSelect=(cat,to,inc)=>{const F=fin();return `<label class="cell field" for="fto" id="ftoc" ${isSaveCat(cat)?'':'hidden'}><span>${inc?'Depuis':'Vers'}</span><select id="fto" name="to"><option value="">—</option>${F.goals.length?`<optgroup label="Épargne">${F.goals.map(g=>`<option value="g:${g.id}" ${to==='g:'+g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</optgroup>`:''}${F.inv.length?`<optgroup label="Placements">${F.inv.map(a=>`<option value="i:${a.id}" ${to==='i:'+a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</optgroup>`:''}</select></label>`};
-const FCATS_IN=['Salaire','Prime','Remboursement','Vente','Retrait d’épargne','Autre revenu'];
+const FCATS_IN=['Salaire','Prime','Remboursement','Vente','Retrait d’épargne','Virement entre mes comptes','Autre revenu'];
 const FREP=[['','Une fois'],['month','Chaque mois'],['quarter','Chaque trimestre'],['year','Chaque année']];
 const INVT=['PEA','Assurance-vie','Compte-titres','PER','Crypto','Immobilier','Autre'];
 const FTABS=[['budget','Budget','<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h4"/>'],
@@ -1929,17 +1932,20 @@ function paintFinance(o={}){const v=$('#area'),tab=FTABS.find(x=>x[0]===S.fin)||
   <nav class="tabs ctabs" aria-label="Finances"><div class="in">${FTABS.map(([k,l,ic])=>`<button data-act="finTab" data-v="${k}" aria-label="${l}" title="${l}" aria-current="${k===tab[0]?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg></button>`).join('')}</div></nav>`;
   if(o.top)v.scrollTop=0}
 const fbars=(rows,max)=>{const mx=max||Math.max(...rows.map(r=>r[1]),1);return rows.map(([l,n,sub])=>`<div class="cell st-row"><span class="st-l">${esc(l)}</span><span class="st-bar"><i style="width:${Math.max(3,Math.min(100,n/mx*100))}%"></i></span><span class="st-v fin-v">${eur(n)}</span></div>`).join('')};
-function finBudget(){const m=S.finM||monthKey(TODAY()),F=fin(),tx=F.tx.filter(x=>monthKey(x.date)===m);
+function finBudget(){const m=S.finM||monthKey(TODAY()),F=fin(),A2=accounts(),fa=A2.some(a=>a.id===S.finAcc)||S.finAcc==='none'?S.finAcc:'',all=F.tx.filter(x=>monthKey(x.date)===m),tx=all.filter(x=>!fa||(fa==='none'?!x.acc:x.acc===fa));
+  const accRow=(id,name)=>{const xs=all.filter(x=>id?x.acc===id:!x.acc),i=sum(xs.filter(x=>x.kind==='in').map(x=>x.amount)),o=sum(xs.filter(x=>x.kind==='out').map(x=>x.amount));return xs.length?`<button class="cell tap" data-act="finAcc" data-v="${id||'none'}"><span class="body"><span>${esc(name)}</span><span class="fn">+${eur(i)} entrés · −${eur(o)} sortis</span></span><span class="fin-amt ${i-o>=0?'in':'out'}">${eur(i-o,true)}</span></button>`:''};
   const out=sum(tx.filter(spend).map(x=>x.amount)),inn=sum(tx.filter(earned).map(x=>x.amount)),sv=sum(tx.filter(saved).map(x=>x.amount))-sum(tx.filter(wd).map(x=>x.amount)),b=F.budget;
   const cats=[...new Map(tx.filter(spend).map(x=>[x.cat,0]))].map(([c])=>[c,sum(tx.filter(x=>spend(x)&&x.cat===c).map(x=>x.amount))]).sort((a,b)=>b[1]-a[1]);
   const byDay=[...new Set(tx.map(x=>x.date))].sort().reverse();
   const cur=m===monthKey(TODAY());
   return `<div class="fin-month"><button type="button" data-act="finMonth" data-d="-1" aria-label="Mois précédent">‹</button><span>${monthName(m)}</span><button type="button" data-act="finMonth" data-d="1" aria-label="Mois suivant" ${cur?'disabled':''}>›</button></div>
    <div class="kpis tilesrow"><div class="${b?'ringed':''}" ${b?`style="--p:${clamp(out/b)*100}%"`:''} data-act="finBudgetSet"><span class="v">${eurK(out)}</span><span class="k">dépensé</span></div><div><span class="v">${eurK(inn)}</span><span class="k">revenus</span></div><div><span class="v">${eurK(sv,true)}</span><span class="k">épargné</span></div><div><span class="v">${b?eurK(b-out):'–'}</span><span class="k">reste budget</span></div></div>
-   <p class="sec-f">Solde du mois : ${eur(inn-out-sv,true)} = revenus − dépenses − épargne nette. L’épargne (tontine, livret, placements) n’est pas une dépense, et un retrait d’épargne (LEP → compte courant) n’est pas un revenu : il diminue l’épargne du mois.</p>
+   <p class="sec-f">Solde du mois${fa?' sur ce compte':''} : ${eur(inn-out-sv,true)} = revenus − dépenses − épargne nette. L’épargne (tontine, livret, placements) n’est pas une dépense, un retrait d’épargne n’est pas un revenu, et un virement entre tes comptes ne compte ni dans l’un ni dans l’autre.</p>
    ${sec('',addCell('Ajouter une dépense','fiNewOut')+addCell('Ajouter un revenu','fiNewIn')+`<label class="cell tap link"><span class="plus">${I.plus}</span><input type="file" accept=".csv,.txt,.xlsx,.xls,.ofx,.qfx" data-change="bankImport" hidden><span>Importer un relevé de banque</span></label><button type="button" class="cell tap link" data-act="fiPaySetup"><span class="plus">${I.plus}</span><span>Apple Pay automatique${st().payOn?' · activé':''}</span></button>`,'','notile')}
+   ${A2.length?`<div class="fin-accs">${[['','Tous'],...A2.map(a=>[a.id,a.name]),...(all.some(x=>!x.acc)?[['none','Sans compte']]:[])].map(([k,l])=>`<button type="button" data-act="finAcc" data-v="${k}" aria-pressed="${fa===k}">${esc(l)}</button>`).join('')}</div>`:''}
+   ${A2.length&&!fa?sec('Par compte ce mois',A2.map(a=>accRow(a.id,a.name)).join('')+accRow('','Sans compte (à la main, Apple Pay)')+`<button type="button" class="cell tap link" data-act="finAccMng">Gérer mes comptes</button>`,'Entrées et sorties réelles de chaque compte (virements entre tes comptes et épargne compris).','notile'):''}
    ${cats.length?sec('Par catégorie',fbars(cats),'','notile'):''}
-   ${byDay.length?byDay.map(d=>sec(fday(d),tx.filter(x=>x.date===d).map(x=>`<button class="cell tap" data-act="fiEditTx" data-id="${x.id}"><span class="body"><span>${esc(x.note||x.cat)}</span><span class="fn">${esc(x.note?x.cat:'')}${x.plan?' · prévue':''}${x.src==='applepay'?' · Apple Pay':''}${x.src==='bank'||x.bank?' · relevé':''}</span></span><span class="fin-amt ${saved(x)||wd(x)?'save':x.kind}">${x.kind==='out'?'−':'+'}${eur(x.amount)}</span></button>`).join(''),'','notile')).join('')
+   ${byDay.length?byDay.map(d=>sec(fday(d),tx.filter(x=>x.date===d).map(x=>`<button class="cell tap" data-act="fiEditTx" data-id="${x.id}"><span class="body"><span>${esc(x.note||x.cat)}</span><span class="fn">${esc(x.note?x.cat:'')}${x.plan?' · prévue':''}${x.src==='applepay'?' · Apple Pay':''}${x.acc&&!fa?' · '+esc(accName(x.acc)):x.src==='bank'||x.bank?' · relevé':''}</span></span><span class="fin-amt ${saved(x)||wd(x)?'save':isMove(x)?'move':x.kind}">${x.kind==='out'?'−':'+'}${eur(x.amount)}</span></button>`).join(''),'','notile')).join('')
      :sec('',`<div class="cell"><span class="body fn">Aucune opération en ${monthName(m)}. Ajoute tes dépenses au fil de l’eau (20 s) : la répartition par catégorie se fait toute seule.</span></div>`,'','notile')}
    ${sec('',`<button class="cell tap" data-act="finBudgetSet"><span class="body"><span>Budget mensuel</span><span class="fn">${b?eur(b)+' de dépenses par mois':'Pas encore défini'}</span></span>${I.chev}</button>`,'','notile')}`}
 function finPlans(){const t=TODAY(),eom=addMonths(monthKey(t)+'-01',1).slice(0,8)+'01',end=addDays(eom,-1),F=fin();
@@ -1982,7 +1988,7 @@ const catSelect=(cats,val)=>`<label class="cell field" for="fcat"><span>Catégor
 function fiTxSheet(x,kind){const isNew=!x;kind=x?.kind||kind||'out';x=x||{amount:'',date:TODAY(),cat:kind==='out'?'Courses':'Salaire',note:''};
   sheet(isNew?(kind==='out'?'Nouvelle dépense':'Nouveau revenu'):'Opération',`<form id="sf" data-form="fiTx" data-id="${x.id||''}" data-kind="${kind}">
    ${sec('',amountField('amount','Montant',x.amount!==''?String(x.amount).replace('.',','):''))}
-   ${sec('',`${catSelect(kind==='out'?FCATS_OUT:FCATS_IN,x.cat)}${toSelect(x.cat,x.to,kind==='in')}<label class="cell field" for="fnote"><span>Libellé</span><input id="fnote" name="note" value="${esc(x.note||'')}" placeholder="Facultatif" autocomplete="off"></label><label class="cell field" for="fdate"><span>Date</span><input id="fdate" name="date" type="date" value="${x.date}"></label>`)}
+   ${sec('',`${catSelect(kind==='out'?FCATS_OUT:FCATS_IN,x.cat)}${toSelect(x.cat,x.to,kind==='in')}${accounts().length?`<label class="cell field" for="facc"><span>Compte</span><select id="facc" name="acc"><option value="">—</option>${accounts().map(a=>`<option value="${a.id}" ${a.id===(x.acc||(isNew&&S.finAcc!=='none'?S.finAcc:''))?'selected':''}>${esc(a.name)}</option>`).join('')}</select></label>`:''}<label class="cell field" for="fnote"><span>Libellé</span><input id="fnote" name="note" value="${esc(x.note||'')}" placeholder="Facultatif" autocomplete="off"></label><label class="cell field" for="fdate"><span>Date</span><input id="fdate" name="date" type="date" value="${x.date}"></label>`)}
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="fiDelTx" data-id="${x.id}">Supprimer</button>`)}
   </form>`)}
 function fiPlanSheet(p,kind){const isNew=!p;kind=p?.kind||kind||'out';const inc=kind==='in';p=p||{title:'',amount:'',date:TODAY(),rep:'month',cat:inc?'Salaire':'Logement'};
@@ -2009,7 +2015,7 @@ function fiBudgetSheet(){const b=fin().budget;sheet('Budget mensuel',`<form id="
 function finSubmit(f,v){const F=fin(),id=f.dataset.id,t=TODAY();let msg='';
   switch(f.dataset.form){
    case 'fiTx':{const a=num(v.amount);if(!a||a<=0){hud('Indique un montant');return}let x=F.tx.find(y=>y.id===id);const isNew=!x;if(isNew){x={id:uid(),kind:f.dataset.kind||'out'};F.tx.push(x)}
-     Object.assign(x,{amount:a,cat:v.cat,note:(v.note||'').trim(),date:v.date||t,to:isSaveCat(v.cat)?v.to||'':''});txLink(x);F.tx.sort((p,q)=>p.date.localeCompare(q.date));S.finM=monthKey(x.date);msg=isNew?(x.kind==='out'?'Dépense ajoutée':'Revenu ajouté'):'Opération enregistrée';break}
+     Object.assign(x,{amount:a,cat:v.cat,note:(v.note||'').trim(),date:v.date||t,to:isSaveCat(v.cat)?v.to||'':'',...(v.acc!=null?{acc:v.acc}:{})});txLink(x);F.tx.sort((p,q)=>p.date.localeCompare(q.date));S.finM=monthKey(x.date);msg=isNew?(x.kind==='out'?'Dépense ajoutée':'Revenu ajouté'):'Opération enregistrée';break}
    case 'fiPlan':{const a=num(v.amount);if(!a||a<=0){hud('Indique un montant');return}let p=F.plans.find(y=>y.id===id);const isNew=!p;if(isNew){p={id:uid(),paid:[]};F.plans.push(p)}
      Object.assign(p,{title:v.title.trim(),amount:a,date:v.date||t,rep:v.rep||'',cat:v.cat,kind:f.dataset.kind==='in'?'in':'out',to:isSaveCat(v.cat)?v.to||'':''});{const g=F.goals.find(x=>x.planId===p.id);if(g&&!p.rep){g.name=p.title;g.target=a;g.due=p.date}}msg=isNew?(p.kind==='in'?'Revenu ajouté':'Ajouté'):'Enregistré';break}
    case 'fiGoal':{let g=F.goals.find(y=>y.id===id);const isNew=!g;if(isNew){g={id:uid(),saved:0,hist:[]};F.goals.push(g)}
@@ -2020,6 +2026,7 @@ function finSubmit(f,v){const F=fin(),id=f.dataset.id,t=TODAY();let msg='';
      Object.assign(a,{name:v.name.trim(),type:v.type});const fl=num(v.flow),va=num(v.value);
      if(fl)a.flows.push({d:t,amt:fl});if(va!=null&&(isNew||va!==invVal(a)||fl)){a.vals=a.vals.filter(x=>x.d!==t);a.vals.push({d:t,v:va});a.vals.sort((p,q)=>p.d.localeCompare(q.d))}
      msg=isNew?'Placement ajouté':'Placement mis à jour';break}
+   case 'fiAccounts':{const del=accounts().filter(a=>v['ad-'+a.id]).map(a=>a.id);accounts().forEach(a=>{const n=String(v['an-'+a.id]||'').trim();if(n)a.name=n});F.accounts=accounts().filter(a=>!del.includes(a.id));F.tx.forEach(x=>{if(del.includes(x.acc))x.acc=''});if(del.includes(S.finAcc))S.finAcc='';msg='Comptes enregistrés';break}
    case 'fiBudget':F.budget=num(v.budget)||null;msg=F.budget?'Budget enregistré':'Budget retiré';break}
   save();closeSheet();if(!$('#area').hidden&&H.cur==='finances')paintFinance();haptic();hud(msg)}
 function finAct(act,id,el){const F=fin();
@@ -2031,6 +2038,8 @@ function finAct(act,id,el){const F=fin();
    case 'fiNewIn':fiTxSheet(null,'in');break;
    case 'fiEditTx':{const x=F.tx.find(y=>y.id===id);if(x)fiTxSheet(x);break}
    case 'fiDelTx':{const x=F.tx.find(y=>y.id===id);if(x)txLink(x,true)}F.tx=F.tx.filter(y=>y.id!==id);save();closeSheet();paintFinance();hud('Opération supprimée');break;
+   case 'finAcc':S.finAcc=S.finAcc===el.dataset.v?'':el.dataset.v;paintFinance();break;
+   case 'finAccMng':sheet('Mes comptes',`<form id="sf" data-form="fiAccounts">${sec('',accounts().map(a=>`<label class="cell field" for="an-${a.id}"><span>Nom</span><input id="an-${a.id}" name="an-${a.id}" value="${esc(a.name)}" autocomplete="off"></label><label class="cell" for="ad-${a.id}"><span class="body fn">Supprimer ce compte (les opérations restent, sans compte)</span><input id="ad-${a.id}" name="ad-${a.id}" type="checkbox" class="switch"></label>`).join(''),'Un compte est créé à l’import d’un relevé. Les cartes Apple Pay sont reliées toutes seules au bon compte quand un paiement est retrouvé dans son relevé.')}</form>`);break;
    case 'fiNewPlan':fiPlanSheet();break;
    case 'fiNewPlanIn':fiPlanSheet(null,'in');break;
    case 'fiPlanGoal':{const p=F.plans.find(y=>y.id===id);if(!p)break;let g=F.goals.find(x=>x.planId===p.id);if(!g){const d=planOcc(p,TODAY(),addMonths(TODAY(),36))[0]||p.date;g={id:uid(),name:p.title,target:p.amount,due:d,saved:0,hist:[],planId:p.id};F.goals.push(g);save();paintFinance();hud('Objectif d’épargne créé · retrouve-le dans Épargne')}else fiGoalSheet(g);break}
@@ -2537,44 +2546,66 @@ function tableRows(rows){const hi=rows.findIndex(r=>{const h=r.map(normH);return
   const h=rows[hi].map(normH),col=re=>h.findIndex(x=>re.test(x));
   const C={date:[col(/^date ?(d.?)?op|^dateop|^date$|^date comptable|^date de l.operation/),col(/date(?!.*val)/),col(/date/)].find(x=>x>=0),label:[col(/libell|label/),col(/description|intitule|detail|nature|operation|nom|commercant/)].find(x=>x>=0),
     amt:col(/^montant|^amount|^somme/),deb:col(/debit/),cre:col(/credit/)};
-  return rows.slice(hi+1).map(r=>{let a=C.amt>=0?amtNum(r[C.amt]):null;if(a==null){const d=amtNum(r[C.deb]),c=amtNum(r[C.cre]);a=c?Math.abs(c):d?-Math.abs(d):null}
-    return {date:cellDate(r[C.date]),amount:a,label:String(r[C.label]??'').trim()}})}
+  const res=rows.slice(hi+1).map(r=>{let a=C.amt>=0?amtNum(r[C.amt]):null;if(a==null){const d=amtNum(r[C.deb]),c=amtNum(r[C.cre]);a=c?Math.abs(c):d?-Math.abs(d):null}
+    return {date:cellDate(r[C.date]),amount:a,label:String(r[C.label]??'').trim()}});res.sig=h.filter(Boolean).join('|');return res}
 async function bankImport(file){if(!file)return;hud('Lecture du relevé…');
-  try{const buf=await file.arrayBuffer(),name=file.name.toLowerCase();let rows;
+  try{const buf=await file.arrayBuffer(),name=file.name.toLowerCase();let rows,sig='';
     const text=()=>{try{return new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(e){return new TextDecoder('windows-1252').decode(buf)}};
-    if(/\.(ofx|qfx)$/.test(name))rows=ofxRows(text());
+    if(/\.(ofx|qfx)$/.test(name)){const t=text();rows=ofxRows(t);const a=t.match(/<ACCTID>([^<\r\n]+)/i);sig='ofx:'+(a?a[1].trim():'')}
     else if(/\.(xlsx|xls)$/.test(name)){const X=await loadXLSX(),wb=X.read(buf,{type:'array'});for(const n of wb.SheetNames){rows=tableRows(X.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''}));if(rows)break}}
     else rows=tableRows(csvRows(text()));
+    if(!sig)sig='tab:'+(rows?.sig||'');
     rows=(rows||[]).filter(r=>r.date&&r.amount);
     if(!rows.length){hud('Aucune opération reconnue : il faut des colonnes Date, Libellé et Montant (ou Débit/Crédit)');return}
-    const F=fin(),seen={},used=new Set(),usedOcc=new Set(),out=[];let already=0,matched=0;
-    rows.sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>{const kind=r.amount<0?'out':'in',amount=Math.round(Math.abs(r.amount)*100)/100,base=`${r.date}|${amount}|${kind}|${normH(r.label)}`,k=seen[base]=(seen[base]||0)+1,fp=fpHash(base+'|'+k);
-      if(F.tx.some(x=>x.id===fp||x.bank===fp)){already++;return}
-      const twin=F.tx.find(x=>!used.has(x.id)&&!x.bank&&x.src!=='bank'&&x.kind===kind&&Math.abs(x.amount-amount)<0.01&&diff(x.date,r.date)>=-1&&diff(x.date,r.date)<=5);
-      if(twin){used.add(twin.id);matched++;out.push({fp,twin:twin.id});return}
-      /* échéance prévue (virement vers le LEP, tontine, salaire, loyer…) : même sens, même montant, date de 3 jours avant à 5 jours après, même si le libellé est vide */
-      const pl=F.plans.find(p=>(pIn(p)?'in':'out')===kind&&Math.abs(p.amount-amount)<0.01&&planOcc(p,addDays(r.date,-5),addDays(r.date,3)).some(d=>!usedOcc.has(p.id+'|'+d)));
-      if(pl){const d=planOcc(pl,addDays(r.date,-5),addDays(r.date,3)).find(d=>!usedOcc.has(pl.id+'|'+d));usedOcc.add(pl.id+'|'+d);
-        out.push({fp,kind,amount,date:r.date,raw:r.label,note:pl.title,cat:pl.cat||(kind==='in'?'Autre revenu':'Autre'),to:pl.to||'',plan:pl.id,occ:d,on:true});return}
-      const g=catGuess(r.label,kind);out.push({fp,kind,amount,date:r.date,raw:r.label,note:nameCase(r.label.replace(/\s+/g,' ').replace(/^((paiement par carte|achat cb|facture carte|carte( x?\*?\d+)?|cb|prlv sepa|prelevement|prlv|vir(ement)?( sepa)?( inst(antane)?)?( recu| emis)?)\s+)+/i,'').replace(/\s+(du\s+)?\d{2}[\/.]\d{2}([\/.]\d{2,4})?$/i,'').trim()||r.label||'Sans libellé').slice(0,80),cat:g.cat,to:g.to,on:true})});
-    S.imp={rows:out,already,matched,total:rows.length};bankPreview()}
+    const A2=accounts(),known=sig.length>8&&A2.find(a=>a.sig===sig),guess=known||(sig.length>8&&A2.some(a=>a.sig)?null:A2.find(a=>a.id===st().lastAcc)||A2[0]);
+    /* format de fichier déjà vu = même banque ; format inconnu = sans doute une autre banque */
+    S.imp={src:rows.sort((a,b)=>a.date.localeCompare(b.date)),sig,acc:guess?.id||'__new'};bankAnalyze();bankPreview()}
   catch(e){hud('Fichier illisible : '+(e.message||e))}}
-function bankPreview(){const I2=S.imp,add=I2.rows.filter(r=>!r.twin);
+const cleanLabel=l=>nameCase(String(l||'').replace(/\s+/g,' ').replace(/^((paiement par carte|achat cb|facture carte|carte( x?\*?\d+)?|cb|prlv sepa|prelevement|prlv|vir(ement)?( sepa)?( inst(antane)?)?( recu| emis)?)\s+)+/i,'').replace(/\s+(du\s+)?\d{2}[\/.]\d{2}([\/.]\d{2,4})?$/i,'').replace(/^(recu|emis|sepa|inst)$/i,'').trim()||String(l||'').trim()||'Sans libellé').slice(0,80);
+/* virement entre mes comptes reconnu par le libellé (« vir interne », « vers mon compte », ton nom) */
+const moveLabel=l=>{const t=normLabel(l),me=[st().lastName,st().name].filter(x=>x&&x.length>2).map(normH);
+  return /\b(interne|compte a compte|vers (mon|m|mme) |de (mon|m|mme) |entre comptes|transfert)\b/.test(' '+t+' ')||(/^(vir|virement)\b/.test(normH(l).replace(/^(sepa )/,''))&&me.length&&me.every(x=>t.includes(x)))};
+/* analyse du relevé pour le compte choisi : doublons, virements entre comptes, échéances prévues, catégories */
+function bankAnalyze(){const I2=S.imp,acc=I2.acc==='__new'?'__new':I2.acc||'',F=fin(),seen={},used=new Set(),usedOcc=new Set(),pairUsed=new Set(),out=[];let already=0,matched=0,moves=0;
+  const cardAcc=c=>c&&accounts().find(a=>(a.cards||[]).includes(c))?.id;
+  I2.src.forEach(r=>{const kind=r.amount<0?'out':'in',amount=Math.round(Math.abs(r.amount)*100)/100,base=`${r.date}|${amount}|${kind}|${normH(r.label)}`,k=seen[base]=(seen[base]||0)+1,fp=fpHash(base+'|'+k);
+    if(F.tx.some(x=>x.id===fp||x.bank===fp)){already++;return}
+    /* déjà saisie : à la main, Apple Pay (si la carte n'est pas connue d'un autre compte), échéance payée */
+    const twin=F.tx.find(x=>!used.has(x.id)&&!x.bank&&x.src!=='bank'&&x.kind===kind&&Math.abs(x.amount-amount)<0.01&&diff(x.date,r.date)>=-1&&diff(x.date,r.date)<=5&&(!acc||acc==='__new'||!x.acc||x.acc===acc)&&(!acc||acc==='__new'||!cardAcc(x.card)||cardAcc(x.card)===acc));
+    if(twin){used.add(twin.id);matched++;out.push({fp,twin:twin.id,card:twin.card});return}
+    /* virement entre mes comptes : la ligne inverse (même montant, ±3 jours) est déjà importée depuis un autre compte */
+    const vir=v=>/\bvir|virement|transfert|interne/.test(normH(v.raw||v.note||''))||['Autre','Autre revenu',MV].includes(v.cat);
+    const pair=acc&&F.tx.find(x=>x.src==='bank'&&x.acc&&x.acc!==acc&&!pairUsed.has(x.id)&&x.kind!==kind&&Math.abs(x.amount-amount)<0.01&&Math.abs(diff(x.date,r.date))<=3&&vir(x)&&(vir({raw:r.label})||!catGuess(r.label,kind).cat.match(/^(?!Autre)/)));
+    if(pair){pairUsed.add(pair.id);moves++;out.push({fp,kind,amount,date:r.date,raw:r.label,note:cleanLabel(r.label),cat:MV,to:'',pair:pair.id,on:true});return}
+    const pl=F.plans.find(p=>(pIn(p)?'in':'out')===kind&&Math.abs(p.amount-amount)<0.01&&planOcc(p,addDays(r.date,-5),addDays(r.date,3)).some(d=>!usedOcc.has(p.id+'|'+d)));
+    if(pl){const d=planOcc(pl,addDays(r.date,-5),addDays(r.date,3)).find(d=>!usedOcc.has(pl.id+'|'+d));usedOcc.add(pl.id+'|'+d);
+      out.push({fp,kind,amount,date:r.date,raw:r.label,note:pl.title,cat:pl.cat||(kind==='in'?'Autre revenu':'Autre'),to:pl.to||'',plan:pl.id,occ:d,on:true});return}
+    if(moveLabel(r.label)){moves++;out.push({fp,kind,amount,date:r.date,raw:r.label,note:cleanLabel(r.label),cat:MV,to:'',on:true});return}
+    const g=catGuess(r.label,kind);out.push({fp,kind,amount,date:r.date,raw:r.label,note:cleanLabel(r.label),cat:g.cat,to:g.to,on:true})});
+  Object.assign(I2,{rows:out,already,matched,moves,total:I2.src.length})}
+function bankPreview(){const I2=S.imp,add=I2.rows.filter(r=>!r.twin),A2=accounts();
   sheet('Importer le relevé',`<form id="sf" data-form="bankImp">
-   ${sec('',`<div class="cell"><span class="body"><span>${I2.total} opérations dans le fichier</span><span class="fn">${add.length} nouvelle${add.length>1?'s':''} · ${I2.matched} déjà saisie${I2.matched>1?'s':''} (Apple Pay, à la main, échéances) · ${I2.already} déjà importée${I2.already>1?'s':''}</span></span></div>`,'Les opérations déjà dans Luck’In ne sont pas ajoutées une 2e fois : même montant, même sens, date proche (la banque enregistre souvent 1 à 3 jours plus tard). Une ligne qui correspond à une échéance prévue (même montant, date proche, libellé vide ou pas) prend sa catégorie et la marque payée. Décoche ce que tu ne veux pas importer.')}
-   ${add.length?sec('À ajouter',add.map((r,k)=>`<label class="cell bk-row" for="bk${k}"><input id="bk${k}" type="checkbox" name="bk" value="${r.fp}" ${r.on?'checked':''}><span class="body"><span class="no-tr">${esc(r.note)}</span><span class="fn">${fday(r.date)}${r.plan?' · <b>échéance prévue</b>':''} · <select data-bkcat="${r.fp}">${(r.kind==='out'?FCATS_OUT:FCATS_IN).map(c=>`<option ${c===r.cat?'selected':''}>${c}</option>`).join('')}</select></span></span><span class="fin-amt ${isSaveCat(r.cat)?'save':r.kind==='in'?'in':'out'}">${r.kind==='out'?'−':'+'}${eur(r.amount)}</span></label>`).join(''),'Catégorie devinée : touche-la pour la changer. Elle sera retenue pour ce libellé.','notile'):''}
-  </form>`,{save:add.length?'Importer':''})}
+   ${sec('Compte',`<label class="cell field" for="bkacc"><span>Banque / compte</span><select id="bkacc" name="acc" data-change="bkAcc">${A2.map(a=>`<option value="${a.id}" ${a.id===I2.acc?'selected':''}>${esc(a.name)}</option>`).join('')}<option value="__new" ${I2.acc==='__new'?'selected':''}>Nouveau compte…</option></select></label>
+     <label class="cell field" for="bkaccn" ${I2.acc==='__new'?'':'hidden'} id="bkaccnc"><span>Nom</span><input id="bkaccn" name="accName" placeholder="Boursorama, Crédit Agricole…" autocomplete="off"></label>`,'Choisi une fois par banque : la prochaine fois, le relevé de cette banque sera reconnu tout seul.')}
+   ${sec('',`<div class="cell"><span class="body"><span>${I2.total} opérations dans le fichier</span><span class="fn">${add.length} nouvelle${add.length>1?'s':''} · ${I2.matched} déjà saisie${I2.matched>1?'s':''} (Apple Pay, à la main, échéances) · ${I2.already} déjà importée${I2.already>1?'s':''}${I2.moves?` · ${I2.moves} virement${I2.moves>1?'s':''} entre tes comptes`:''}</span></span></div>`,'Pas de doublon : une opération déjà dans Luck’In (même montant, même sens, date proche) n’est pas ajoutée. Un virement entre tes comptes n’est ni une dépense ni un revenu. Une ligne qui correspond à une échéance prévue prend sa catégorie. Décoche ce que tu ne veux pas importer.')}
+   ${add.length?sec('À ajouter',add.map((r,k)=>`<label class="cell bk-row" for="bk${k}"><input id="bk${k}" type="checkbox" name="bk" value="${r.fp}" ${r.on?'checked':''}><span class="body"><span class="no-tr">${esc(r.note)}</span><span class="fn">${fday(r.date)}${r.plan?' · <b>échéance prévue</b>':''}${r.pair?' · <b>vu sur '+esc(accName(fin().tx.find(x=>x.id===r.pair)?.acc))+'</b>':''} · <select data-bkcat="${r.fp}">${(r.kind==='out'?FCATS_OUT:FCATS_IN).map(c=>`<option ${c===r.cat?'selected':''}>${c}</option>`).join('')}</select></span></span><span class="fin-amt ${isSaveCat(r.cat)?'save':r.cat===MV?'move':r.kind==='in'?'in':'out'}">${r.kind==='out'?'−':'+'}${eur(r.amount)}</span></label>`).join(''),'Catégorie devinée : touche-la pour la changer. Elle sera retenue pour ce libellé.','notile'):''}
+  </form>`,{save:add.length||I2.matched?'Importer':''})}
 function bankCommit(f){const I2=S.imp;if(!I2)return;const F=fin(),keep=new Set(new FormData(f).getAll('bk'));let n=0;
+  let acc=I2.acc;if(acc==='__new'){const nm=String(f.querySelector('#bkaccn')?.value||'').trim();if(!nm){hud('Donne un nom à ce compte');return}acc=uid();accounts().push({id:acc,name:nm,sig:I2.sig,cards:[]})}
+  const A=accounts().find(a=>a.id===acc);if(A&&I2.sig.length>8){accounts().forEach(a=>{if(a.sig===I2.sig&&a!==A)a.sig=''});A.sig=I2.sig}st().lastAcc=acc;
   f.querySelectorAll('[data-bkcat]').forEach(sl=>{const r=I2.rows.find(x=>x.fp===sl.dataset.bkcat);if(r&&r.cat!==sl.value){r.cat=sl.value;if(!isSaveCat(r.cat))r.to=''}});
-  I2.rows.forEach(r=>{if(r.twin){const x=F.tx.find(y=>y.id===r.twin);if(x)x.bank=r.fp;return}
-    if(!keep.has(r.fp))return;const x={id:r.fp,kind:r.kind,amount:r.amount,cat:r.cat,note:r.note,raw:r.raw,date:r.date,src:'bank',to:r.to||''};if(r.plan){x.plan=r.plan;const p=F.plans.find(y=>y.id===r.plan);if(p)(p.paid||(p.paid=[])).push(r.occ)}F.tx.push(x);txLink(x);n++});
-  F.tx.sort((a,b)=>a.date.localeCompare(b.date));S.imp=null;save();closeSheet();paintFinance();hud(`${n} opération${n>1?'s':''} importée${n>1?'s':''}`)}
+  I2.rows.forEach(r=>{if(r.twin){const x=F.tx.find(y=>y.id===r.twin);if(x){x.bank=r.fp;x.acc=x.acc||acc;if(r.card&&A&&!(A.cards||(A.cards=[])).includes(r.card))A.cards.push(r.card)}return}
+    if(!keep.has(r.fp))return;const x={id:r.fp,kind:r.kind,amount:r.amount,cat:r.cat,note:r.note,raw:r.raw,date:r.date,src:'bank',to:r.to||'',acc};
+    if(r.plan){x.plan=r.plan;const p=F.plans.find(y=>y.id===r.plan);if(p)(p.paid||(p.paid=[])).push(r.occ)}
+    if(r.pair&&r.cat===MV){x.pair=r.pair;const o=F.tx.find(y=>y.id===r.pair);if(o){txLink(o,true);o.cat=MV;o.to='';o.pair=x.id}}
+    F.tx.push(x);txLink(x);n++});
+  F.tx.sort((a,b)=>a.date.localeCompare(b.date));S.imp=null;save();closeSheet();paintFinance();hud(`${n} opération${n>1?'s':''} importée${n>1?'s':''}${A?' · '+A.name:''}`)}
 let payBusy=false;
 async function payPull(){if(!sb||!A.user||!st().payOn||payBusy)return;payBusy=true;
   try{const {data,error}=await sb.from('pay_inbox').select('id,amount,merchant,card,at').order('at');if(error||!data?.length)return;
     const F=fin();let n=0;
     data.forEach(r=>{const id='ap'+r.id;if(F.tx.some(x=>x.id===id))return;const a=+r.amount,refund=a<0;
-      F.tx.push({id,kind:refund?'in':'out',amount:Math.abs(a),...(refund?{cat:'Remboursement'}:catGuess(r.merchant)),note:r.merchant||'Apple Pay',raw:r.merchant||'',date:new Date(r.at).toLocaleDateString('sv'),src:'applepay'});n++});
+      F.tx.push({id,kind:refund?'in':'out',amount:Math.abs(a),...(refund?{cat:'Remboursement'}:catGuess(r.merchant)),note:r.merchant||'Apple Pay',raw:r.merchant||'',card:r.card||'',acc:accounts().find(a=>(a.cards||[]).includes(r.card))?.id||'',date:new Date(r.at).toLocaleDateString('sv'),src:'applepay'});n++});
     if(n){F.tx.forEach(x=>{if(x.src==='applepay'&&x.to&&!x.linked){txLink(x);x.linked=1}});F.tx.sort((a,b)=>a.date.localeCompare(b.date));save();if(H.cur==='finances'&&!$('#area').hidden)paintFinance();else if(!$('#home').hidden)paintAgenda();
       hud(T(`${n} paiement${n>1?'s':''} Apple Pay ajouté${n>1?'s':''}`,`${n} Apple Pay payment${n>1?'s':''} added`))}
     await sb.from('pay_inbox').delete().in('id',data.map(r=>r.id))}

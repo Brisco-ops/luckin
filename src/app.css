@@ -674,3 +674,7 @@ a.cell{text-decoration:none}
 .bk-row select{font:inherit;color:var(--label2);background:var(--fill);border:0;border-radius:6px;padding:1px 4px;max-width:150px}
 .tbl.tbl4{grid-template-columns:1fr auto auto auto}
 .bl-l{display:block;font-size:14px;margin-top:6px}.bl-l small{color:var(--label2);font-size:12px;margin-left:4px}
+.fin-amt.move{color:var(--label2)}
+.fin-accs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}.fin-accs::-webkit-scrollbar{display:none}
+.fin-accs button{flex:none;border:0;border-radius:99px;padding:7px 13px;background:var(--fill);color:var(--label);font:600 13px var(--font)}
+.fin-accs button[aria-pressed=true]{background:var(--area);color:#fff}
