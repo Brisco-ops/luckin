@@ -882,6 +882,9 @@ a.cell{text-decoration:none}
 .pay-steps>div{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;line-height:1.45}
 .pay-steps .ob-n{flex:none}
 .pay-steps .pay-code{margin:-4px 0 0 34px}
+.fin-amt.save{color:var(--tint)}
+.bk-row{align-items:center;gap:10px}.bk-row input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:var(--area)}
+.bk-row select{font:inherit;color:var(--label2);background:var(--fill);border:0;border-radius:6px;padding:1px 4px;max-width:150px}
 </style>
 
 </head><body>
@@ -1545,10 +1548,10 @@ Contacts : ${contacts().slice(0,40).map(x=>`${x.name} (${[x.role,x.company].filt
   return `Tâches à faire (${o.length}) : ${o.map(x=>`${x.title} [id ${x.id}, ${x.prio}${x.due?', échéance '+x.due+(x.time?' '+x.time:''):', sans échéance'}${x.due&&x.due<t?', EN RETARD':''}${x.cat?', '+x.cat:''}${x.rep?', répétée '+REP_SHORT[x.rep]:''}]${x.note?' : '+cut(x.note,100):''}`).join(' ; ')||'aucune'}
 ${areaOn('forme')?'Séances de sport prévues (14 jours, créneaux fixes) : '+sessTxt(t,addDays(t,14))+'.\n':''}Événements à venir (salons, masterclass…) : ${events().filter(e=>e.date>=t).map(e=>`${e.date} ${e.time||''} ${e.title}${e.place?' ('+e.place+')':''}`).join(' ; ')||'aucun'}.\nRendez-vous fixes de l’agenda (14 jours) : ${gcalItems(t,addDays(t,14)).map(x=>`${x.d} ${x.allDay?'journée':x.time+(x.end?'-'+x.end:'')} ${x.title}`).join(' ; ')||'aucun ou non connecté'}.
 Faites ces 14 derniers jours : ${todos().filter(x=>x.done&&(x.doneAt||0)>Date.now()-14*864e5).length + sum(todos().map(x=>(x.hist||[]).filter(h=>h>Date.now()-14*864e5).length))}.`},
- finances(){const F=fin(),t=TODAY(),m=monthKey(t),tx=F.tx.filter(x=>monthKey(x.date)===m),out=sum(tx.filter(x=>x.kind==='out').map(x=>x.amount)),inn=sum(tx.filter(x=>x.kind==='in').map(x=>x.amount));
-  const cats={};tx.filter(x=>x.kind==='out').forEach(x=>cats[x.cat]=(cats[x.cat]||0)+x.amount);
-  const prev=addMonths(m+'-15',-1).slice(0,7),pout=sum(F.tx.filter(x=>monthKey(x.date)===prev&&x.kind==='out').map(x=>x.amount));
-  return `Mois en cours (${m}) : revenus ${eur(inn)}, dépenses ${eur(out)}${F.budget?' sur un budget de '+eur(F.budget):''}. Mois précédent : dépenses ${eur(pout)}.
+ finances(){const F=fin(),t=TODAY(),m=monthKey(t),tx=F.tx.filter(x=>monthKey(x.date)===m),out=sum(tx.filter(spend).map(x=>x.amount)),inn=sum(tx.filter(x=>x.kind==='in').map(x=>x.amount)),sv=sum(tx.filter(saved).map(x=>x.amount));
+  const cats={};tx.filter(spend).forEach(x=>cats[x.cat]=(cats[x.cat]||0)+x.amount);
+  const prev=addMonths(m+'-15',-1).slice(0,7),pout=sum(F.tx.filter(x=>monthKey(x.date)===prev&&spend(x)).map(x=>x.amount));
+  return `Mois en cours (${m}) : revenus ${eur(inn)}, dépenses ${eur(out)}, mis en épargne/placements ${eur(sv)}${F.budget?' sur un budget de '+eur(F.budget):''}. Mois précédent : dépenses ${eur(pout)}.
 Par catégorie ce mois : ${Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+' '+eur(v)).join(', ')||'-'}.
 Dernières opérations : ${F.tx.slice(-25).map(x=>`${x.date} ${x.kind==='out'?'-':'+'}${eur(x.amount)} ${x.cat}${x.note?' ('+cut(x.note,40)+')':''}`).join(' ; ')||'aucune'}
 Récurrent : revenus ${eur(sum(F.plans.filter(p=>p.rep&&pIn(p)).map(monthlyEq)))} / mois, charges ${eur(sum(F.plans.filter(p=>p.rep&&!pIn(p)).map(monthlyEq)))} / mois (lissées) : ${F.plans.filter(p=>p.rep).map(p=>`${p.title} ${pIn(p)?'+':'-'}${eur(p.amount)} ${repTxt(p)}`).join(' ; ')||'rien'}.
@@ -1560,7 +1563,7 @@ Placements : ${F.inv.map(a=>`${a.name} (${a.type}) valeur ${eur(invVal(a))}, ver
   return `${N.length} notes. Étiquettes : ${tags.join(', ')||'aucune'}.
 Notes (récentes d’abord) : ${N.slice(0,60).map(n=>`« ${n.title} »${(n.tags||[]).length?' #'+n.tags.join(' #'):''} [liens vers : ${brOut(n).join(', ')||'-'} ; citée par : ${brBack(n).map(x=>x.title).join(', ')||'-'}${(n.media||[]).length?' ; '+n.media.length+' média(s)':''}] ${cut((n.body||'').replace(/!\[\[media:[a-z0-9]+\]\]/g,''),220)}`).join('\n')||'aucune'}`},
  central(){const t=TODAY(),{today,soon}=agendaItems(),strip=x=>String(x).replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
-  const F=fin(),m=monthKey(t),out=sum(F.tx.filter(x=>monthKey(x.date)===m&&x.kind==='out').map(x=>x.amount)),a7=lastWeightAvg(),s=st();
+  const F=fin(),m=monthKey(t),out=sum(F.tx.filter(x=>monthKey(x.date)===m&&spend(x)).map(x=>x.amount)),a7=lastWeightAvg(),s=st();
   const txt=`Domaines suivis : ${AREA_PICK.filter(a=>areaOn(a[0])).map(a=>a[1]).join(', ')}.
 Agenda d’aujourd’hui : ${today.map(o=>strip(o.title)+(o.time?' à '+o.time:'')+' ('+(COACH_DOMS[o.area]||'agenda')+(o.late?', en retard':'')+')').join(' ; ')||'rien'}
 Prochains jours : ${soon.map(o=>o.day+' '+strip(o.title)+(o.time?' '+o.time:'')+' ('+(COACH_DOMS[o.area]||'agenda')+')').join(' ; ')||'rien'}
@@ -2118,6 +2121,8 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.change==='lang'){st().lang=t.value;writeLocal();save();setTimeout(()=>location.reload(),150);return}
   if(t.dataset.change==='name'){st().name=t.value.trim()||'toi';save();hud('Prénom enregistré');return}
   if(t.dataset.change==='apikey'){st().apiKey=t.value.trim();save();hud(t.value.trim()?'Clé enregistrée':'Clé retirée');return}
+  if(t.name==='cat'&&t.closest('[data-form=fiTx],[data-form=fiPlan]')){const c=$('#ftoc');if(c)c.hidden=!isSaveCat(t.value);return}
+  if(t.dataset.change==='bankImport'){bankImport(t.files[0]);t.value='';return}
   if(t.name==='when'&&t.closest('[data-form=suppItem]')){const r=t.value==='repas';$('#spmeals').hidden=!r;$('#spdaily').hidden=!r;return}
   if(t.name==='type'&&t.closest('[data-form=meal]')){t.closest('form').querySelectorAll('#msupps [data-types]').forEach(l=>{const on=l.dataset.types.split(' ').includes(t.value);l.hidden=!on;if(!on)l.querySelector('input').checked=false});return}
   if(t.dataset.change==='trainTime'){st().trainTime=t.value;save();hud(t.value?'Heure de séance enregistrée':'Heure de séance retirée');return}
@@ -2138,6 +2143,7 @@ document.addEventListener('submit',ev=>{
   if(f.dataset.form==='ev'){evSubmit(f,v);return}
   if(f.dataset.form==='ct'){ctSubmit(f,v);return}
   if(f.dataset.form==='todo'){todoSubmit(f,v);return}
+  if(f.dataset.form==='bankImp'){bankCommit(f);return}
   if(/^fi[A-Z]/.test(f.dataset.form||'')){finSubmit(f,v);return}
   if(f.dataset.form==='ccProf'){const d=f.dataset.dom,P={};PROF[d].f.forEach(([k])=>{const x=String(v[k]||'').trim();if(x)P[k]=x});st().prof=Object.assign({},st().prof,{[d]:P});save();closeSheet();CC.dom=d;coachRepaint();hud('Profil enregistré');return}
   if(f.dataset.form==='brNote'||f.dataset.form==='brLink'){brainSubmit(f,v);return}
@@ -2758,7 +2764,17 @@ const fin=()=>db.fin||(db.fin={tx:[],plans:[],goals:[],inv:[],budget:null});
 const eur=(n,sign)=>{if(n==null||isNaN(n))return '–';const v=Math.round(n*100)/100;return (sign&&v>0?'+':'')+v.toLocaleString(LOC,{style:'currency',currency:'EUR',minimumFractionDigits:v%1?2:0,maximumFractionDigits:2})};
 /* montant court pour les compteurs : arrondi à l'euro, en k€ au-delà de 10 000 € */
 const eurK=(n,sign)=>{if(n==null||isNaN(n))return '–';const a=Math.abs(n),t=a>=1e4?(a/1e3).toLocaleString(LOC,{maximumFractionDigits:1})+' k€':Math.round(a).toLocaleString(LOC)+' €';return (n<0?'−':sign&&n>0?'+':'')+t};
-const FCATS_OUT=['Logement','Courses','Restaurants','Transport','Abonnements','Loisirs','Shopping','Santé','Voyages','Impôts','Cadeaux','Autre'];
+const FCATS_OUT=['Logement','Courses','Restaurants','Transport','Abonnements','Loisirs','Shopping','Santé','Voyages','Impôts','Cadeaux','Épargne','Placement','Autre'];
+/* Épargne (tontine, livret…) et Placement (club d'investissement, PEA…) : l'argent sort du compte mais n'est pas dépensé */
+const isSaveCat=c=>c==='Épargne'||c==='Placement',spend=x=>x.kind==='out'&&!isSaveCat(x.cat),saved=x=>x.kind==='out'&&isSaveCat(x.cat);
+/* relie une opération d'épargne à son objectif (g:id) ou placement (i:id) : versement ajouté, retiré si on change ou supprime l'opération */
+function txLink(x,del){const F=fin();
+  F.goals.forEach(g=>{if((g.hist||[]).some(h=>h.tx===x.id)){g.hist=g.hist.filter(h=>h.tx!==x.id);g.saved=Math.max(0,sum(g.hist.map(h=>h.amt)))}});
+  F.inv.forEach(a=>{if((a.flows||[]).some(f=>f.tx===x.id)){a.flows=a.flows.filter(f=>f.tx!==x.id);a.vals=(a.vals||[]).filter(v=>v.tx!==x.id)}});
+  if(del||!saved(x)||!x.to)return;const [k,id]=x.to.split(':');
+  if(k==='g'){const g=F.goals.find(y=>y.id===id);if(g){(g.hist||(g.hist=[])).push({d:x.date,amt:x.amount,tx:x.id});g.saved=Math.max(0,sum(g.hist.map(h=>h.amt)))}}
+  if(k==='i'){const a=F.inv.find(y=>y.id===id);if(a){const v0=invVal(a);(a.flows||(a.flows=[])).push({d:x.date,amt:x.amount,tx:x.id});if((a.vals||[]).length){a.vals.push({d:x.date,v:v0+x.amount,tx:x.id});a.vals.sort((p,q)=>p.d.localeCompare(q.d))}}}}
+const toSelect=(cat,to)=>{const F=fin();return `<label class="cell field" for="fto" id="ftoc" ${isSaveCat(cat)?'':'hidden'}><span>Vers</span><select id="fto" name="to"><option value="">—</option>${F.goals.length?`<optgroup label="Épargne">${F.goals.map(g=>`<option value="g:${g.id}" ${to==='g:'+g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</optgroup>`:''}${F.inv.length?`<optgroup label="Placements">${F.inv.map(a=>`<option value="i:${a.id}" ${to==='i:'+a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</optgroup>`:''}</select></label>`};
 const FCATS_IN=['Salaire','Prime','Remboursement','Vente','Autre revenu'];
 const FREP=[['','Une fois'],['month','Chaque mois'],['quarter','Chaque trimestre'],['year','Chaque année']];
 const INVT=['PEA','Assurance-vie','Compte-titres','PER','Crypto','Immobilier','Autre'];
@@ -2779,7 +2795,7 @@ const pIn=p=>p.kind==='in',repStep=p=>({month:1,quarter:3,year:12}[p.rep]||0);
 const monthlyEq=p=>repStep(p)?p.amount/repStep(p):0;
 const repTxt=p=>{const d=new Date(p.date+'T12:00:00'),dm=+p.date.slice(8);return p.rep==='month'?`le ${dm} de chaque mois`:p.rep==='quarter'?`chaque trimestre, le ${dm}`:p.rep==='year'?`chaque année, le ${d.toLocaleDateString(LOC,{day:'numeric',month:'long'})}`:'une fois'};
 /* dépenses à anticiper : ponctuelles à venir et trimestrielles/annuelles → combien mettre de côté par mois pour être prêt le jour J */
-function anticip(){const t=TODAY(),F=fin();return F.plans.filter(p=>!pIn(p)&&p.rep!=='month').map(p=>{const d=planOcc(p,t,addMonths(t,36))[0];if(!d)return null;
+function anticip(){const t=TODAY(),F=fin();return F.plans.filter(p=>!pIn(p)&&p.rep!=='month'&&!isSaveCat(p.cat)).map(p=>{const d=planOcc(p,t,addMonths(t,36))[0];if(!d)return null;
   const g=F.goals.find(x=>x.planId===p.id),have=Math.min(p.amount,g?.saved||0),months=Math.max(1,Math.ceil(diff(t,d)/30.44)),per=Math.max(0,p.amount-have)/months;
   return {p,d,g,have,months,per}}).filter(Boolean).sort((a,b)=>a.d.localeCompare(b.d))}
 const upcoming=(from,to)=>fin().plans.flatMap(p=>planOcc(p,from,to).map(d=>({p,d}))).sort((a,b)=>a.d.localeCompare(b.d));
@@ -2791,15 +2807,16 @@ function paintFinance(o={}){const v=$('#area'),tab=FTABS.find(x=>x[0]===S.fin)||
   if(o.top)v.scrollTop=0}
 const fbars=(rows,max)=>{const mx=max||Math.max(...rows.map(r=>r[1]),1);return rows.map(([l,n,sub])=>`<div class="cell st-row"><span class="st-l">${esc(l)}</span><span class="st-bar"><i style="width:${Math.max(3,Math.min(100,n/mx*100))}%"></i></span><span class="st-v fin-v">${eur(n)}</span></div>`).join('')};
 function finBudget(){const m=S.finM||monthKey(TODAY()),F=fin(),tx=F.tx.filter(x=>monthKey(x.date)===m);
-  const out=sum(tx.filter(x=>x.kind==='out').map(x=>x.amount)),inn=sum(tx.filter(x=>x.kind==='in').map(x=>x.amount)),b=F.budget;
-  const cats=[...new Map(tx.filter(x=>x.kind==='out').map(x=>[x.cat,0]))].map(([c])=>[c,sum(tx.filter(x=>x.kind==='out'&&x.cat===c).map(x=>x.amount))]).sort((a,b)=>b[1]-a[1]);
+  const out=sum(tx.filter(spend).map(x=>x.amount)),inn=sum(tx.filter(x=>x.kind==='in').map(x=>x.amount)),sv=sum(tx.filter(saved).map(x=>x.amount)),b=F.budget;
+  const cats=[...new Map(tx.filter(spend).map(x=>[x.cat,0]))].map(([c])=>[c,sum(tx.filter(x=>spend(x)&&x.cat===c).map(x=>x.amount))]).sort((a,b)=>b[1]-a[1]);
   const byDay=[...new Set(tx.map(x=>x.date))].sort().reverse();
   const cur=m===monthKey(TODAY());
   return `<div class="fin-month"><button type="button" data-act="finMonth" data-d="-1" aria-label="Mois précédent">‹</button><span>${monthName(m)}</span><button type="button" data-act="finMonth" data-d="1" aria-label="Mois suivant" ${cur?'disabled':''}>›</button></div>
-   <div class="kpis tilesrow"><div class="${b?'ringed':''}" ${b?`style="--p:${clamp(out/b)*100}%"`:''} data-act="finBudgetSet"><span class="v">${eurK(out)}</span><span class="k">dépensé</span></div><div><span class="v">${eurK(inn)}</span><span class="k">revenus</span></div><div><span class="v">${eurK(inn-out,true)}</span><span class="k">solde</span></div><div><span class="v">${b?eurK(b-out):'–'}</span><span class="k">reste budget</span></div></div>
-   ${sec('',addCell('Ajouter une dépense','fiNewOut')+addCell('Ajouter un revenu','fiNewIn'),'','notile')}
+   <div class="kpis tilesrow"><div class="${b?'ringed':''}" ${b?`style="--p:${clamp(out/b)*100}%"`:''} data-act="finBudgetSet"><span class="v">${eurK(out)}</span><span class="k">dépensé</span></div><div><span class="v">${eurK(inn)}</span><span class="k">revenus</span></div><div><span class="v">${eurK(sv)}</span><span class="k">épargné</span></div><div><span class="v">${b?eurK(b-out):'–'}</span><span class="k">reste budget</span></div></div>
+   <p class="sec-f">Solde du mois : ${eur(inn-out-sv,true)} (revenus − dépenses − épargne). L’épargne (tontine, livret…) et les placements ne comptent pas comme des dépenses.</p>
+   ${sec('',addCell('Ajouter une dépense','fiNewOut')+addCell('Ajouter un revenu','fiNewIn')+`<label class="cell tap link"><span class="plus">${I.plus}</span><input type="file" accept=".csv,.txt,.xlsx,.xls,.ofx,.qfx" data-change="bankImport" hidden><span>Importer un relevé de banque</span></label>`,'','notile')}
    ${cats.length?sec('Par catégorie',fbars(cats),'','notile'):''}
-   ${byDay.length?byDay.map(d=>sec(fday(d),tx.filter(x=>x.date===d).map(x=>`<button class="cell tap" data-act="fiEditTx" data-id="${x.id}"><span class="body"><span>${esc(x.note||x.cat)}</span><span class="fn">${esc(x.note?x.cat:'')}${x.plan?' · prévue':''}${x.src==='applepay'?' · Apple Pay':''}</span></span><span class="fin-amt ${x.kind}">${x.kind==='out'?'−':'+'}${eur(x.amount)}</span></button>`).join(''),'','notile')).join('')
+   ${byDay.length?byDay.map(d=>sec(fday(d),tx.filter(x=>x.date===d).map(x=>`<button class="cell tap" data-act="fiEditTx" data-id="${x.id}"><span class="body"><span>${esc(x.note||x.cat)}</span><span class="fn">${esc(x.note?x.cat:'')}${x.plan?' · prévue':''}${x.src==='applepay'?' · Apple Pay':''}${x.src==='bank'||x.bank?' · relevé':''}</span></span><span class="fin-amt ${saved(x)?'save':x.kind}">${x.kind==='out'?'−':'+'}${eur(x.amount)}</span></button>`).join(''),'','notile')).join('')
      :sec('',`<div class="cell"><span class="body fn">Aucune opération en ${monthName(m)}. Ajoute tes dépenses au fil de l’eau (20 s) : la répartition par catégorie se fait toute seule.</span></div>`,'','notile')}
    ${sec('',`<button class="cell tap" data-act="fiPaySetup"><span class="body"><span>Apple Pay automatique</span><span class="fn">${st().payOn?'Activé : tes paiements Apple Pay arrivent seuls ici':'Chaque paiement Apple Pay ajouté tout seul'}</span></span>${I.chev}</button>
      <button class="cell tap" data-act="finBudgetSet"><span class="body"><span>Budget mensuel</span><span class="fn">${b?eur(b)+' de dépenses par mois':'Pas encore défini'}</span></span>${I.chev}</button>`,'','notile')}`}
@@ -2807,7 +2824,7 @@ function finPlans(){const t=TODAY(),eom=addMonths(monthKey(t)+'-01',1).slice(0,8
   const late=upcoming(addDays(t,-31),addDays(t,-1)),next=upcoming(t,addDays(t,90));
   const m=monthKey(t),tx=F.tx.filter(x=>monthKey(x.date)===m),inn=sum(tx.filter(x=>x.kind==='in').map(x=>x.amount)),out=sum(tx.filter(x=>x.kind==='out').map(x=>x.amount));
   const rest=upcoming(m+'-01',end),restOut=sum(rest.filter(x=>!pIn(x.p)).map(x=>x.p.amount)),restIn=sum(rest.filter(x=>pIn(x.p)).map(x=>x.p.amount));
-  const rec=F.plans.filter(p=>p.rep),recIn=sum(rec.filter(pIn).map(monthlyEq)),recOut=sum(rec.filter(p=>!pIn(p)&&p.rep==='month').map(x=>x.amount)),A=anticip(),perTot=sum(A.map(a=>a.per));
+  const rec=F.plans.filter(p=>p.rep),recIn=sum(rec.filter(pIn).map(monthlyEq)),recOut=sum(rec.filter(p=>!pIn(p)&&p.rep==='month'&&!isSaveCat(p.cat)).map(x=>x.amount)),recSave=sum(rec.filter(p=>!pIn(p)&&isSaveCat(p.cat)).map(monthlyEq)),A=anticip(),perTot=sum(A.map(a=>a.per));
   const amt=p=>`<span class="fin-amt ${pIn(p)?'in':'out'}">${pIn(p)?'+':'−'}${eur(p.amount)}</span>`;
   const cell=({p,d})=>`<button class="cell tap" data-act="fiOcc" data-id="${p.id}|${d}"><span class="body"><span>${esc(p.title)}</span><span class="fn">${[d<t?(pIn(p)?'attendu depuis le ':'à payer depuis le ')+fdate(d):whenDay(d),p.rep?FREP.find(r=>r[0]===p.rep)[1].toLowerCase():null,p.cat].filter(Boolean).join(' · ')}</span></span>${amt(p)}${d<t?`<span class="pill late">${pIn(p)?'À recevoir':'À payer'}</span>`:''}</button>`;
   const acell=a=>`<div class="cell fin-goal fin-ant"><button type="button" class="body" data-act="fiEditPlan" data-id="${a.p.id}"><span>${esc(a.p.title)} · ${eur(a.p.amount)}</span>
@@ -2820,7 +2837,7 @@ function finPlans(){const t=TODAY(),eom=addMonths(monthKey(t)+'-01',1).slice(0,8
    ${sec('',addCell('Dépense récurrente ou à prévoir','fiNewPlan')+addCell('Revenu récurrent','fiNewPlanIn'),'','notile')}
    ${late.length?sec('En retard',late.map(cell).join(''),'Touche une échéance pour la marquer payée ou reçue : elle s’ajoute à ton budget.','notile'):''}
    ${A.length?sec('À anticiper',A.map(acell).join(''),`Mets ${eur(Math.ceil(perTot))} de côté chaque mois pour payer ces dépenses sans y penser le jour J. « Suivre » crée un objectif d’épargne pour voir où tu en es.`,'notile'):''}
-   ${rec.length?sec('Chaque mois',rec.slice().sort((a,b)=>pIn(b)-pIn(a)||monthlyEq(b)-monthlyEq(a)).map(p=>`<button class="cell tap" data-act="fiEditPlan" data-id="${p.id}"><span class="body"><span>${esc(p.title)}</span><span class="fn">${repTxt(p)}${p.cat?' · '+esc(p.cat):''}${p.rep!=='month'?' · soit '+eur(monthlyEq(p))+' / mois':''}</span></span>${amt(p)}</button>`).join(''),`Revenus récurrents ${eur(recIn)} − charges mensuelles ${eur(recOut)} − à mettre de côté ${eur(Math.ceil(perTot))} (dépenses trimestrielles, annuelles et ponctuelles) = ${eur(recIn-recOut-Math.ceil(perTot))} de reste à vivre par mois.`,'notile'):''}
+   ${rec.length?sec('Chaque mois',rec.slice().sort((a,b)=>pIn(b)-pIn(a)||monthlyEq(b)-monthlyEq(a)).map(p=>`<button class="cell tap" data-act="fiEditPlan" data-id="${p.id}"><span class="body"><span>${esc(p.title)}</span><span class="fn">${repTxt(p)}${p.cat?' · '+esc(p.cat):''}${p.rep!=='month'?' · soit '+eur(monthlyEq(p))+' / mois':''}</span></span>${amt(p)}</button>`).join(''),`Revenus récurrents ${eur(recIn)} − charges mensuelles ${eur(recOut)}${recSave?' − épargne programmée '+eur(recSave)+' (tontine, placements…)':''} − à mettre de côté ${eur(Math.ceil(perTot))} (dépenses trimestrielles, annuelles et ponctuelles) = ${eur(recIn-recOut-recSave-Math.ceil(perTot))} de reste à vivre par mois.`,'notile'):''}
    ${groups.length?groups.map(g=>sec(monthName(g),next.filter(x=>monthKey(x.d)===g).map(cell).join(''),'','notile')).join(''):sec('',`<div class="cell"><span class="body fn">Rien de prévu. Ajoute ton salaire, ton loyer, tes abonnements, ton assurance, tes impôts, un voyage… : tu vois venir chaque date, ce qu’il te restera en fin de mois et combien mettre de côté.</span></div>`,'','notile')}`}
 function finSave(){const G=fin().goals,tot=sum(G.map(g=>g.saved||0));
   const cell=g=>{const p=g.target?clamp((g.saved||0)/g.target):0,months=g.due?Math.max(1,Math.round(diff(TODAY(),g.due)/30.4)):null,per=g.due&&g.target>(g.saved||0)?(g.target-(g.saved||0))/months:null;
@@ -2843,13 +2860,13 @@ const catSelect=(cats,val)=>`<label class="cell field" for="fcat"><span>Catégor
 function fiTxSheet(x,kind){const isNew=!x;kind=x?.kind||kind||'out';x=x||{amount:'',date:TODAY(),cat:kind==='out'?'Courses':'Salaire',note:''};
   sheet(isNew?(kind==='out'?'Nouvelle dépense':'Nouveau revenu'):'Opération',`<form id="sf" data-form="fiTx" data-id="${x.id||''}" data-kind="${kind}">
    ${sec('',amountField('amount','Montant',x.amount!==''?String(x.amount).replace('.',','):''))}
-   ${sec('',`${catSelect(kind==='out'?FCATS_OUT:FCATS_IN,x.cat)}<label class="cell field" for="fnote"><span>Libellé</span><input id="fnote" name="note" value="${esc(x.note||'')}" placeholder="Facultatif" autocomplete="off"></label><label class="cell field" for="fdate"><span>Date</span><input id="fdate" name="date" type="date" value="${x.date}"></label>`)}
+   ${sec('',`${catSelect(kind==='out'?FCATS_OUT:FCATS_IN,x.cat)}${kind==='out'?toSelect(x.cat,x.to):''}<label class="cell field" for="fnote"><span>Libellé</span><input id="fnote" name="note" value="${esc(x.note||'')}" placeholder="Facultatif" autocomplete="off"></label><label class="cell field" for="fdate"><span>Date</span><input id="fdate" name="date" type="date" value="${x.date}"></label>`)}
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="fiDelTx" data-id="${x.id}">Supprimer</button>`)}
   </form>`)}
 function fiPlanSheet(p,kind){const isNew=!p;kind=p?.kind||kind||'out';const inc=kind==='in';p=p||{title:'',amount:'',date:TODAY(),rep:'month',cat:inc?'Salaire':'Logement'};
   sheet(isNew?(inc?'Revenu récurrent':'Dépense récurrente ou à prévoir'):(inc?'Revenu récurrent':'Dépense prévue'),`<form id="sf" data-form="fiPlan" data-id="${p.id||''}" data-kind="${kind}">
    ${sec('',`<label class="cell field" for="fpt"><span>Quoi</span><input id="fpt" name="title" value="${esc(p.title)}" required placeholder="${inc?'Salaire, loyer perçu, bourse…':'Loyer, Netflix, assurance, voyage…'}" autocomplete="off"></label>${amountField('amount','Montant',p.amount!==''?String(p.amount).replace('.',','):'')}`)}
-   ${sec('',`<label class="cell field" for="fpd"><span>${p.rep||isNew?(isNew?'Première date':'Date de départ'):'Date'}</span><input id="fpd" name="date" type="date" value="${p.date}"></label><label class="cell field" for="fpr"><span>Répétition</span><select id="fpr" name="rep">${FREP.map(([k,l])=>`<option value="${k}" ${k===(p.rep||'')?'selected':''}>${l}</option>`).join('')}</select></label>${catSelect(inc?FCATS_IN:FCATS_OUT,p.cat)}`,inc?'':'Une dépense « une fois » ou trimestrielle/annuelle apparaît dans « À anticiper » avec le montant à mettre de côté chaque mois.')}
+   ${sec('',`<label class="cell field" for="fpd"><span>${p.rep||isNew?(isNew?'Première date':'Date de départ'):'Date'}</span><input id="fpd" name="date" type="date" value="${p.date}"></label><label class="cell field" for="fpr"><span>Répétition</span><select id="fpr" name="rep">${FREP.map(([k,l])=>`<option value="${k}" ${k===(p.rep||'')?'selected':''}>${l}</option>`).join('')}</select></label>${catSelect(inc?FCATS_IN:FCATS_OUT,p.cat)}${inc?'':toSelect(p.cat,p.to)}`,inc?'':'Une dépense « une fois » ou trimestrielle/annuelle apparaît dans « À anticiper » avec le montant à mettre de côté chaque mois.')}
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="fiDelPlan" data-id="${p.id}">Supprimer</button>`)}
   </form>`)}
 function fiGoalSheet(g){const isNew=!g;g=g||{name:'',target:'',due:'',saved:0,hist:[]};
@@ -2870,9 +2887,9 @@ function fiBudgetSheet(){const b=fin().budget;sheet('Budget mensuel',`<form id="
 function finSubmit(f,v){const F=fin(),id=f.dataset.id,t=TODAY();let msg='';
   switch(f.dataset.form){
    case 'fiTx':{const a=num(v.amount);if(!a||a<=0){hud('Indique un montant');return}let x=F.tx.find(y=>y.id===id);const isNew=!x;if(isNew){x={id:uid(),kind:f.dataset.kind||'out'};F.tx.push(x)}
-     Object.assign(x,{amount:a,cat:v.cat,note:(v.note||'').trim(),date:v.date||t});F.tx.sort((p,q)=>p.date.localeCompare(q.date));S.finM=monthKey(x.date);msg=isNew?(x.kind==='out'?'Dépense ajoutée':'Revenu ajouté'):'Opération enregistrée';break}
+     Object.assign(x,{amount:a,cat:v.cat,note:(v.note||'').trim(),date:v.date||t,to:isSaveCat(v.cat)?v.to||'':''});txLink(x);F.tx.sort((p,q)=>p.date.localeCompare(q.date));S.finM=monthKey(x.date);msg=isNew?(x.kind==='out'?'Dépense ajoutée':'Revenu ajouté'):'Opération enregistrée';break}
    case 'fiPlan':{const a=num(v.amount);if(!a||a<=0){hud('Indique un montant');return}let p=F.plans.find(y=>y.id===id);const isNew=!p;if(isNew){p={id:uid(),paid:[]};F.plans.push(p)}
-     Object.assign(p,{title:v.title.trim(),amount:a,date:v.date||t,rep:v.rep||'',cat:v.cat,kind:f.dataset.kind==='in'?'in':'out'});{const g=F.goals.find(x=>x.planId===p.id);if(g&&!p.rep){g.name=p.title;g.target=a;g.due=p.date}}msg=isNew?(p.kind==='in'?'Revenu ajouté':'Ajouté'):'Enregistré';break}
+     Object.assign(p,{title:v.title.trim(),amount:a,date:v.date||t,rep:v.rep||'',cat:v.cat,kind:f.dataset.kind==='in'?'in':'out',to:isSaveCat(v.cat)?v.to||'':''});{const g=F.goals.find(x=>x.planId===p.id);if(g&&!p.rep){g.name=p.title;g.target=a;g.due=p.date}}msg=isNew?(p.kind==='in'?'Revenu ajouté':'Ajouté'):'Enregistré';break}
    case 'fiGoal':{let g=F.goals.find(y=>y.id===id);const isNew=!g;if(isNew){g={id:uid(),saved:0,hist:[]};F.goals.push(g)}
      Object.assign(g,{name:v.name.trim(),target:num(v.target)||0,due:v.due||''});
      const mv=num(isNew?v.saved:v.move);if(mv){const amt=isNew||v.dir!=='out'?mv:-mv;g.saved=Math.max(0,(g.saved||0)+amt);g.hist.push(isNew?{d:t,amt,init:true}:{d:t,amt})}
@@ -2891,14 +2908,14 @@ function finAct(act,id,el){const F=fin();
    case 'fiNewOut':fiTxSheet(null,'out');break;
    case 'fiNewIn':fiTxSheet(null,'in');break;
    case 'fiEditTx':{const x=F.tx.find(y=>y.id===id);if(x)fiTxSheet(x);break}
-   case 'fiDelTx':F.tx=F.tx.filter(y=>y.id!==id);save();closeSheet();paintFinance();hud('Opération supprimée');break;
+   case 'fiDelTx':{const x=F.tx.find(y=>y.id===id);if(x)txLink(x,true)}F.tx=F.tx.filter(y=>y.id!==id);save();closeSheet();paintFinance();hud('Opération supprimée');break;
    case 'fiNewPlan':fiPlanSheet();break;
    case 'fiNewPlanIn':fiPlanSheet(null,'in');break;
    case 'fiPlanGoal':{const p=F.plans.find(y=>y.id===id);if(!p)break;let g=F.goals.find(x=>x.planId===p.id);if(!g){const d=planOcc(p,TODAY(),addMonths(TODAY(),36))[0]||p.date;g={id:uid(),name:p.title,target:p.amount,due:d,saved:0,hist:[],planId:p.id};F.goals.push(g);save();paintFinance();hud('Objectif d’épargne créé · retrouve-le dans Épargne')}else fiGoalSheet(g);break}
    case 'fiOcc':{const [pid,d]=id.split('|'),p=F.plans.find(y=>y.id===pid);if(!p)break;
      asheet(`${p.title} · ${eur(p.amount)} · ${fday(d)}`,[{label:pIn(p)?'Marquer reçu (ajoute le revenu)':'Marquer payée (ajoute la dépense)',act:'fiPay',data:{id}},{label:'Modifier',act:'fiEditPlan',data:{id:pid}},...(p.rep?[{label:'Sauter cette échéance',act:'fiSkip',data:{id}}]:[])]);break}
    case 'fiPay':{const [pid,d]=id.split('|'),p=F.plans.find(y=>y.id===pid);if(!p)break;(p.paid||(p.paid=[])).push(d);
-     F.tx.push({id:uid(),kind:pIn(p)?'in':'out',amount:p.amount,cat:p.cat||(pIn(p)?'Autre revenu':'Autre'),note:p.title,date:d<=TODAY()?d:TODAY(),plan:p.id});F.tx.sort((a,b)=>a.date.localeCompare(b.date));save();if(H.cur==='finances')paintFinance();hud(pIn(p)?'Reçu · ajouté aux revenus':'Payée · ajoutée aux dépenses');break}
+     {const x={id:uid(),kind:pIn(p)?'in':'out',amount:p.amount,cat:p.cat||(pIn(p)?'Autre revenu':'Autre'),note:p.title,date:d<=TODAY()?d:TODAY(),plan:p.id,to:p.to||''};F.tx.push(x);txLink(x)}F.tx.sort((a,b)=>a.date.localeCompare(b.date));save();if(H.cur==='finances')paintFinance();hud(pIn(p)?'Reçu · ajouté aux revenus':'Payée · ajoutée aux dépenses');break}
    case 'fiSkip':{const [pid,d]=id.split('|'),p=F.plans.find(y=>y.id===pid);if(!p)break;(p.paid||(p.paid=[])).push(d);save();if(H.cur==='finances')paintFinance();hud('Échéance sautée');break}
    case 'fiEditPlan':{const p=F.plans.find(y=>y.id===id);if(p)fiPlanSheet(p);break}
    case 'fiDelPlan':F.plans=F.plans.filter(y=>y.id!==id);save();closeSheet();paintFinance();hud('Dépense prévue supprimée');break;
@@ -3355,15 +3372,68 @@ const CAT_KW=[['Courses',/carrefour|leclerc|auchan|lidl|aldi|monoprix|franprix|i
  ['Loisirs',/cin[eé]ma|ugc|path[eé]|gaumont|mk2|th[eé][aâ]tre|mus[eé]e|concert|fnac spectacle|steam|playstation|nintendo/i],
  ['Voyages',/airbnb|booking|h[oô]tel|accor|ibis|expedia/i]];
 /* catégorie : celle déjà choisie pour ce commerçant, sinon devinée par mots-clés */
-function catGuess(m){const t=String(m||'').trim().toLowerCase();if(!t)return 'Autre';const prev=fin().tx.slice().reverse().find(x=>x.kind==='out'&&String(x.note||'').toLowerCase()===t);if(prev)return prev.cat;
-  return (CAT_KW.find(([,rx])=>rx.test(t))||['Autre'])[0]}
+/* libellé de banque nettoyé : « CB CARREFOUR CITY 12/10 » → « carrefour city » (sert à reconnaître un commerçant d'une fois sur l'autre) */
+const normLabel=x=>normH(x).replace(/\b(paiement par carte|achat cb|carte|cb|prlv sepa|prelevement|prlv|vir(ement)?( sepa)?( inst(antane)?)?( recu| emis)?|facture carte|du \d{2}\/\d{2}(\/\d{2,4})?)\b/g,' ').replace(/\b\d{1,2}[\/.]\d{1,2}([\/.]\d{2,4})?\b/g,' ').replace(/\b[x*]?\d{4,}\b/g,' ').replace(/[^a-z0-9&' ]+/g,' ').replace(/\s+/g,' ').trim();
+const SAVE_KW=[['Épargne',/tontine|livret|epargne|\bldds\b|\blep\b|\bpel\b|\bcel\b|cagnotte/i],['Placement',/club d.?invest|investissement|\bpea\b|bourse|assurance.?vie|trade ?republic|degiro|bitpanda|binance|coinbase|yomoni|linxea|ramify|nalo/i]];
+const IN_KW=[['Salaire',/salaire|paie\b|remuneration|payroll/i],['Remboursement',/rembours|rembt|\bcaf\b|cpam|ameli|mutuelle|avoir/i],['Prime',/prime|bonus|interessement|participation/i]];
+/* catégorie (et cible d'épargne) : ce que tu as déjà choisi pour ce libellé, sinon mots-clés */
+function catGuess(m,kind='out'){const t=normLabel(m);if(!t)return {cat:kind==='in'?'Autre revenu':'Autre',to:''};
+  const prev=fin().tx.slice().reverse().find(x=>x.kind===kind&&normLabel(x.raw||x.note)===t);if(prev)return {cat:prev.cat,to:prev.to||''};
+  if(kind==='in')return {cat:(IN_KW.find(([,rx])=>rx.test(t))||['Autre revenu'])[0],to:''};
+  const sv=SAVE_KW.find(([,rx])=>rx.test(t));if(sv)return {cat:sv[0],to:''};
+  return {cat:(CAT_KW.find(([,rx])=>rx.test(t))||['Autre'])[0],to:''}}
+/* ---------- import d'un relevé de banque (CSV, Excel, OFX) ----------
+   Doublons : 1) une ligne déjà importée (empreinte date|montant|libellé) est ignorée ; 2) une opération déjà saisie (à la main, Apple Pay, échéance payée)
+   du même sens et du même montant, datée de 1 jour avant à 5 jours après la ligne (délai de la banque), est reconnue et ne compte qu'une fois. */
+const amtNum=v=>{if(typeof v==='number')return v;let x=String(v??'').replace(/[\s  €]/g,'').replace('−','-');if(!x)return null;
+  if(x.includes(',')&&x.includes('.'))x=x.lastIndexOf(',')>x.lastIndexOf('.')?x.replace(/\./g,'').replace(',','.'):x.replace(/,/g,'');else x=x.replace(',','.');const n=parseFloat(x);return isFinite(n)?n:null};
+const fpHash=x=>{let h=5381;for(const c of x)h=(h*33^c.charCodeAt(0))>>>0;return 'bk'+h.toString(36)};
+function csvRows(txt){const first=txt.split(/\r?\n/).find(l=>l.trim())||'',sep=[';','\t',','].map(c=>[c,first.split(c).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const rows=[];let row=[],cur='',q=false;for(let i=0;i<txt.length;i++){const c=txt[i];
+    if(q){if(c==='"'){if(txt[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}
+    else if(c==='"')q=true;else if(c===sep){row.push(cur);cur=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&txt[i+1]==='\n')i++;row.push(cur);cur='';if(row.some(x=>x.trim()))rows.push(row);row=[]}else cur+=c}
+  row.push(cur);if(row.some(x=>x.trim()))rows.push(row);return rows}
+function ofxRows(txt){return [...txt.matchAll(/<STMTTRN>([\s\S]*?)(<\/STMTTRN>|(?=<STMTTRN>)|<\/BANKTRANLIST>)/gi)].map(m=>{const g=k=>(m[1].match(new RegExp('<'+k+'>([^<\\r\\n]*)','i'))||[])[1]?.trim()||'';
+  const d=g('DTPOSTED');return {date:d?`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`:'',amount:amtNum(g('TRNAMT')),label:[g('NAME'),g('MEMO')].filter(Boolean).join(' ')}})}
+function tableRows(rows){const hi=rows.findIndex(r=>{const h=r.map(normH);return h.some(x=>/date/.test(x))&&h.some(x=>/montant|amount|debit|credit|somme/.test(x))});if(hi<0)return null;
+  const h=rows[hi].map(normH),col=re=>h.findIndex(x=>re.test(x));
+  const C={date:[col(/^date ?(d.?)?op|^dateop|^date$|^date comptable|^date de l.operation/),col(/date(?!.*val)/),col(/date/)].find(x=>x>=0),label:[col(/libell|label/),col(/description|intitule|detail|nature|operation|nom|commercant/)].find(x=>x>=0),
+    amt:col(/^montant|^amount|^somme/),deb:col(/debit/),cre:col(/credit/)};
+  return rows.slice(hi+1).map(r=>{let a=C.amt>=0?amtNum(r[C.amt]):null;if(a==null){const d=amtNum(r[C.deb]),c=amtNum(r[C.cre]);a=c?Math.abs(c):d?-Math.abs(d):null}
+    return {date:cellDate(r[C.date]),amount:a,label:String(r[C.label]??'').trim()}})}
+async function bankImport(file){if(!file)return;hud('Lecture du relevé…');
+  try{const buf=await file.arrayBuffer(),name=file.name.toLowerCase();let rows;
+    const text=()=>{try{return new TextDecoder('utf-8',{fatal:true}).decode(buf)}catch(e){return new TextDecoder('windows-1252').decode(buf)}};
+    if(/\.(ofx|qfx)$/.test(name))rows=ofxRows(text());
+    else if(/\.(xlsx|xls)$/.test(name)){const X=await loadXLSX(),wb=X.read(buf,{type:'array'});for(const n of wb.SheetNames){rows=tableRows(X.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:''}));if(rows)break}}
+    else rows=tableRows(csvRows(text()));
+    rows=(rows||[]).filter(r=>r.date&&r.amount);
+    if(!rows.length){hud('Aucune opération reconnue : il faut des colonnes Date, Libellé et Montant (ou Débit/Crédit)');return}
+    const F=fin(),seen={},used=new Set(),out=[];let already=0,matched=0;
+    rows.sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>{const kind=r.amount<0?'out':'in',amount=Math.round(Math.abs(r.amount)*100)/100,base=`${r.date}|${amount}|${kind}|${normH(r.label)}`,k=seen[base]=(seen[base]||0)+1,fp=fpHash(base+'|'+k);
+      if(F.tx.some(x=>x.id===fp||x.bank===fp)){already++;return}
+      const twin=F.tx.find(x=>!used.has(x.id)&&!x.bank&&x.src!=='bank'&&x.kind===kind&&Math.abs(x.amount-amount)<0.01&&diff(x.date,r.date)>=-1&&diff(x.date,r.date)<=5);
+      if(twin){used.add(twin.id);matched++;out.push({fp,twin:twin.id});return}
+      const g=catGuess(r.label,kind);out.push({fp,kind,amount,date:r.date,raw:r.label,note:nameCase(r.label.replace(/\s+/g,' ').replace(/^((paiement par carte|achat cb|facture carte|carte( x?\*?\d+)?|cb|prlv sepa|prelevement|prlv|vir(ement)?( sepa)?( inst(antane)?)?( recu| emis)?)\s+)+/i,'').replace(/\s+(du\s+)?\d{2}[\/.]\d{2}([\/.]\d{2,4})?$/i,'').trim()||r.label).slice(0,80),cat:g.cat,to:g.to,on:true})});
+    S.imp={rows:out,already,matched,total:rows.length};bankPreview()}
+  catch(e){hud('Fichier illisible : '+(e.message||e))}}
+function bankPreview(){const I2=S.imp,add=I2.rows.filter(r=>!r.twin);
+  sheet('Importer le relevé',`<form id="sf" data-form="bankImp">
+   ${sec('',`<div class="cell"><span class="body"><span>${I2.total} opérations dans le fichier</span><span class="fn">${add.length} nouvelle${add.length>1?'s':''} · ${I2.matched} déjà saisie${I2.matched>1?'s':''} (Apple Pay, à la main, échéances) · ${I2.already} déjà importée${I2.already>1?'s':''}</span></span></div>`,'Les opérations déjà dans Luck’In ne sont pas ajoutées une 2e fois : même montant, même sens, date proche (la banque enregistre souvent 1 à 3 jours plus tard). Décoche ce que tu ne veux pas importer (virement entre tes comptes…).')}
+   ${add.length?sec('À ajouter',add.map((r,k)=>`<label class="cell bk-row" for="bk${k}"><input id="bk${k}" type="checkbox" name="bk" value="${r.fp}" ${r.on?'checked':''}><span class="body"><span class="no-tr">${esc(r.note)}</span><span class="fn">${fday(r.date)} · <select data-bkcat="${r.fp}">${(r.kind==='out'?FCATS_OUT:FCATS_IN).map(c=>`<option ${c===r.cat?'selected':''}>${c}</option>`).join('')}</select></span></span><span class="fin-amt ${r.kind==='in'?'in':isSaveCat(r.cat)?'save':'out'}">${r.kind==='out'?'−':'+'}${eur(r.amount)}</span></label>`).join(''),'Catégorie devinée : touche-la pour la changer. Elle sera retenue pour ce libellé.','notile'):''}
+  </form>`,{save:add.length?'Importer':''})}
+function bankCommit(f){const I2=S.imp;if(!I2)return;const F=fin(),keep=new Set(new FormData(f).getAll('bk'));let n=0;
+  f.querySelectorAll('[data-bkcat]').forEach(sl=>{const r=I2.rows.find(x=>x.fp===sl.dataset.bkcat);if(r&&r.cat!==sl.value){r.cat=sl.value;if(!isSaveCat(r.cat))r.to=''}});
+  I2.rows.forEach(r=>{if(r.twin){const x=F.tx.find(y=>y.id===r.twin);if(x)x.bank=r.fp;return}
+    if(!keep.has(r.fp))return;const x={id:r.fp,kind:r.kind,amount:r.amount,cat:r.cat,note:r.note,raw:r.raw,date:r.date,src:'bank',to:r.to||''};F.tx.push(x);txLink(x);n++});
+  F.tx.sort((a,b)=>a.date.localeCompare(b.date));S.imp=null;save();closeSheet();paintFinance();hud(`${n} opération${n>1?'s':''} importée${n>1?'s':''}`)}
 let payBusy=false;
 async function payPull(){if(!sb||!A.user||!st().payOn||payBusy)return;payBusy=true;
   try{const {data,error}=await sb.from('pay_inbox').select('id,amount,merchant,card,at').order('at');if(error||!data?.length)return;
     const F=fin();let n=0;
     data.forEach(r=>{const id='ap'+r.id;if(F.tx.some(x=>x.id===id))return;const a=+r.amount,refund=a<0;
-      F.tx.push({id,kind:refund?'in':'out',amount:Math.abs(a),cat:refund?'Remboursement':catGuess(r.merchant),note:r.merchant||'Apple Pay',date:new Date(r.at).toLocaleDateString('sv'),src:'applepay'});n++});
-    if(n){F.tx.sort((a,b)=>a.date.localeCompare(b.date));save();if(H.cur==='finances'&&!$('#area').hidden)paintFinance();else if(!$('#home').hidden)paintAgenda();
+      F.tx.push({id,kind:refund?'in':'out',amount:Math.abs(a),...(refund?{cat:'Remboursement'}:catGuess(r.merchant)),note:r.merchant||'Apple Pay',raw:r.merchant||'',date:new Date(r.at).toLocaleDateString('sv'),src:'applepay'});n++});
+    if(n){F.tx.forEach(x=>{if(x.src==='applepay'&&x.to&&!x.linked){txLink(x);x.linked=1}});F.tx.sort((a,b)=>a.date.localeCompare(b.date));save();if(H.cur==='finances'&&!$('#area').hidden)paintFinance();else if(!$('#home').hidden)paintAgenda();
       hud(T(`${n} paiement${n>1?'s':''} Apple Pay ajouté${n>1?'s':''}`,`${n} Apple Pay payment${n>1?'s':''} added`))}
     await sb.from('pay_inbox').delete().in('id',data.map(r=>r.id))}
   catch(e){}finally{payBusy=false}}

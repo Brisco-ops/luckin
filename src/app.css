@@ -669,3 +669,6 @@ a.cell{text-decoration:none}
 .pay-steps>div{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;line-height:1.45}
 .pay-steps .ob-n{flex:none}
 .pay-steps .pay-code{margin:-4px 0 0 34px}
+.fin-amt.save{color:var(--tint)}
+.bk-row{align-items:center;gap:10px}.bk-row input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:var(--area)}
+.bk-row select{font:inherit;color:var(--label2);background:var(--fill);border:0;border-radius:6px;padding:1px 4px;max-width:150px}
