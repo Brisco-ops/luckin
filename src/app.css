@@ -654,3 +654,9 @@ a.cell{text-decoration:none}
 .cal-grid[style*="--n:7"] .cal-ev{padding:2px 3px;font-size:10px}
 .cal-now{position:absolute;left:-4px;right:0;height:2px;background:var(--red);border-radius:1px;pointer-events:none}
 .cal-now::before{content:"";position:absolute;left:0;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--red)}
+/* Finances : dépenses à anticiper */
+.fin-ant{align-items:center;gap:10px}
+.fin-ant>.body{border:0;background:none;text-align:left;padding:0;color:inherit;font:inherit;min-width:0;flex:1;display:flex;flex-direction:column;gap:3px;cursor:pointer}
+.fin-per{display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap}
+.fin-per b{font:700 16px var(--display);font-variant-numeric:tabular-nums}.fin-per small{font-size:11px;color:var(--label2)}
+.fin-per .link{border:0;background:none;color:var(--area);font:600 13px var(--font);padding:2px 0;cursor:pointer}

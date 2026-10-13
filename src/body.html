@@ -663,7 +663,9 @@ Faites ces 14 derniers jours : ${todos().filter(x=>x.done&&(x.doneAt||0)>Date.no
   return `Mois en cours (${m}) : revenus ${eur(inn)}, dépenses ${eur(out)}${F.budget?' sur un budget de '+eur(F.budget):''}. Mois précédent : dépenses ${eur(pout)}.
 Par catégorie ce mois : ${Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+' '+eur(v)).join(', ')||'-'}.
 Dernières opérations : ${F.tx.slice(-25).map(x=>`${x.date} ${x.kind==='out'?'-':'+'}${eur(x.amount)} ${x.cat}${x.note?' ('+cut(x.note,40)+')':''}`).join(' ; ')||'aucune'}
-Échéances (30 j passés non payées et 60 j à venir) : ${upcoming(addDays(t,-30),addDays(t,60)).map(({p,d})=>`${d} ${p.title} ${eur(p.amount)}${d<t?' EN RETARD':''}${p.rep?' ('+FREP.find(r=>r[0]===p.rep)[1]+')':''}`).join(' ; ')||'aucune'}
+Récurrent : revenus ${eur(sum(F.plans.filter(p=>p.rep&&pIn(p)).map(monthlyEq)))} / mois, charges ${eur(sum(F.plans.filter(p=>p.rep&&!pIn(p)).map(monthlyEq)))} / mois (lissées) : ${F.plans.filter(p=>p.rep).map(p=>`${p.title} ${pIn(p)?'+':'-'}${eur(p.amount)} ${repTxt(p)}`).join(' ; ')||'rien'}.
+À anticiper (mettre de côté par mois) : ${anticip().map(a=>`${a.p.title} ${eur(a.p.amount)} le ${a.d} → ${eur(Math.ceil(a.per))}/mois${a.g?' (déjà '+eur(a.have)+')':''}`).join(' ; ')||'rien'}.
+Échéances (30 j passés non payées et 60 j à venir) : ${upcoming(addDays(t,-30),addDays(t,60)).map(({p,d})=>`${d} ${pIn(p)?'revenu ':''}${p.title} ${eur(p.amount)}${d<t?' EN RETARD':''}${p.rep?' ('+FREP.find(r=>r[0]===p.rep)[1]+')':''}`).join(' ; ')||'aucune'}
 Épargne : ${F.goals.map(g=>`${g.name} ${eur(g.saved||0)} sur ${eur(g.target)}${g.due?' pour le '+g.due:''}`).join(' ; ')||'aucun objectif'}
 Placements : ${F.inv.map(a=>`${a.name} (${a.type}) valeur ${eur(invVal(a))}, versé ${eur(invIn(a))}`).join(' ; ')||'aucun'}`},
  savoir(){const N=notes().slice().sort((a,b)=>(b.updated||0)-(a.updated||0)),tags=[...new Set(N.flatMap(n=>n.tags||[]))];
@@ -1883,6 +1885,14 @@ function addMonths(d,n,dom){const [y,m]=d.split('-').map(Number),k=m-1+n,ny=y+Ma
 /* échéances d'une dépense prévue entre deux dates (hors échéances déjà payées) */
 function planOcc(p,from,to){const out=[],step={month:1,quarter:3,year:12}[p.rep]||0;let d=p.date,k=0;
   while(d<=to&&k<600){if(d>=from&&!(p.paid||[]).includes(d))out.push(d);if(!step)break;d=addMonths(p.date,++k*step)}return out}
+const pIn=p=>p.kind==='in',repStep=p=>({month:1,quarter:3,year:12}[p.rep]||0);
+/* équivalent mensuel d'une échéance récurrente (une dépense annuelle de 600 € = 50 € par mois) */
+const monthlyEq=p=>repStep(p)?p.amount/repStep(p):0;
+const repTxt=p=>{const d=new Date(p.date+'T12:00:00'),dm=+p.date.slice(8);return p.rep==='month'?`le ${dm} de chaque mois`:p.rep==='quarter'?`chaque trimestre, le ${dm}`:p.rep==='year'?`chaque année, le ${d.toLocaleDateString(LOC,{day:'numeric',month:'long'})}`:'une fois'};
+/* dépenses à anticiper : ponctuelles à venir et trimestrielles/annuelles → combien mettre de côté par mois pour être prêt le jour J */
+function anticip(){const t=TODAY(),F=fin();return F.plans.filter(p=>!pIn(p)&&p.rep!=='month').map(p=>{const d=planOcc(p,t,addMonths(t,36))[0];if(!d)return null;
+  const g=F.goals.find(x=>x.planId===p.id),have=Math.min(p.amount,g?.saved||0),months=Math.max(1,Math.ceil(diff(t,d)/30.44)),per=Math.max(0,p.amount-have)/months;
+  return {p,d,g,have,months,per}}).filter(Boolean).sort((a,b)=>a.d.localeCompare(b.d))}
 const upcoming=(from,to)=>fin().plans.flatMap(p=>planOcc(p,from,to).map(d=>({p,d}))).sort((a,b)=>a.d.localeCompare(b.d));
 function paintFinance(o={}){const v=$('#area'),tab=FTABS.find(x=>x[0]===S.fin)||FTABS[0];
   if(tab[0]==='coach'){v.innerHTML=`<div class="a-in cc">${HOMEBTN}${coachPage('finances',{tabs:1})}</div>${ctabsHTML(FTABS,'finTab',tab[0],'Finances')}`;if(o.top)v.scrollTop=v.scrollHeight;return}
@@ -1906,14 +1916,22 @@ function finBudget(){const m=S.finM||monthKey(TODAY()),F=fin(),tx=F.tx.filter(x=
 function finPlans(){const t=TODAY(),eom=addMonths(monthKey(t)+'-01',1).slice(0,8)+'01',end=addDays(eom,-1),F=fin();
   const late=upcoming(addDays(t,-31),addDays(t,-1)),next=upcoming(t,addDays(t,90));
   const m=monthKey(t),tx=F.tx.filter(x=>monthKey(x.date)===m),inn=sum(tx.filter(x=>x.kind==='in').map(x=>x.amount)),out=sum(tx.filter(x=>x.kind==='out').map(x=>x.amount));
-  const restMonth=sum(upcoming(m+'-01',end).map(x=>x.p.amount)),next30=sum(upcoming(addDays(t,-31),addDays(t,30)).map(x=>x.p.amount));
-  const cell=({p,d})=>`<button class="cell tap" data-act="fiOcc" data-id="${p.id}|${d}"><span class="body"><span>${esc(p.title)}</span><span class="fn">${[d<t?'à payer depuis le '+fdate(d):whenDay(d),FREP.find(r=>r[0]===(p.rep||''))[1].toLowerCase(),p.cat].filter(Boolean).join(' · ')}</span></span><span class="fin-amt out">−${eur(p.amount)}</span>${d<t?'<span class="pill late">À payer</span>':''}</button>`;
+  const rest=upcoming(m+'-01',end),restOut=sum(rest.filter(x=>!pIn(x.p)).map(x=>x.p.amount)),restIn=sum(rest.filter(x=>pIn(x.p)).map(x=>x.p.amount));
+  const rec=F.plans.filter(p=>p.rep),recIn=sum(rec.filter(pIn).map(monthlyEq)),recOut=sum(rec.filter(p=>!pIn(p)&&p.rep==='month').map(x=>x.amount)),A=anticip(),perTot=sum(A.map(a=>a.per));
+  const amt=p=>`<span class="fin-amt ${pIn(p)?'in':'out'}">${pIn(p)?'+':'−'}${eur(p.amount)}</span>`;
+  const cell=({p,d})=>`<button class="cell tap" data-act="fiOcc" data-id="${p.id}|${d}"><span class="body"><span>${esc(p.title)}</span><span class="fn">${[d<t?(pIn(p)?'attendu depuis le ':'à payer depuis le ')+fdate(d):whenDay(d),p.rep?FREP.find(r=>r[0]===p.rep)[1].toLowerCase():null,p.cat].filter(Boolean).join(' · ')}</span></span>${amt(p)}${d<t?`<span class="pill late">${pIn(p)?'À recevoir':'À payer'}</span>`:''}</button>`;
+  const acell=a=>`<div class="cell fin-goal fin-ant"><button type="button" class="body" data-act="fiEditPlan" data-id="${a.p.id}"><span>${esc(a.p.title)} · ${eur(a.p.amount)}</span>
+     <span class="fn">${whenDay(a.d)}${a.p.rep?' · '+FREP.find(r=>r[0]===a.p.rep)[1].toLowerCase():''} · dans ${a.months} mois</span>
+     ${a.g?`<span class="fin-prog"><i style="width:${a.have/a.p.amount*100}%"></i></span><span class="fn">${eur(a.have)} déjà de côté</span>`:''}</button>
+     <span class="fin-per"><b>${a.per?eur(Math.ceil(a.per)):'prêt'}</b>${a.per?'<small>/ mois</small>':''}${a.g?`<button type="button" class="link" data-act="fiEditGoal" data-id="${a.g.id}">Verser</button>`:`<button type="button" class="link" data-act="fiPlanGoal" data-id="${a.p.id}">Suivre</button>`}</span></div>`;
   const groups=[...new Set(next.map(x=>monthKey(x.d)))];
-  return `<div class="kpis tilesrow"><div><span class="v">${eurK(restMonth)}</span><span class="k">d’ici fin du mois</span></div><div><span class="v">${eurK(next30)}</span><span class="k">30 jours</span></div><div><span class="v">${eurK(inn-out-restMonth,true)}</span><span class="k">fin de mois</span></div><div><span class="v">${F.plans.filter(p=>p.rep).length}</span><span class="k">récurrentes</span></div></div>
-   <p class="sec-f">Fin de mois : revenus du mois − dépenses déjà faites − échéances du mois pas encore payées.</p>
-   ${sec('',addCell('Prévoir une dépense','fiNewPlan'),'','notile')}
-   ${late.length?sec('À payer',late.map(cell).join(''),'Touche une échéance pour la marquer payée : elle s’ajoute à tes dépenses.','notile'):''}
-   ${groups.length?groups.map(g=>sec(monthName(g),next.filter(x=>monthKey(x.d)===g).map(cell).join(''),'','notile')).join(''):sec('',`<div class="cell"><span class="body fn">Rien de prévu. Ajoute loyer, abonnements, assurance, impôts, cadeaux… : tu vois venir chaque échéance et ce qu’il te restera en fin de mois.</span></div>`,'','notile')}`}
+  return `<div class="kpis tilesrow"><div><span class="v">${eurK(inn+restIn-out-restOut,true)}</span><span class="k">fin de mois</span></div><div><span class="v">${eurK(recIn)}</span><span class="k">revenus</span></div><div><span class="v">${eurK(recOut)}</span><span class="k">charges</span></div><div><span class="v">${eurK(perTot)}</span><span class="k">à épargner</span></div></div>
+   <p class="sec-f">Fin de mois : ce qui est entré et sorti ce mois, plus ce qui est encore attendu d’ici la fin du mois. Revenus et charges : récurrents, par mois. À épargner : par mois, pour tes dépenses à anticiper.</p>
+   ${sec('',addCell('Dépense récurrente ou à prévoir','fiNewPlan')+addCell('Revenu récurrent','fiNewPlanIn'),'','notile')}
+   ${late.length?sec('En retard',late.map(cell).join(''),'Touche une échéance pour la marquer payée ou reçue : elle s’ajoute à ton budget.','notile'):''}
+   ${A.length?sec('À anticiper',A.map(acell).join(''),`Mets ${eur(Math.ceil(perTot))} de côté chaque mois pour payer ces dépenses sans y penser le jour J. « Suivre » crée un objectif d’épargne pour voir où tu en es.`,'notile'):''}
+   ${rec.length?sec('Chaque mois',rec.slice().sort((a,b)=>pIn(b)-pIn(a)||monthlyEq(b)-monthlyEq(a)).map(p=>`<button class="cell tap" data-act="fiEditPlan" data-id="${p.id}"><span class="body"><span>${esc(p.title)}</span><span class="fn">${repTxt(p)}${p.cat?' · '+esc(p.cat):''}${p.rep!=='month'?' · soit '+eur(monthlyEq(p))+' / mois':''}</span></span>${amt(p)}</button>`).join(''),`Revenus récurrents ${eur(recIn)} − charges mensuelles ${eur(recOut)} − à mettre de côté ${eur(Math.ceil(perTot))} (dépenses trimestrielles, annuelles et ponctuelles) = ${eur(recIn-recOut-Math.ceil(perTot))} de reste à vivre par mois.`,'notile'):''}
+   ${groups.length?groups.map(g=>sec(monthName(g),next.filter(x=>monthKey(x.d)===g).map(cell).join(''),'','notile')).join(''):sec('',`<div class="cell"><span class="body fn">Rien de prévu. Ajoute ton salaire, ton loyer, tes abonnements, ton assurance, tes impôts, un voyage… : tu vois venir chaque date, ce qu’il te restera en fin de mois et combien mettre de côté.</span></div>`,'','notile')}`}
 function finSave(){const G=fin().goals,tot=sum(G.map(g=>g.saved||0));
   const cell=g=>{const p=g.target?clamp((g.saved||0)/g.target):0,months=g.due?Math.max(1,Math.round(diff(TODAY(),g.due)/30.4)):null,per=g.due&&g.target>(g.saved||0)?(g.target-(g.saved||0))/months:null;
     return `<button class="cell tap fin-goal" data-act="fiEditGoal" data-id="${g.id}"><span class="body"><span>${esc(g.name)}</span><span class="fin-prog"><i style="width:${p*100}%"></i></span><span class="fn">${eur(g.saved||0)} sur ${eur(g.target)} · ${Math.round(p*100)} %${g.due?' · '+(per?eur(per)+' / mois jusqu’au '+fdate(g.due):'objectif atteint'):''}</span></span>${I.chev}</button>`};
@@ -1938,11 +1956,11 @@ function fiTxSheet(x,kind){const isNew=!x;kind=x?.kind||kind||'out';x=x||{amount
    ${sec('',`${catSelect(kind==='out'?FCATS_OUT:FCATS_IN,x.cat)}<label class="cell field" for="fnote"><span>Libellé</span><input id="fnote" name="note" value="${esc(x.note||'')}" placeholder="Facultatif" autocomplete="off"></label><label class="cell field" for="fdate"><span>Date</span><input id="fdate" name="date" type="date" value="${x.date}"></label>`)}
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="fiDelTx" data-id="${x.id}">Supprimer</button>`)}
   </form>`)}
-function fiPlanSheet(p){const isNew=!p;p=p||{title:'',amount:'',date:TODAY(),rep:'month',cat:'Logement'};
-  sheet(isNew?'Prévoir une dépense':'Dépense prévue',`<form id="sf" data-form="fiPlan" data-id="${p.id||''}">
-   ${sec('',`<label class="cell field" for="fpt"><span>Quoi</span><input id="fpt" name="title" value="${esc(p.title)}" required placeholder="Loyer, Netflix, impôts…" autocomplete="off"></label>${amountField('amount','Montant',p.amount!==''?String(p.amount).replace('.',','):'')}`)}
-   ${sec('',`<label class="cell field" for="fpd"><span>${isNew?'Première échéance':'Échéance de départ'}</span><input id="fpd" name="date" type="date" value="${p.date}"></label><label class="cell field" for="fpr"><span>Répétition</span><select id="fpr" name="rep">${FREP.map(([k,l])=>`<option value="${k}" ${k===(p.rep||'')?'selected':''}>${l}</option>`).join('')}</select></label>${catSelect(FCATS_OUT,p.cat)}`)}
-   ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="fiDelPlan" data-id="${p.id}">Supprimer cette dépense prévue</button>`)}
+function fiPlanSheet(p,kind){const isNew=!p;kind=p?.kind||kind||'out';const inc=kind==='in';p=p||{title:'',amount:'',date:TODAY(),rep:'month',cat:inc?'Salaire':'Logement'};
+  sheet(isNew?(inc?'Revenu récurrent':'Dépense récurrente ou à prévoir'):(inc?'Revenu récurrent':'Dépense prévue'),`<form id="sf" data-form="fiPlan" data-id="${p.id||''}" data-kind="${kind}">
+   ${sec('',`<label class="cell field" for="fpt"><span>Quoi</span><input id="fpt" name="title" value="${esc(p.title)}" required placeholder="${inc?'Salaire, loyer perçu, bourse…':'Loyer, Netflix, assurance, voyage…'}" autocomplete="off"></label>${amountField('amount','Montant',p.amount!==''?String(p.amount).replace('.',','):'')}`)}
+   ${sec('',`<label class="cell field" for="fpd"><span>${p.rep||isNew?(isNew?'Première date':'Date de départ'):'Date'}</span><input id="fpd" name="date" type="date" value="${p.date}"></label><label class="cell field" for="fpr"><span>Répétition</span><select id="fpr" name="rep">${FREP.map(([k,l])=>`<option value="${k}" ${k===(p.rep||'')?'selected':''}>${l}</option>`).join('')}</select></label>${catSelect(inc?FCATS_IN:FCATS_OUT,p.cat)}`,inc?'':'Une dépense « une fois » ou trimestrielle/annuelle apparaît dans « À anticiper » avec le montant à mettre de côté chaque mois.')}
+   ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="fiDelPlan" data-id="${p.id}">Supprimer</button>`)}
   </form>`)}
 function fiGoalSheet(g){const isNew=!g;g=g||{name:'',target:'',due:'',saved:0,hist:[]};
   sheet(isNew?'Objectif d’épargne':esc(g.name),`<form id="sf" data-form="fiGoal" data-id="${g.id||''}">
@@ -1964,7 +1982,7 @@ function finSubmit(f,v){const F=fin(),id=f.dataset.id,t=TODAY();let msg='';
    case 'fiTx':{const a=num(v.amount);if(!a||a<=0){hud('Indique un montant');return}let x=F.tx.find(y=>y.id===id);const isNew=!x;if(isNew){x={id:uid(),kind:f.dataset.kind||'out'};F.tx.push(x)}
      Object.assign(x,{amount:a,cat:v.cat,note:(v.note||'').trim(),date:v.date||t});F.tx.sort((p,q)=>p.date.localeCompare(q.date));S.finM=monthKey(x.date);msg=isNew?(x.kind==='out'?'Dépense ajoutée':'Revenu ajouté'):'Opération enregistrée';break}
    case 'fiPlan':{const a=num(v.amount);if(!a||a<=0){hud('Indique un montant');return}let p=F.plans.find(y=>y.id===id);const isNew=!p;if(isNew){p={id:uid(),paid:[]};F.plans.push(p)}
-     Object.assign(p,{title:v.title.trim(),amount:a,date:v.date||t,rep:v.rep||'',cat:v.cat});msg=isNew?'Dépense prévue ajoutée':'Dépense prévue enregistrée';break}
+     Object.assign(p,{title:v.title.trim(),amount:a,date:v.date||t,rep:v.rep||'',cat:v.cat,kind:f.dataset.kind==='in'?'in':'out'});{const g=F.goals.find(x=>x.planId===p.id);if(g&&!p.rep){g.name=p.title;g.target=a;g.due=p.date}}msg=isNew?(p.kind==='in'?'Revenu ajouté':'Ajouté'):'Enregistré';break}
    case 'fiGoal':{let g=F.goals.find(y=>y.id===id);const isNew=!g;if(isNew){g={id:uid(),saved:0,hist:[]};F.goals.push(g)}
      Object.assign(g,{name:v.name.trim(),target:num(v.target)||0,due:v.due||''});
      const mv=num(isNew?v.saved:v.move);if(mv){const amt=isNew||v.dir!=='out'?mv:-mv;g.saved=Math.max(0,(g.saved||0)+amt);g.hist.push(isNew?{d:t,amt,init:true}:{d:t,amt})}
@@ -1985,10 +2003,12 @@ function finAct(act,id,el){const F=fin();
    case 'fiEditTx':{const x=F.tx.find(y=>y.id===id);if(x)fiTxSheet(x);break}
    case 'fiDelTx':F.tx=F.tx.filter(y=>y.id!==id);save();closeSheet();paintFinance();hud('Opération supprimée');break;
    case 'fiNewPlan':fiPlanSheet();break;
+   case 'fiNewPlanIn':fiPlanSheet(null,'in');break;
+   case 'fiPlanGoal':{const p=F.plans.find(y=>y.id===id);if(!p)break;let g=F.goals.find(x=>x.planId===p.id);if(!g){const d=planOcc(p,TODAY(),addMonths(TODAY(),36))[0]||p.date;g={id:uid(),name:p.title,target:p.amount,due:d,saved:0,hist:[],planId:p.id};F.goals.push(g);save();paintFinance();hud('Objectif d’épargne créé · retrouve-le dans Épargne')}else fiGoalSheet(g);break}
    case 'fiOcc':{const [pid,d]=id.split('|'),p=F.plans.find(y=>y.id===pid);if(!p)break;
-     asheet(`${p.title} · ${eur(p.amount)} · ${fday(d)}`,[{label:'Marquer payée (ajoute la dépense)',act:'fiPay',data:{id}},{label:'Modifier',act:'fiEditPlan',data:{id:pid}},...(p.rep?[{label:'Sauter cette échéance',act:'fiSkip',data:{id}}]:[])]);break}
+     asheet(`${p.title} · ${eur(p.amount)} · ${fday(d)}`,[{label:pIn(p)?'Marquer reçu (ajoute le revenu)':'Marquer payée (ajoute la dépense)',act:'fiPay',data:{id}},{label:'Modifier',act:'fiEditPlan',data:{id:pid}},...(p.rep?[{label:'Sauter cette échéance',act:'fiSkip',data:{id}}]:[])]);break}
    case 'fiPay':{const [pid,d]=id.split('|'),p=F.plans.find(y=>y.id===pid);if(!p)break;(p.paid||(p.paid=[])).push(d);
-     F.tx.push({id:uid(),kind:'out',amount:p.amount,cat:p.cat||'Autre',note:p.title,date:d<=TODAY()?d:TODAY(),plan:p.id});F.tx.sort((a,b)=>a.date.localeCompare(b.date));save();if(H.cur==='finances')paintFinance();hud('Payée · ajoutée aux dépenses');break}
+     F.tx.push({id:uid(),kind:pIn(p)?'in':'out',amount:p.amount,cat:p.cat||(pIn(p)?'Autre revenu':'Autre'),note:p.title,date:d<=TODAY()?d:TODAY(),plan:p.id});F.tx.sort((a,b)=>a.date.localeCompare(b.date));save();if(H.cur==='finances')paintFinance();hud(pIn(p)?'Reçu · ajouté aux revenus':'Payée · ajoutée aux dépenses');break}
    case 'fiSkip':{const [pid,d]=id.split('|'),p=F.plans.find(y=>y.id===pid);if(!p)break;(p.paid||(p.paid=[])).push(d);save();if(H.cur==='finances')paintFinance();hud('Échéance sautée');break}
    case 'fiEditPlan':{const p=F.plans.find(y=>y.id===id);if(p)fiPlanSheet(p);break}
    case 'fiDelPlan':F.plans=F.plans.filter(y=>y.id!==id);save();closeSheet();paintFinance();hud('Dépense prévue supprimée');break;
@@ -2073,7 +2093,7 @@ function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntri
   jobs().filter(relanceDue).forEach(j=>add({day:t,area:'carriere',title:'Relancer '+esc(j.company),meta:'Sans nouvelles depuis '+diff(lastContact(j),t)+' jours',act:'jobMenu',id:j.id}));
   contacts().filter(x=>x.next&&x.next<=end).forEach(x=>add({day:x.next<t?t:x.next,late:x.next<t,area:'carriere',title:'Recontacter '+esc(x.name),meta:[x.role&&esc(x.role),x.company&&esc(x.company)].filter(Boolean).join(' · '),act:'ctEdit',id:x.id}));
   // Finances : échéances à payer (7 derniers jours) et des 7 prochains jours
-  upcoming(addDays(t,-7),end).forEach(({p,d})=>add({day:d<t?t:d,late:d<t,area:'finances',title:esc(p.title)+' · '+eur(p.amount),meta:'À payer'+(p.rep?' · '+FREP.find(r=>r[0]===p.rep)[1].toLowerCase():''),act:'fiOcc',id:p.id+'|'+d}));
+  upcoming(addDays(t,-7),end).filter(({p})=>!pIn(p)).forEach(({p,d})=>add({day:d<t?t:d,late:d<t,area:'finances',title:esc(p.title)+' · '+eur(p.amount),meta:'À payer'+(p.rep?' · '+FREP.find(r=>r[0]===p.rep)[1].toLowerCase():''),act:'fiOcc',id:p.id+'|'+d}));
   // Agenda Google : rendez-vous du jour et des 7 prochains jours
   gcalItems(t,end).forEach(x=>add({day:x.d,time:x.time,area:'gcal',title:esc(x.title),meta:[x.allDay?T('Toute la journée','All day'):x.end?T('jusqu’à ','until ')+x.end:null,x.loc&&esc(x.loc)].filter(Boolean).join(' · '),act:'gcalShow',id:x.d+'|'+(x.time||'')+'|'+x.title,user:true}));
   // Tâches : en retard, du jour et des 7 prochains jours
