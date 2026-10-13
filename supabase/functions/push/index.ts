@@ -6,6 +6,8 @@
 // - kind "test"  : l'utilisateur connecté s'envoie une notification de test.
 // - kind "cheer" : encourager un ami du même groupe (une fois par jour et par ami).
 // - kind "ical"  : l'utilisateur connecté lit son agenda (adresse secrète iCal Google, iCloud ou Outlook).
+// - kind "pay"   : un raccourci iPhone (automatisation « Transaction » d'Apple Pay) envoie un paiement avec le code personnel
+//                  de l'utilisateur ; il est déposé dans pay_inbox et l'app le range dans le budget. Pas de session : le code suffit.
 // Secrets à définir dans Edge Functions › Secrets : VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, CRON_SECRET.
 // SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY sont fournis automatiquement par Supabase, côté serveur uniquement.
 import webpush from "npm:web-push@3.6.7";
@@ -177,6 +179,16 @@ async function runCron() {
   return json({ ok: true, sent });
 }
 
+/* « 12,50 € », « €1,234.56 », « -3.20 » → nombre (négatif = remboursement) */
+function parseAmount(v: unknown): number | null {
+  if (typeof v === "number") return isFinite(v) && v !== 0 ? Math.round(v * 100) / 100 : null;
+  let s = String(v ?? "").replace(/[\s\u00a0\u202f]/g, "").replace(/[^\d,.\-−]/g, "").replace("−", "-");
+  if (s.includes(",") && s.includes(".")) s = s.lastIndexOf(",") > s.lastIndexOf(".") ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "");
+  else s = s.replace(",", ".");
+  const n = parseFloat(s);
+  return isFinite(n) && n !== 0 ? Math.round(n * 100) / 100 : null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const body = await req.json().catch(() => ({}));
@@ -184,6 +196,23 @@ Deno.serve(async (req) => {
   if (body.kind === "cron") {
     if (!CRON_SECRET || req.headers.get("x-cron-secret") !== CRON_SECRET) return json({ error: "forbidden" }, 401);
     return runCron();
+  }
+
+  // Apple Pay : le raccourci n'a pas de session, il s'identifie avec le code personnel (on compare son empreinte SHA-256).
+  if (body.kind === "pay") {
+    const tok = String(body.token || "").trim();
+    if (tok.length < 20) return json({ error: "Code Luck’In manquant dans le raccourci." }, 401);
+    const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(tok)))).map((b) => b.toString(16).padStart(2, "0")).join("");
+    const { data: t } = await sb.from("pay_tokens").select("user_id").eq("token_hash", hash).maybeSingle();
+    if (!t) return json({ error: "Code inconnu : recrée-le dans Luck’In (Finances › Apple Pay)." }, 401);
+    if (body.test) return json({ ok: true, test: true });
+    const amount = parseAmount(body.amount);
+    if (!amount) return json({ error: "Montant illisible : " + String(body.amount ?? "").slice(0, 30) }, 400);
+    const { count } = await sb.from("pay_inbox").select("id", { count: "exact", head: true }).eq("user_id", t.user_id);
+    if ((count || 0) >= 300) return json({ error: "Trop de paiements en attente : ouvre Luck’In pour les ranger." }, 429);
+    const { error } = await sb.from("pay_inbox").insert({ user_id: t.user_id, amount, merchant: String(body.merchant || "").trim().slice(0, 120), card: String(body.card || "").trim().slice(0, 60) });
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true, amount });
   }
 
   // Appels depuis l'app : on vérifie l'utilisateur connecté

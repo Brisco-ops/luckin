@@ -873,6 +873,15 @@ a.cell{text-decoration:none}
 .fin-per{display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap}
 .fin-per b{font:700 16px var(--display);font-variant-numeric:tabular-nums}.fin-per small{font-size:11px;color:var(--label2)}
 .fin-per .link{border:0;background:none;color:var(--area);font:600 13px var(--font);padding:2px 0;cursor:pointer}
+/* Apple Pay automatique */
+.pay-code{display:flex;gap:10px;align-items:center;justify-content:space-between}
+.pay-code code,.pay-steps code{font:500 13px ui-monospace,Menlo,monospace;background:var(--fill);padding:4px 7px;border-radius:7px;word-break:break-all;color:var(--label)}
+.pay-code code{flex:1;min-width:0}
+.pay-code .link{border:0;background:none;color:var(--area,var(--tint));font:600 14px var(--font);cursor:pointer;white-space:nowrap}
+.pay-steps{display:flex;flex-direction:column;gap:12px;width:100%}
+.pay-steps>div{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;line-height:1.45}
+.pay-steps .ob-n{flex:none}
+.pay-steps .pay-code{margin:-4px 0 0 34px}
 </style>
 
 </head><body>
@@ -1045,7 +1054,7 @@ function seedTemplates(){
 function seed(){
   let old={};try{old=JSON.parse(localStorage.getItem('cap-objectifs-v1')||'{}').settings||{}}catch(e){}
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
-    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,trainTime:'',formeGoal:'',sugarTrack:false,bloatTrack:false,suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
+    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,trainTime:'',formeGoal:'',sugarTrack:false,bloatTrack:false,payOn:false,suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
     apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',coachMode:'eq',career:{goal:5,relance:7}},
     days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[],notes:[],fin:{tx:[],plans:[],goals:[],inv:[],budget:null}};
 }
@@ -1057,6 +1066,7 @@ db=load();
 if(!db.settings.restFix){db.templates.forEach(t=>t.exercises.forEach(e=>e.rest=40));const aw=db.active&&db.workouts.find(w=>w.id===db.active.id);if(aw)aw.exercises.forEach(e=>e.rest=40);db.settings.restFix=1;save()}
 /* installations existantes : on garde le rituel et les compléments déjà en place */
 if(db.settings.trainTime==null)db.settings.trainTime='';
+if(db.settings.payOn==null)db.settings.payOn=false;
 /* suivis personnels (sans sucre, ballonnements) : gardés pour les journaux déjà utilisés, éteints pour les nouveaux */
 if(db.settings.sugarTrack==null){const used=Object.values(db.days||{}).some(D=>D.evening||(D.meals||[]).length);db.settings.sugarTrack=used;db.settings.bloatTrack=used;
   if(db.settings.formeGoal==null)db.settings.formeGoal=used?'Recomposition corporelle : perdre du gras, silhouette plus athlétique, en conservant ou gagnant du muscle.':'';writeLocal()}
@@ -2017,6 +2027,7 @@ document.addEventListener('click',ev=>{
   if(act==='agWeekly'){weeklySheet();return}
   if(act==='agWorkout'){S.tab='workout';openArea('forme');return}
   if(calAct(act,el,ev))return;
+  if(/^(fiPaySetup|pay[A-Z])/.test(act)){payAct(act,el);return}
   if(jobAct(act,id,el)||todoAct(act,id,el)||brainAct(act,id,el)||finAct(act,id,el)||coachAct(act,id,el)){if(!$('#home').hidden)paintAgenda();return} /* actions des sections Carrière et Tâches */
   switch(act){
    case 'sugarInfo':{const n=sugarStreak(),b=Math.max(n,sugarBest()),j=jokerWeek();asheet(`Série sans sucre ajouté : ${n} jour${n>1?'s':''} · record ${b} jour${b>1?'s':''}. Une journée compte une fois la fiche du soir complète, sans sucre ajouté. Joker : 1 jour non rempli par semaine ne casse pas la série${j?` (utilisé cette semaine : ${fday(j)})`:' (disponible cette semaine)'}.`,[{label:'Ouvrir la fiche du soir',act:'evening'}]);break}
@@ -2788,9 +2799,10 @@ function finBudget(){const m=S.finM||monthKey(TODAY()),F=fin(),tx=F.tx.filter(x=
    <div class="kpis tilesrow"><div class="${b?'ringed':''}" ${b?`style="--p:${clamp(out/b)*100}%"`:''} data-act="finBudgetSet"><span class="v">${eurK(out)}</span><span class="k">dépensé</span></div><div><span class="v">${eurK(inn)}</span><span class="k">revenus</span></div><div><span class="v">${eurK(inn-out,true)}</span><span class="k">solde</span></div><div><span class="v">${b?eurK(b-out):'–'}</span><span class="k">reste budget</span></div></div>
    ${sec('',addCell('Ajouter une dépense','fiNewOut')+addCell('Ajouter un revenu','fiNewIn'),'','notile')}
    ${cats.length?sec('Par catégorie',fbars(cats),'','notile'):''}
-   ${byDay.length?byDay.map(d=>sec(fday(d),tx.filter(x=>x.date===d).map(x=>`<button class="cell tap" data-act="fiEditTx" data-id="${x.id}"><span class="body"><span>${esc(x.note||x.cat)}</span><span class="fn">${esc(x.note?x.cat:'')}${x.plan?' · prévue':''}</span></span><span class="fin-amt ${x.kind}">${x.kind==='out'?'−':'+'}${eur(x.amount)}</span></button>`).join(''),'','notile')).join('')
+   ${byDay.length?byDay.map(d=>sec(fday(d),tx.filter(x=>x.date===d).map(x=>`<button class="cell tap" data-act="fiEditTx" data-id="${x.id}"><span class="body"><span>${esc(x.note||x.cat)}</span><span class="fn">${esc(x.note?x.cat:'')}${x.plan?' · prévue':''}${x.src==='applepay'?' · Apple Pay':''}</span></span><span class="fin-amt ${x.kind}">${x.kind==='out'?'−':'+'}${eur(x.amount)}</span></button>`).join(''),'','notile')).join('')
      :sec('',`<div class="cell"><span class="body fn">Aucune opération en ${monthName(m)}. Ajoute tes dépenses au fil de l’eau (20 s) : la répartition par catégorie se fait toute seule.</span></div>`,'','notile')}
-   ${sec('',`<button class="cell tap" data-act="finBudgetSet"><span class="body"><span>Budget mensuel</span><span class="fn">${b?eur(b)+' de dépenses par mois':'Pas encore défini'}</span></span>${I.chev}</button>`,'','notile')}`}
+   ${sec('',`<button class="cell tap" data-act="fiPaySetup"><span class="body"><span>Apple Pay automatique</span><span class="fn">${st().payOn?'Activé : tes paiements Apple Pay arrivent seuls ici':'Chaque paiement Apple Pay ajouté tout seul'}</span></span>${I.chev}</button>
+     <button class="cell tap" data-act="finBudgetSet"><span class="body"><span>Budget mensuel</span><span class="fn">${b?eur(b)+' de dépenses par mois':'Pas encore défini'}</span></span>${I.chev}</button>`,'','notile')}`}
 function finPlans(){const t=TODAY(),eom=addMonths(monthKey(t)+'-01',1).slice(0,8)+'01',end=addDays(eom,-1),F=fin();
   const late=upcoming(addDays(t,-31),addDays(t,-1)),next=upcoming(t,addDays(t,90));
   const m=monthKey(t),tx=F.tx.filter(x=>monthKey(x.date)===m),inn=sum(tx.filter(x=>x.kind==='in').map(x=>x.amount)),out=sum(tx.filter(x=>x.kind==='out').map(x=>x.amount));
@@ -3091,9 +3103,9 @@ async function cloudFlush(){
 window.addEventListener('online',()=>{if(A.dirty)cloudFlush()});
 document.addEventListener('visibilitychange',()=>{if(!A.user)return;
   if(document.visibilityState==='hidden'){if(A.dirty)cloudFlush()}
-  else{cloudPull(true).then(ch=>{if(ch)refreshAll()});loadGroup(true)}});
+  else{cloudPull(true).then(ch=>{if(ch)refreshAll();payPull()});loadGroup(true)}});
 /* plusieurs appareils (téléphone + ordinateur) : une page restée ouverte récupère les changements faits ailleurs */
-setInterval(()=>{if(A.user&&document.visibilityState==='visible')cloudPull(true).then(ch=>{if(ch)refreshAll()})},60e3);
+setInterval(()=>{if(A.user&&document.visibilityState==='visible')cloudPull(true).then(ch=>{if(ch)refreshAll();payPull()})},60e3);
 
 const blankLocal=()=>!Object.keys(db.days).length&&!db.workouts.length;
 /* Récupère les données du compte. Renvoie true si les données locales ont été remplacées. */
@@ -3116,7 +3128,7 @@ async function cloudStart(user){
   const mine=!db.owner||db.owner===user.id;
   const changed=await cloudPull(false);
   if(!mine&&!changed){db=seed();db.owner=user.id;writeLocal()}
-  hideGate();refreshAll();cloudQueue();loadGroup(true);notifRefresh();
+  hideGate();refreshAll();cloudQueue();loadGroup(true);notifRefresh();payPull();
   if(!st().onboarded)showWelcome()}
 async function cloudBoot(){
   if(!sb){if(!st().onboarded)showWelcome();return}
@@ -3330,6 +3342,59 @@ document.addEventListener('change',ev=>{const t=ev.target;const k=t.dataset?.not
   if(k==='iv'||k==='td'){st().notif={...notif(),[k]:t.checked};save();if(A.user)sb.from('push_subs').update({prefs:notifPrefs()}).eq('user_id',A.user.id).then(()=>hud(t.checked?'Rappels activés':'Rappels coupés'));return}
   const v=t.value;if(!/^\d{2}:\d{2}$/.test(v))return;st().notif={...notif(),[k]:v};save();
   if(A.user)sb.from('push_subs').update({prefs:notifPrefs(),tz:userTz()}).eq('user_id',A.user.id).then(()=>hud('Heure enregistrée'))});
+/* ---------- Apple Pay : un raccourci iPhone (automatisation « Transaction ») envoie chaque paiement à la fonction « push » avec un code personnel ;
+   il attend dans pay_inbox, l'app le range dans le budget puis l'efface (pas d'écriture directe dans le journal : la synchro « dernier écrit gagne » l'écraserait) ---------- */
+const FN_URL=SB_URL+'/functions/v1/push',PAYK=K+':paytok';
+const sha256=async t=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t)))).map(b=>b.toString(16).padStart(2,'0')).join('');
+const CAT_KW=[['Courses',/carrefour|leclerc|auchan|lidl|aldi|monoprix|franprix|intermarch|casino|picard|super ?u|u express|naturalia|biocoop|g20|spar|grand frais/i],
+ ['Restaurants',/mc ?do|burger|kfc|starbucks|restau|uber ?eats|deliveroo|boulang|paul\b|caf[eé]|sushi|pizz|brasserie|bar\b|kebab|five guys|pret a manger|columbus/i],
+ ['Transport',/sncf|ratp|navigo|uber|bolt|heetch|blablacar|lime|parking|p[eé]age|total|esso|shell|\bbp\b|avia|indigo|air ?france|easyjet|ryanair|transavia/i],
+ ['Abonnements',/netflix|spotify|deezer|disney|canal|prime video|apple\.com|icloud|youtube|free mobile|orange|sfr|bouygues|basic.?fit|fitness park/i],
+ ['Shopping',/amazon|fnac|darty|zara|h&m|uniqlo|decathlon|ikea|sephora|apple store|primark|nike|adidas|zalando|vinted|leroy merlin|castorama|action\b/i],
+ ['Santé',/pharma|doctolib|m[eé]decin|dentist|opticien|laborat/i],
+ ['Loisirs',/cin[eé]ma|ugc|path[eé]|gaumont|mk2|th[eé][aâ]tre|mus[eé]e|concert|fnac spectacle|steam|playstation|nintendo/i],
+ ['Voyages',/airbnb|booking|h[oô]tel|accor|ibis|expedia/i]];
+/* catégorie : celle déjà choisie pour ce commerçant, sinon devinée par mots-clés */
+function catGuess(m){const t=String(m||'').trim().toLowerCase();if(!t)return 'Autre';const prev=fin().tx.slice().reverse().find(x=>x.kind==='out'&&String(x.note||'').toLowerCase()===t);if(prev)return prev.cat;
+  return (CAT_KW.find(([,rx])=>rx.test(t))||['Autre'])[0]}
+let payBusy=false;
+async function payPull(){if(!sb||!A.user||!st().payOn||payBusy)return;payBusy=true;
+  try{const {data,error}=await sb.from('pay_inbox').select('id,amount,merchant,card,at').order('at');if(error||!data?.length)return;
+    const F=fin();let n=0;
+    data.forEach(r=>{const id='ap'+r.id;if(F.tx.some(x=>x.id===id))return;const a=+r.amount,refund=a<0;
+      F.tx.push({id,kind:refund?'in':'out',amount:Math.abs(a),cat:refund?'Remboursement':catGuess(r.merchant),note:r.merchant||'Apple Pay',date:new Date(r.at).toLocaleDateString('sv'),src:'applepay'});n++});
+    if(n){F.tx.sort((a,b)=>a.date.localeCompare(b.date));save();if(H.cur==='finances'&&!$('#area').hidden)paintFinance();else if(!$('#home').hidden)paintAgenda();
+      hud(T(`${n} paiement${n>1?'s':''} Apple Pay ajouté${n>1?'s':''}`,`${n} Apple Pay payment${n>1?'s':''} added`))}
+    await sb.from('pay_inbox').delete().in('id',data.map(r=>r.id))}
+  catch(e){}finally{payBusy=false}}
+function fiPaySheet(){const tok=(()=>{try{return localStorage.getItem(PAYK)||''}catch(e){return ''}})(),on=st().payOn;
+  if(!A.user){sheet('Apple Pay automatique',sec('',`<div class="cell"><span class="body fn">Connecte-toi d’abord (Réglages › Compte) : les paiements passent par ton compte en ligne.</span></div>`),{save:''});return}
+  const step=(n,h)=>`<div><span class="ob-n">${n}</span><span>${h}</span></div>`;
+  sheet('Apple Pay automatique',`
+   ${sec('',`<div class="cell"><span class="body fn">Chaque fois que tu paies avec Apple Pay, un raccourci iPhone envoie le montant et le commerçant à Luck’In. La dépense s’ajoute à ton budget, avec une catégorie devinée (tu peux la changer : elle sera retenue pour ce commerçant). Seulement Apple Pay : pas la carte physique ni les virements.</span></div>`)}
+   ${sec('1. Ton code personnel',on&&tok?`<div class="cell pay-code"><code class="no-tr">${esc(tok)}</code><button type="button" class="link" data-act="payCopy" data-v="${esc(tok)}">Copier</button></div>
+      <button type="button" class="cell tap link" data-act="payTest">Tester le code</button><button type="button" class="cell tap link" data-act="payNew">Recréer un code</button><button type="button" class="cell tap danger" data-act="payOff">Désactiver</button>`
+     :on?`<div class="cell"><span class="body fn">Activé depuis un autre appareil. Recrée un code ici si tu dois refaire le raccourci (l’ancien ne marchera plus).</span></div><button type="button" class="cell tap link" data-act="payNew">Recréer un code</button><button type="button" class="cell tap danger" data-act="payOff">Désactiver</button>`
+     :`<button type="button" class="cell tap link" data-act="payNew">Créer mon code</button>`,'Ce code permet seulement d’ajouter des dépenses à ton compte. Ne le partage pas.')}
+   ${sec('2. Le raccourci (une seule fois, 3 min)',`<div class="cell"><div class="pay-steps">
+     ${step(1,'Ouvre l’app <b>Raccourcis</b> › onglet <b>Automatisation</b> › <b>+</b> › <b>Transaction</b>.')}
+     ${step(2,'Choisis tes cartes (toutes les catégories), coche <b>Exécuter immédiatement</b>, puis <b>Suivant</b> › <b>Nouveau raccourci vierge</b>.')}
+     ${step(3,'Ajoute l’action <b>Obtenir le contenu de l’URL</b>. Mets cette adresse :')}
+     <div class="pay-code"><code class="no-tr">${FN_URL}</code><button type="button" class="link" data-act="payCopy" data-v="${FN_URL}">Copier</button></div>
+     ${step(4,'Touche la flèche de l’action : <b>Méthode</b> POST, <b>Corps de la requête</b> JSON. Ajoute 4 champs de type <b>Texte</b> :<br><b>kind</b> → <code>pay</code><br><b>token</b> → ton code (étape 1)<br><b>amount</b> → la variable <b>Entrée du raccourci</b>, puis touche-la et choisis <b>Montant</b><br><b>merchant</b> → <b>Entrée du raccourci</b> › <b>Commerçant</b>')}
+     ${step(5,'Termine. Paie avec Apple Pay : la dépense arrive dans Finances dès que tu ouvres Luck’In.')}
+   </div></div>`)}`,{save:''})}
+async function payAct(act,el){switch(act){
+  case 'fiPaySetup':fiPaySheet();return true;
+  case 'payCopy':try{await navigator.clipboard.writeText(el.dataset.v);hud(T('Copié','Copied'))}catch(e){hud(el.dataset.v)}return true;
+  case 'payNew':{if(needNet())return true;const a='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789',r=new Uint8Array(28);crypto.getRandomValues(r);const tok='lk_'+Array.from(r,x=>a[x%a.length]).join('');
+    const {error}=await sb.from('pay_tokens').upsert({user_id:A.user.id,token_hash:await sha256(tok),created_at:new Date().toISOString()});
+    if(error){hud(/relation|does not exist|schema cache/i.test(error.message)?'Base pas prête : colle supabase/applepay.sql dans Supabase':'Erreur : '+error.message);return true}
+    try{localStorage.setItem(PAYK,tok)}catch(e){}st().payOn=true;save();fiPaySheet();hud(T('Code créé : copie-le dans le raccourci','Code created: copy it into the shortcut'));return true}
+  case 'payTest':{const tok=localStorage.getItem(PAYK)||'';try{const r=await fetch(FN_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'pay',token:tok,test:true})});const j=await r.json().catch(()=>({}));
+      hud(j.ok?T('Code valide : le serveur est prêt','Code valid: server ready'):(j.error||('Erreur '+r.status)))}catch(e){hud(T('Serveur injoignable','Server unreachable'))}return true}
+  case 'payOff':{if(needNet())return true;await sb.from('pay_tokens').delete().eq('user_id',A.user.id);try{localStorage.removeItem(PAYK)}catch(e){}st().payOn=false;save();closeSheet();if(H.cur==='finances')paintFinance();hud(T('Apple Pay désactivé','Apple Pay turned off'));return true}
+  default:return false}}
 async function fnCall(body){const r=await sb.functions.invoke('push',{body});
   if(r.error){let msg=r.error.message;try{const j=await r.error.context.json();msg=j.error||msg;if(j.already)return {already:true}}catch(e){}throw new Error(msg)}return r.data||{}}
 const newCode=()=>{const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',r=new Uint8Array(6);crypto.getRandomValues(r);return Array.from(r,x=>a[x%32]).join('')};
