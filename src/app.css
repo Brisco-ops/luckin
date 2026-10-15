@@ -682,3 +682,12 @@ a.cell{text-decoration:none}
 .fin-more>summary{list-style:none;cursor:pointer}.fin-more>summary::-webkit-details-marker{display:none}
 .fin-more>summary .chev{display:inline-flex;transition:transform .2s;color:var(--label3)}.fin-more[open]>summary .chev{transform:rotate(90deg)}
 .fin-more>.cell{padding-left:28px}
+/* Par catégorie : sous-catégories dépliables */
+.cat-d>summary{list-style:none;cursor:pointer}.cat-d>summary::-webkit-details-marker{display:none}
+.cat-d[open]>summary .st-l{font-weight:600}
+.st-row.sub .st-l{padding-left:14px;color:var(--label2);font-size:14px}
+.st-row.sub .st-bar i{opacity:.65}
+.st-row.sub.car .st-l{color:var(--label);font-weight:600}
+.fin .st-row.sub{grid-template-columns:1fr auto;row-gap:4px;padding-top:8px;padding-bottom:8px}
+.fin .st-row.sub .st-l{grid-column:1/-1;white-space:normal}
+.fin .st-row.sub .st-bar{margin-left:14px}
