@@ -1063,7 +1063,7 @@ function seedTemplates(){
 function seed(){
   let old={};try{old=JSON.parse(localStorage.getItem('cap-objectifs-v1')||'{}').settings||{}}catch(e){}
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
-    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,trainTime:'',formeGoal:'',sugarTrack:false,bloatTrack:false,payOn:false,lastBackup:'',suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
+    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,trainTime:'',formeGoal:'',sugarTrack:false,bloatTrack:false,payOn:false,lastBackup:'',goalFix:1,suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
     apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',coachMode:'eq',career:{goal:5,relance:7}},
     days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[],notes:[],fin:{tx:[],plans:[],goals:[],inv:[],budget:null}};
 }
@@ -1077,6 +1077,7 @@ if(!db.settings.restFix){db.templates.forEach(t=>t.exercises.forEach(e=>e.rest=4
 if(db.settings.trainTime==null)db.settings.trainTime='';
 if(db.settings.payOn==null)db.settings.payOn=false;
 if(db.settings.lastBackup==null)db.settings.lastBackup='';
+if(!db.settings.goalFix&&db.fin){(db.fin.goals||[]).forEach(g=>{if((g.hist||[]).length){const h=g.hist.slice().sort((a,b)=>String(a.d).localeCompare(String(b.d)));let v=0;h.forEach(x=>{v=Math.max(0,v+(+x.amt||0))});v=Math.round(v*100)/100;if(Math.abs(v-(g.saved||0))>=0.01)g.hist.push({d:new Date().toLocaleDateString('sv'),amt:Math.round(((g.saved||0)-v)*100)/100,adj:true});}});db.settings.goalFix=1;writeLocal()}
 /* suivis personnels (sans sucre, ballonnements) : gardés pour les journaux déjà utilisés, éteints pour les nouveaux */
 if(db.settings.sugarTrack==null){const used=Object.values(db.days||{}).some(D=>D.evening||(D.meals||[]).length);db.settings.sugarTrack=used;db.settings.bloatTrack=used;
   if(db.settings.formeGoal==null)db.settings.formeGoal=used?'Recomposition corporelle : perdre du gras, silhouette plus athlétique, en conservant ou gagnant du muscle.':'';writeLocal()}
@@ -2790,11 +2791,12 @@ const WD='Retrait d’épargne',isSaveCat=c=>c==='Épargne'||c==='Placement'||c=
 /* comptes bancaires (plusieurs banques) : fin.accounts = [{id, name, sig (format de fichier reconnu), cards (cartes Apple Pay de ce compte)}] */
 const accounts=()=>fin().accounts||(fin().accounts=[]),accName=id=>accounts().find(a=>a.id===id)?.name||'';
 /* relie une opération d'épargne à son objectif (g:id) ou placement (i:id) : versement ajouté, retiré si on change ou supprime l'opération */
+function goalSaved(g){let v=0;(g.hist||[]).slice().sort((a,b)=>String(a.d).localeCompare(String(b.d))).forEach(h=>{v=Math.max(0,v+(+h.amt||0))});return Math.round(v*100)/100}
 function txLink(x,del){const F=fin();
-  F.goals.forEach(g=>{if((g.hist||[]).some(h=>h.tx===x.id)){g.hist=g.hist.filter(h=>h.tx!==x.id);g.saved=Math.max(0,sum(g.hist.map(h=>h.amt)))}});
+  F.goals.forEach(g=>{if((g.hist||[]).some(h=>h.tx===x.id)){g.hist=g.hist.filter(h=>h.tx!==x.id);g.saved=goalSaved(g)}});
   F.inv.forEach(a=>{if((a.flows||[]).some(f=>f.tx===x.id)){a.flows=a.flows.filter(f=>f.tx!==x.id);a.vals=(a.vals||[]).filter(v=>v.tx!==x.id)}});
   if(del||!(saved(x)||wd(x))||!x.to)return;const [k,id]=x.to.split(':'),amt=wd(x)?-x.amount:x.amount;
-  if(k==='g'){const g=F.goals.find(y=>y.id===id);if(g){(g.hist||(g.hist=[])).push({d:x.date,amt,tx:x.id});g.saved=Math.max(0,sum(g.hist.map(h=>h.amt)))}}
+  if(k==='g'){const g=F.goals.find(y=>y.id===id);if(g){(g.hist||(g.hist=[])).push({d:x.date,amt,tx:x.id});g.saved=goalSaved(g)}}
   if(k==='i'){const a=F.inv.find(y=>y.id===id);if(a){const v0=invVal(a);(a.flows||(a.flows=[])).push({d:x.date,amt,tx:x.id});if((a.vals||[]).length){a.vals.push({d:x.date,v:v0+amt,tx:x.id});a.vals.sort((p,q)=>p.d.localeCompare(q.d))}}}}
 const toSelect=(cat,to,inc)=>{const F=fin();return `<label class="cell field" for="fto" id="ftoc" ${isSaveCat(cat)?'':'hidden'}><span>${inc?'Depuis':'Vers'}</span><select id="fto" name="to"><option value="">—</option>${F.goals.length?`<optgroup label="Épargne">${F.goals.map(g=>`<option value="g:${g.id}" ${to==='g:'+g.id?'selected':''}>${esc(g.name)}</option>`).join('')}</optgroup>`:''}${F.inv.length?`<optgroup label="Placements">${F.inv.map(a=>`<option value="i:${a.id}" ${to==='i:'+a.id?'selected':''}>${esc(a.name)}</option>`).join('')}</optgroup>`:''}</select></label>`};
 const FCATS_IN=['Salaire','Prime','Remboursement','Vente','Retrait d’épargne','Virement entre mes comptes','Pour un proche','Autre revenu'];
@@ -2896,8 +2898,9 @@ function fiPlanSheet(p,kind){const isNew=!p;kind=p?.kind||kind||'out';const inc=
   </form>`)}
 function fiGoalSheet(g){const isNew=!g;g=g||{name:'',target:'',due:'',saved:0,hist:[]};
   sheet(isNew?'Objectif d’épargne':esc(g.name),`<form id="sf" data-form="fiGoal" data-id="${g.id||''}">
-   ${isNew?'':sec('Versement',`${amountField('move','Montant','').replace(' required','')}<div class="cell block"><span>Type</span>${seg('dir',[['in','Versement'],['out','Retrait']],'in')}</div>`,`Épargné : ${eur(g.saved||0)}. Laisse vide pour ne modifier que l’objectif.`)}
-   ${sec(isNew?'':'Objectif',`<label class="cell field" for="fgn"><span>Nom</span><input id="fgn" name="name" value="${esc(g.name)}" required placeholder="Épargne de précaution, voyage…" autocomplete="off"></label>${amountField('target','Montant visé',g.target!==''?String(g.target).replace('.',','):'')}<label class="cell field" for="fgd"><span>Pour le</span><input id="fgd" name="due" type="date" value="${g.due||''}"></label>${isNew?amountField('saved','Déjà épargné','').replace(' required',''):''}`)}
+   ${isNew?'':sec('Ajouter un versement',`${amountField('move','Montant ajouté','').replace(' required','')}<div class="cell block"><span>Type</span>${seg('dir',[['in','Versement (+)'],['out','Retrait (−)']],'in')}</div>`,`Épargné aujourd’hui : ${eur(g.saved||0)}. Le montant s’ajoute (ou se retire). Laisse vide pour ne modifier que l’objectif.`)}
+   ${isNew?'':sec('Corriger',amountField('now','Épargné aujourd’hui',String(g.saved||0).replace('.',',')).replace(' required',''),'Si le montant affiché ne correspond pas à la réalité (solde de ton LEP, total déjà cotisé à la tontine), mets le bon montant ici.')}
+   ${sec(isNew?'':'Objectif',`<label class="cell field" for="fgn"><span>Nom</span><input id="fgn" name="name" value="${esc(g.name)}" required placeholder="Épargne de précaution, voyage…" autocomplete="off"></label>${amountField('target','Montant final visé',g.target!==''?String(g.target).replace('.',','):'')}<label class="cell field" for="fgd"><span>À atteindre le</span><input id="fgd" name="due" type="date" value="${g.due||''}"></label>${isNew?amountField('saved','Déjà épargné','').replace(' required',''):''}`)}
    ${(g.hist||[]).length?sec('Historique',g.hist.slice().reverse().slice(0,12).map(h=>`<div class="cell"><span class="body">${fday(h.d)}</span><span class="fin-amt ${h.amt>=0?'in':'out'}">${eur(h.amt,true)}</span></div>`).join(''),'','notile'):''}
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="fiDelGoal" data-id="${g.id}">Supprimer l’objectif</button>`)}
   </form>`)}
@@ -2915,10 +2918,13 @@ function finSubmit(f,v){const F=fin(),id=f.dataset.id,t=TODAY();let msg='';
      Object.assign(x,{amount:a,cat:v.cat,note:(v.note||'').trim(),date:v.date||t,to:isSaveCat(v.cat)?v.to||'':'',...(v.acc!=null?{acc:v.acc}:{})});txLink(x);F.tx.sort((p,q)=>p.date.localeCompare(q.date));S.finM=monthKey(x.date);msg=isNew?(x.kind==='out'?'Dépense ajoutée':'Revenu ajouté'):'Opération enregistrée';break}
    case 'fiPlan':{const a=num(v.amount);if(!a||a<=0){hud('Indique un montant');return}let p=F.plans.find(y=>y.id===id);const isNew=!p;if(isNew){p={id:uid(),paid:[]};F.plans.push(p)}
      Object.assign(p,{title:v.title.trim(),amount:a,date:v.date||t,rep:v.rep||'',cat:v.cat,kind:f.dataset.kind==='in'?'in':'out',to:isSaveCat(v.cat)?v.to||'':'',other:f.dataset.kind==='in'?0:num(v.other)||0});{const g=F.goals.find(x=>x.planId===p.id);if(g&&!p.rep){g.name=p.title;g.target=a;g.due=p.date}}msg=isNew?(p.kind==='in'?'Revenu ajouté':'Ajouté'):'Enregistré';break}
-   case 'fiGoal':{let g=F.goals.find(y=>y.id===id);const isNew=!g;if(isNew){g={id:uid(),saved:0,hist:[]};F.goals.push(g)}
+   case 'fiGoal':{let g=F.goals.find(y=>y.id===id);const isNew=!g,orig=g?String(g.saved||0).replace('.',','):'';if(isNew){g={id:uid(),saved:0,hist:[]};F.goals.push(g)}
      Object.assign(g,{name:v.name.trim(),target:num(v.target)||0,due:v.due||''});
-     const mv=num(isNew?v.saved:v.move);if(mv){const amt=isNew||v.dir!=='out'?mv:-mv;g.saved=Math.max(0,(g.saved||0)+amt);g.hist.push(isNew?{d:t,amt,init:true}:{d:t,amt})}
-     msg=isNew?'Objectif créé':mv?(v.dir==='out'?'Retrait enregistré':'Versement enregistré'):'Objectif enregistré';break}
+     const mv=num(isNew?v.saved:v.move);if(mv){const amt=isNew||v.dir!=='out'?mv:-mv;g.hist.push(isNew?{d:t,amt,init:true}:{d:t,amt})}
+     /* correction directe du montant épargné : on ajoute l'écart à l'historique */
+     if(!isNew&&v.now!=null&&v.now!==''&&String(v.now).trim()!==orig){const want=num(v.now),cur=goalSaved(g);if(want!=null&&Math.abs(want-cur)>=0.01)g.hist.push({d:t,amt:Math.round((want-cur)*100)/100,adj:true})}
+     g.saved=goalSaved(g);
+     msg=isNew?'Objectif créé':mv?(v.dir==='out'?'Retrait enregistré':'Versement enregistré')+' · épargné '+eur(g.saved):'Objectif enregistré';break}
    case 'fiInv':{let a=F.inv.find(y=>y.id===id);const isNew=!a;if(isNew){a={id:uid(),vals:[],flows:[]};F.inv.push(a)}
      Object.assign(a,{name:v.name.trim(),type:v.type});const fl=num(v.flow),va=num(v.value);
      if(fl)a.flows.push({d:t,amt:fl});if(va!=null&&(isNew||va!==invVal(a)||fl)){a.vals=a.vals.filter(x=>x.d!==t);a.vals.push({d:t,v:va});a.vals.sort((p,q)=>p.d.localeCompare(q.d))}
