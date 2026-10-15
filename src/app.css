@@ -678,3 +678,7 @@ a.cell{text-decoration:none}
 .fin-accs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}.fin-accs::-webkit-scrollbar{display:none}
 .fin-accs button{flex:none;border:0;border-radius:99px;padding:7px 13px;background:var(--fill);color:var(--label);font:600 13px var(--font)}
 .fin-accs button[aria-pressed=true]{background:var(--area);color:#fff}
+/* Finances : section dépliable « Importer et automatiser » */
+.fin-more>summary{list-style:none;cursor:pointer}.fin-more>summary::-webkit-details-marker{display:none}
+.fin-more>summary .chev{display:inline-flex;transition:transform .2s;color:var(--label3)}.fin-more[open]>summary .chev{transform:rotate(90deg)}
+.fin-more>.cell{padding-left:28px}
