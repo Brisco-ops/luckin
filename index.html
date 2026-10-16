@@ -3415,7 +3415,10 @@ function accountSec(){return accountSec0()+agShareSec()+notifSec()}
 /* ---------- partage de l'agenda avec des amis du groupe (table agenda_share) ----------
    niveau « busy » : on n'envoie que les heures (aucun titre) ; « full » : heures et titres. 14 jours, renvoyé à chaque synchro si ça a changé. */
 const AGL=[['','Non'],['busy','Occupé'],['full','Tout']];
-function agShareSec(){if(!A.user||!A.group)return '';const fr=A.members.filter(m=>m.id!==A.user.id),sh=st().agShare||{};if(!fr.length)return '';
+function agShareSec(){if(!A.user)return '';
+  if(!A.group)return sec('Partager mon agenda',`<button type="button" class="cell tap link" data-act="groupMenu">Créer un groupe ou rejoindre celui d’un ami</button>`,'Pour partager ton agenda, ton ami et toi devez être dans le même groupe.');
+  const fr=A.members.filter(m=>m.id!==A.user.id),sh=st().agShare||{};
+  if(!fr.length)return sec('Partager mon agenda',`<div class="cell"><span class="body"><span>Personne d’autre dans « ${esc(A.group.name)} »</span><span class="fn">Envoie le code <b class="no-tr">${esc(A.group.code)}</b> à ton ami : quand il l’aura rejoint, il apparaîtra ici.</span></span></div><button type="button" class="cell tap link" data-act="groupShare">Inviter un ami</button>`,'');
   return sec('Partager mon agenda',fr.map(m=>`<div class="cell block"><span>${esc(m.name)}</span>${seg('ags_'+m.id,AGL,sh[m.id]||'')}</div>`).join(''),'Occupé : ton ami voit seulement quand tu es pris (heures), sans aucun titre. Tout : il voit aussi ce que tu fais. Tâches avec une heure, rendez-vous de ton agenda, entretiens, événements et séances, sur 14 jours. Il le voit dans son calendrier.')}
 function agBlocks(level){const t=TODAY(),to=addDays(t,13);
   return calItems(t,to,'',true).filter(o=>o.s!=null||(o.fixed&&['gcalShow','evEdit','jobEdit'].includes(o.act))).map(o=>{const b={d:o.d,s:o.s??null,e:o.s!=null?(o.e??o.s+30):null};if(level==='full'){b.t=String(o.title).replace(/<[^>]+>/g,'').slice(0,80);b.c=o.c}return b})}
