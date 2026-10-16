@@ -167,7 +167,7 @@ function seedTemplates(){
 function seed(){
   let old={};try{old=JSON.parse(localStorage.getItem('cap-objectifs-v1')||'{}').settings||{}}catch(e){}
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
-    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,trainTime:'',formeGoal:'',sugarTrack:false,bloatTrack:false,payOn:false,lastBackup:'',goalFix:1,catV2:1,suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
+    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,trainTime:'',formeGoal:'',sugarTrack:false,bloatTrack:false,payOn:false,lastBackup:'',goalFix:1,catV2:1,agShare:{},suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
     apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',coachMode:'eq',career:{goal:5,relance:7}},
     days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[],notes:[],fin:{tx:[],plans:[],goals:[],inv:[],budget:null}};
 }
@@ -180,6 +180,7 @@ if(!db.settings.restFix){db.templates.forEach(t=>t.exercises.forEach(e=>e.rest=4
 /* installations existantes : on garde le rituel et les compléments déjà en place */
 if(db.settings.trainTime==null)db.settings.trainTime='';
 if(db.settings.payOn==null)db.settings.payOn=false;
+if(!db.settings.agShare)db.settings.agShare={};
 if(db.settings.lastBackup==null)db.settings.lastBackup='';
 if(!db.settings.goalFix&&db.fin){(db.fin.goals||[]).forEach(g=>{if((g.hist||[]).length){const h=g.hist.slice().sort((a,b)=>String(a.d).localeCompare(String(b.d)));let v=0;h.forEach(x=>{v=Math.max(0,v+(+x.amt||0))});v=Math.round(v*100)/100;if(Math.abs(v-(g.saved||0))>=0.01)g.hist.push({d:new Date().toLocaleDateString('sv'),amt:Math.round(((g.saved||0)-v)*100)/100,adj:true});}});db.settings.goalFix=1;writeLocal()}
 /* suivis personnels (sans sucre, ballonnements) : gardés pour les journaux déjà utilisés, éteints pour les nouveaux */
@@ -813,7 +814,8 @@ const next7=()=>Array.from({length:7},(_,k)=>addDays(TODAY(),k));
 /* ---------- calendrier avec les heures (accueil et Tâches) : vue Jour, 3 jours ou Semaine ---------- */
 const CAL={n:3,start:''};try{CAL.n=+localStorage.getItem(K+':caln')||3;S.homeView=localStorage.getItem(K+':hv')||'list'}catch(e){}
 const calDays=()=>{const s=CAL.start||TODAY();return Array.from({length:CAL.n},(_,k)=>addDays(s,k))};
-function calItems(from,to,focus){const t=TODAY(),out=[],push=o=>out.push(o);
+function calItems(from,to,focus,noFriend){const t=TODAY(),out=[],push=o=>out.push(o);
+  if(!noFriend&&S.calWith){const f=(A.agFriends||[]).find(x=>x.owner===S.calWith);if(f)(f.blocks||[]).filter(b=>b.d>=from&&b.d<=to).forEach(b=>push({d:b.d,s:b.s,e:b.e,title:(f.level==='full'&&b.t?b.t:'Occupé')+' · '+agName(f.owner),c:agColor(f.owner),act:'calNone',fixed:1,friend:1}))}
   if(areaOn('taches'))todos().filter(x=>!x.done&&x.due).forEach(x=>{let d=x.due,late=false;if(d<t){d=t;late=true}if(d<from||d>to)return;const s=late?null:toMinS(x.time);
     push({d,s,e:s!=null?s+(x.dur||30):null,title:x.title,c:PRIO_C[x.prio]||PRIO_C.moyenne,act:'tdEdit',id:x.id,todo:1,late})});
   gcalItems(from,to).forEach(x=>{const s=x.allDay?null:toMinS(x.time);push({d:x.d,s,e:toMinS(x.end)||(s!=null?s+60:null),title:x.title,c:'#4285F4',act:'gcalShow',id:x.d+'|'+(x.time||'')+'|'+x.title,fixed:1})});
@@ -834,15 +836,16 @@ function calView(items,opt={}){const days=calDays(),n=days.length,t=TODAY(),by=d
   const m0=new Date(days[0]+'T12:00:00'),m1=new Date(days[n-1]+'T12:00:00'),mo=m0.toLocaleDateString(LOC,{month:'long',year:'numeric'}),mo1=m1.toLocaleDateString(LOC,{month:'long',year:'numeric'});
   const bar=`<div class="cal-bar"><b class="cal-mo">${mo===mo1?mo:m0.toLocaleDateString(LOC,{month:'short'})+' – '+m1.toLocaleDateString(LOC,{month:'short',year:'numeric'})}</b>
     <span class="cal-nav"><button type="button" data-act="calMove" data-d="-1" aria-label="${T('Avant','Previous')}">‹</button><button type="button" data-act="calToday"${days.includes(t)?' disabled':''}>${T('Aujourd’hui','Today')}</button><button type="button" data-act="calMove" data-d="1" aria-label="${T('Après','Next')}">›</button></span></div>
+   ${(A.agFriends||[]).length?`<div class="fin-accs cal-with">${[['','Moi seul'],...A.agFriends.map(f=>[f.owner,'+ '+agName(f.owner)])].map(([k,l])=>`<button type="button" data-act="calWith" data-v="${k}" aria-pressed="${(S.calWith||'')===k}">${esc(l)}</button>`).join('')}</div>`:''}
    <div class="cal-modes">${[[1,T('Jour','Day')],[3,T('3 jours','3 days')],[7,T('Semaine','Week')]].map(([k,l])=>`<button type="button" data-act="calMode" data-n="${k}" aria-pressed="${CAL.n===k}">${l}</button>`).join('')}</div>`;
   const head=`<div class="cal-head" style="--n:${n}"><span></span>${days.map(d=>`<span class="${d===t?'is-today':''}"><small>${esc(wd(d))}</small><b>${+d.slice(8)}</b></span>`).join('')}</div>`;
   const allDay=days.map(d=>{const xs=by(d).filter(o=>o.s==null);if(n===7)return `<div class="cal-ad">${xs.slice(0,4).map(o=>`<button type="button" class="cal-dot${o.late?' late':''}" style="--c:${o.c}" ${o.act?`data-act="${o.act}"`:''} ${o.id?`data-id="${esc(o.id)}"`:''} aria-label="${esc(String(o.title).replace(/<[^>]+>/g,''))}"></button>`).join('')}${xs.length>4?`<small>+${xs.length-4}</small>`:''}</div>`;
-    const max=n===1?8:3;return `<div class="cal-ad">${xs.slice(0,max).map(o=>`<button type="button" class="cal-chip${o.late?' late':''}${o.fixed&&opt.focus?' dim':''}" style="--c:${o.c}" ${o.act?`data-act="${o.act}"`:''} ${o.id?`data-id="${esc(o.id)}"`:''}><span class="no-tr">${ttl(o)}</span></button>`).join('')}${xs.length>max?`<button type="button" class="cal-more" data-act="calMode" data-n="1" data-d0="${d}">+${xs.length-max}</button>`:''}</div>`}).join('');
+    const max=n===1?8:3;return `<div class="cal-ad">${xs.slice(0,max).map(o=>`<button type="button" class="cal-chip${o.friend?' friend':''}${o.late?' late':''}${o.fixed&&opt.focus?' dim':''}" style="--c:${o.c}" ${o.act?`data-act="${o.act}"`:''} ${o.id?`data-id="${esc(o.id)}"`:''}><span class="no-tr">${ttl(o)}</span></button>`).join('')}${xs.length>max?`<button type="button" class="cal-more" data-act="calMode" data-n="1" data-d0="${d}">+${xs.length-max}</button>`:''}</div>`}).join('');
   const hours=Array.from({length:h1-h0},(_,k)=>`<span style="top:${k*HP}px">${String(h0+k).padStart(2,'0')}h</span>`).join('');
   const now=new Date(),nm=now.getHours()*60+now.getMinutes();
   const cols=days.map(d=>{const xs=calLanes(by(d).filter(o=>o.s!=null));
     return `<div class="cal-col${d===t?' is-today':''}" style="--hp:${HP}px" data-act="calNew" data-d="${d}" data-h0="${h0}" data-hp="${HP}">${xs.map(o=>{const h=+y(o.e)-+y(o.s),w=100/o.lanes;
-      return `<button type="button" class="cal-ev${o.fixed?' fixed':''}${o.fixed&&opt.focus?' dim':''}${o.done?' done':''}" style="--c:${o.c};top:${y(o.s)}px;height:${Math.max(18,h-2).toFixed(0)}px;left:calc(${(o.lane*w).toFixed(2)}% + 1px);width:calc(${w.toFixed(2)}% - 3px)" ${o.act?`data-act="${o.act}"`:'data-act="calNone"'} ${o.id?`data-id="${esc(o.id)}"`:''}><span class="no-tr">${ttl(o)}</span>${h>=34&&n<7?`<small>${minHM(o.s)}–${minHM(o.e)}</small>`:''}</button>`}).join('')}
+      return `<button type="button" class="cal-ev${o.friend?' friend':''}${o.fixed?' fixed':''}${o.fixed&&opt.focus?' dim':''}${o.done?' done':''}" style="--c:${o.c};top:${y(o.s)}px;height:${Math.max(18,h-2).toFixed(0)}px;left:calc(${(o.lane*w).toFixed(2)}% + 1px);width:calc(${w.toFixed(2)}% - 3px)" ${o.act?`data-act="${o.act}"`:'data-act="calNone"'} ${o.id?`data-id="${esc(o.id)}"`:''}><span class="no-tr">${ttl(o)}</span>${h>=34&&n<7?`<small>${minHM(o.s)}–${minHM(o.e)}</small>`:''}</button>`}).join('')}
       ${d===t&&nm>=h0*60&&nm<=h1*60?`<i class="cal-now" style="top:${y(nm)}px"></i>`:''}</div>`}).join('');
   return `<div class="cal" data-cal="${opt.where||''}">${bar}${head}<div class="cal-adrow" style="--n:${n}"><span class="cal-adl">${T('Journée','All day')}</span>${allDay}</div>
    <div class="cal-grid" style="--n:${n};height:${(h1-h0)*HP}px"><div class="cal-hours">${hours}</div>${cols}</div>
@@ -852,7 +855,9 @@ function calAct(act,el,ev){switch(act){
   case 'calMode':CAL.n=+el.dataset.n;if(el.dataset.d0)CAL.start=el.dataset.d0;try{localStorage.setItem(K+':caln',CAL.n)}catch(e){}break;
   case 'calMove':CAL.start=addDays(CAL.start||TODAY(),+el.dataset.d*CAL.n);break;
   case 'calToday':CAL.start='';break;
+  case 'calWith':S.calWith=el.dataset.v;break;
   case 'calNone':return true;
+  case 'frAgenda':S.calWith=el.dataset.id;S.homeView='cal';try{localStorage.setItem(K+':hv','cal')}catch(e){}if(!$('#home').hidden){paintAgenda();$('#agenda')?.scrollIntoView({behavior:'smooth'})}return true;
   case 'calNew':{const r=el.getBoundingClientRect(),m=+el.dataset.h0*60+Math.floor((ev.clientY-r.top)/+el.dataset.hp*2)*30;tdSheet();
     const d=$('#tdd'),h=$('#tdh');if(d)d.value=el.dataset.d;if(h)h.value=minHM(Math.min(23*60+30,m));return true}
   case 'homeView':S.homeView=el.dataset.v;try{localStorage.setItem(K+':hv',S.homeView)}catch(e){}break;
@@ -1147,6 +1152,7 @@ document.addEventListener('click',ev=>{
   if(act==='agEvening'){eveningSheet();return}
   if(act==='agWeekly'){weeklySheet();return}
   if(act==='agWorkout'){S.tab='workout';openArea('forme');return}
+  if(act==='frAgenda'){calAct(act,el,ev);return}
   if(calAct(act,el,ev))return;
   if(/^(fiPaySetup|pay[A-Z])/.test(act)){payAct(act,el);return}
   if(/^(backupFull|hist[A-Z]|restoreGo|guard[A-Z])/.test(act)){histAct(act,el);return}
@@ -1252,6 +1258,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.dataset.setting){st()[t.dataset.setting]=t.checked;save();if(t.dataset.setting==='supps'||t.dataset.setting==='sugarTrack'||t.dataset.setting==='bloatTrack')render();return}
   if(t.dataset.tday!=null){const k=+t.dataset.tday;const a=new Set(st().trainingDays);t.checked?a.add(k):a.delete(k);st().trainingDays=[...a].sort();save();render();return}
   if(t.name==='evView'){S.evView=t.value;repaintArea();return}
+  if(t.name&&t.name.startsWith('ags_')){const v=t.name.slice(4),sh=st().agShare||(st().agShare={});if(t.value)sh[v]=t.value;else delete sh[v];save();if(t.value)agPush(true).then(()=>hud(t.value==='busy'?'Ton ami voit quand tu es occupé':'Ton ami voit ton agenda'));else agUnshare(v).then(()=>hud('Agenda plus partagé'));return}
   if(t.name==='tdView'){S.tdView=t.value;paintTodos();return}
   if(t.name==='ctCh'){const m=t.value==='mail';const sj=$('.ct-subj');if(sj)sj.hidden=!m;const b=$('#ctgo');if(b)b.textContent=m?'Ouvrir dans Mail':'Ouvrir dans Messages';return}
   if(t.name==='brView'){S.brView=t.value;paintBrain();return}
@@ -2294,7 +2301,7 @@ async function cloudFlush(){
   A.flushing=true;A.dirty=false;const me=A.user.id;let ok=true;
   try{
     const r=await sb.from('user_data').upsert({user_id:me,data:cloudCopy(),updated_at:new Date().toISOString()});if(r.error)throw r.error;
-    A.remoteN=dataCount(db);A.force=false;A.guarded=false;
+    A.remoteN=dataCount(db);A.force=false;A.guarded=false;agPush(false);
     const t=TODAY();const rows=Array.from({length:7},(_,k)=>shareRow(addDays(t,-k)));
     const r2=await sb.from('daily_share').upsert(rows,{onConflict:'user_id,day'});if(r2.error)throw r2.error;
     const nm=st().name||'';if(A.sentName!==nm){const r3=await sb.from('profiles').upsert({id:me,name:nm});if(!r3.error)A.sentName=nm}
@@ -2467,6 +2474,7 @@ async function loadGroup(force){
           sb.from('daily_share').select('user_id,day,morning,evening,session,progress').in('user_id',ids).gte('day',addDays(TODAY(),-6))]);
         A.members=ids.map(id=>({id,name:(p.data||[]).find(x=>x.id===id)?.name||'Ami'}));A.shares=sh.data||[];
         const ch=await sb.from('cheers').select('from_id,to_id,day').gte('day',addDays(TODAY(),-6));A.cheers=ch.data||[];
+        await agPull();agPush(false);
       }}
   }catch(e){}
   paintFriends();
@@ -2484,13 +2492,30 @@ function paintFriends(){const el=$('#friends');if(!el)return;
   el.innerHTML=`<div class="fr-card"><div class="fr-h"><span>${esc(A.group.name)}</span><button type="button" class="fr-code" data-act="groupMenu" aria-label="Options du groupe">${esc(A.group.code)}</button></div>
    ${list.map(m=>{const me=m.id===A.user.id;const nm=me?(st().name||'Moi'):m.name;const x=memberStats(m.id);
      return `<div class="fr-row"><span class="fr-av" style="--h:${hueOf(m.id)}">${esc(nm.trim().charAt(0).toUpperCase()||'?')}</span>
-      <span class="fr-n">${esc(nm)}</span>
+      <span class="fr-n">${esc(nm)}${!me&&(A.agFriends||[]).some(f=>f.owner===m.id)?` <button type="button" class="fr-ag" data-act="frAgenda" data-id="${m.id}" aria-label="Voir l’agenda de ${esc(nm)}">agenda</button>`:''}</span>
       <span class="fr-dots" aria-label="${x.reg} jours complets sur 7, ${x.sess} séances">${x.rows.map(r=>`<i class="d${(r.morning?1:0)+(r.evening?1:0)}${r.session?' s':''}"></i>`).join('')}</span>
       <span class="fr-p" style="--p:${x.prog??0}%">${x.prog!=null?x.prog+' %':'–'}</span>
       ${me?(()=>{const n=A.cheers.filter(c=>c.to_id===A.user.id).length;return `<span class="fr-got" aria-label="${n} encouragements reçus cette semaine">${n?'🔥'+n:''}</span>`})()
         :(()=>{const done=A.cheers.some(c=>c.from_id===A.user.id&&c.to_id===m.id&&c.day===TODAY());return `<button type="button" class="fr-cheer${done?' done':''}" data-act="cheer" data-id="${m.id}" aria-label="Encourager ${esc(nm)}">🔥</button>`})()}</div>`}).join('')}
    <div class="fr-legend"><span><i class="d2"></i>journée suivie</span><span><i class="d0 s"></i>séance</span><span>% vers l’objectif</span></div></div>`}
-function accountSec(){return accountSec0()+notifSec()}
+function accountSec(){return accountSec0()+agShareSec()+notifSec()}
+/* ---------- partage de l'agenda avec des amis du groupe (table agenda_share) ----------
+   niveau « busy » : on n'envoie que les heures (aucun titre) ; « full » : heures et titres. 14 jours, renvoyé à chaque synchro si ça a changé. */
+const AGL=[['','Non'],['busy','Occupé'],['full','Tout']];
+function agShareSec(){if(!A.user||!A.group)return '';const fr=A.members.filter(m=>m.id!==A.user.id),sh=st().agShare||{};if(!fr.length)return '';
+  return sec('Partager mon agenda',fr.map(m=>`<div class="cell block"><span>${esc(m.name)}</span>${seg('ags_'+m.id,AGL,sh[m.id]||'')}</div>`).join(''),'Occupé : ton ami voit seulement quand tu es pris (heures), sans aucun titre. Tout : il voit aussi ce que tu fais. Tâches avec une heure, rendez-vous de ton agenda, entretiens, événements et séances, sur 14 jours. Il le voit dans son calendrier.')}
+function agBlocks(level){const t=TODAY(),to=addDays(t,13);
+  return calItems(t,to,'',true).filter(o=>o.s!=null||(o.fixed&&['gcalShow','evEdit','jobEdit'].includes(o.act))).map(o=>{const b={d:o.d,s:o.s??null,e:o.s!=null?(o.e??o.s+30):null};if(level==='full'){b.t=String(o.title).replace(/<[^>]+>/g,'').slice(0,80);b.c=o.c}return b})}
+let agBusy=false;
+async function agPush(force){if(!sb||!A.user||!A.group||agBusy)return;const sh=st().agShare||{},ids=Object.keys(sh).filter(k=>sh[k]&&A.members.some(m=>m.id===k));
+  if(!force&&Date.now()-(A.agAt||0)<60e3)return;agBusy=true;A.agAt=Date.now();A.agLast=A.agLast||{};
+  try{for(const v of ids){const lv=sh[v],blocks=agBlocks(lv),h=lv+JSON.stringify(blocks);if(!force&&A.agLast[v]===h)continue;
+      const r=await sb.from('agenda_share').upsert({owner:A.user.id,viewer:v,level:lv,blocks,updated_at:new Date().toISOString()});
+      if(r.error){if(/relation|does not exist|schema cache/i.test(r.error.message)&&force)hud('Partage pas encore activé : colle supabase/agenda_share.sql dans Supabase');break}A.agLast[v]=h}}
+  catch(e){}finally{agBusy=false}}
+async function agUnshare(v){if(!sb||!A.user)return;try{await sb.from('agenda_share').delete().eq('owner',A.user.id).eq('viewer',v)}catch(e){}if(A.agLast)delete A.agLast[v]}
+async function agPull(){if(!sb||!A.user)return;try{const r=await sb.from('agenda_share').select('owner,level,blocks,updated_at').eq('viewer',A.user.id);if(!r.error)A.agFriends=r.data||[]}catch(e){}}
+const agName=id=>A.members?.find(m=>m.id===id)?.name||'Ami',agColor=id=>`hsl(${hueOf(id)} 55% 52%)`;
 function accountSec0(){
   if(!A.user)return sec('Compte et amis',`<button type="button" class="cell tap link" data-act="gateOpen">Se connecter ou créer un compte</button>`,'Un compte sauvegarde tes données en ligne et te permet de rejoindre tes amis.');
   const g=A.group;

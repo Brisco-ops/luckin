@@ -691,3 +691,7 @@ a.cell{text-decoration:none}
 .fin .st-row.sub{grid-template-columns:1fr auto;row-gap:4px;padding-top:8px;padding-bottom:8px}
 .fin .st-row.sub .st-l{grid-column:1/-1;white-space:normal}
 .fin .st-row.sub .st-bar{margin-left:14px}
+/* agenda d'un ami dans le calendrier : hachuré à sa couleur */
+.cal-ev.friend,.cal-chip.friend{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--c) 30%,var(--card)) 0 6px,color-mix(in srgb,var(--c) 14%,var(--card)) 6px 12px);border-left-color:var(--c);font-weight:500}
+.cal-with{padding:6px 0 0}
+.fr-ag{border:0;background:var(--fill);color:var(--tint);font:600 11px var(--font);border-radius:99px;padding:2px 8px;margin-left:6px;vertical-align:middle}
