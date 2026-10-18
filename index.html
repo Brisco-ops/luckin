@@ -2343,7 +2343,7 @@ function carStats(){const all=jobs();
    ${sec('Par entreprise',bars(top.slice(0,8)),top.length>8?`Et ${top.length-8} autre${top.length>8+1?'s':''}.`:'','notile')}`}
 function carEvents(){const t=TODAY();
   const up=events().filter(e=>e.date>=t).sort((x,y)=>evWhen(x).localeCompare(evWhen(y))),past=events().filter(e=>e.date<t).sort((x,y)=>evWhen(y).localeCompare(evWhen(x)));
-  const cell=e=>`<button class="cell tap" data-act="evEdit" data-id="${e.id}"><span class="body"><span>${esc(e.title)}</span><span class="fn">${[whenDay(e.date)+(e.time?' à '+esc(e.time):''),(EVKIND.find(k=>k[0]===e.kind)||[])[1],e.place&&esc(e.place),nQ(e)?nQ(e)+' question'+(nQ(e)>1?'s':''):null].filter(Boolean).join(' · ')}</span></span>${e.date===t?'<span class="pill tint">Aujourd’hui</span>':''}${I.chev}</button>`;
+  const cell=e=>`<button class="cell tap" data-act="evEdit" data-id="${e.id}"><span class="body"><span>${esc(e.title)}</span><span class="fn">${[whenDay(e.date)+(e.time?' à '+esc(e.time):''),(EVKIND.find(k=>k[0]===e.kind)||[])[1],e.place&&esc(e.place),...withTxt(e),nQ(e)?nQ(e)+' question'+(nQ(e)>1?'s':''):null].filter(Boolean).join(' · ')}</span></span>${e.date===t?'<span class="pill tint">Aujourd’hui</span>':''}${I.chev}</button>`;
   const v=S.evView==='past'?'past':'up';
   return `<div class="ev-seg">${seg('evView',[['up',`À venir${up.length?' · '+up.length:''}`],['past',`Passés${past.length?' · '+past.length:''}`]],v)}</div>
    ${v==='up'?sec('',up.map(cell).join('')+addCell('Nouvel événement','evNew'),'Salons, masterclass, conférences… Rappels 2 jours avant et la veille à 19:00, le matin même à 08:00.')
@@ -2427,6 +2427,7 @@ function evSheet(e){const isNew=!e;e=e||{title:'',kind:'salon',date:'',time:'',p
      <label class="cell field" for="eh"><span>Heure</span><input id="eh" name="time" type="time" value="${e.time||''}"></label>
      <label class="cell field" for="ep"><span>Lieu</span><input id="ep" name="place" value="${esc(e.place)}" placeholder="Adresse ou « en ligne »" autocomplete="off"><button type="button" class="map-go" data-act="mapOpen" data-src="#ep" aria-label="Itinéraire">${I.pin}</button></label>
      <label class="cell field" for="evl"><span>Lien</span><input id="evl" name="link" inputmode="url" autocapitalize="off" value="${esc(e.link)}" placeholder="Inscription, programme…" autocomplete="off"></label>`,'Rappels : 2 jours avant et la veille à 19:00, le matin même à 08:00.')}
+   ${withSec(e)}
    ${sec('Questions à poser',`<div class="cell"><textarea name="questions" rows="4" placeholder="Une question par ligne">${esc(e.questions||'')}</textarea></div>`)}
    ${sec('Notes',`<div class="cell"><textarea name="notes" rows="4" placeholder="Objectifs, personnes à rencontrer, ce que tu as appris…">${esc(e.notes||'')}</textarea></div>`)}
    ${e.link?sec('',`<a class="cell tap link" href="${esc(safeUrl(e.link))}" target="_blank" rel="noopener">Ouvrir le lien</a>`):''}
@@ -2434,6 +2435,7 @@ function evSheet(e){const isNew=!e;e=e||{title:'',kind:'salon',date:'',time:'',p
   </form>`)}
 function evSubmit(f,v){let e=events().find(x=>x.id===f.dataset.id);const isNew=!e;if(isNew){e={id:uid()};events().push(e)}
   Object.assign(e,{title:v.title.trim(),kind:v.kind,date:v.date,time:v.time||'',place:(v.place||'').trim(),link:(v.link||'').trim(),questions:(v.questions||'').trim(),notes:(v.notes||'').trim()});
+  if(withRead(f,e))invSync({id:e.id,title:e.title,due:e.date,time:e.time,dur:120,note:'',place:e.place,with:e.with,busyFor:e.busyFor});
   save();closeSheet();repaintArea();haptic();hud(isNew?'Événement ajouté':'Événement enregistré')}
 function jobAct(act,id,el){const j=jobs().find(x=>x.id===id);
   switch(act){
@@ -2459,7 +2461,7 @@ function jobAct(act,id,el){const j=jobs().find(x=>x.id===id);
    case 'evEdit':{const e=events().find(x=>x.id===id);if(e)evSheet(e);break}
    case 'evOld':S.evOld=!S.evOld;repaintArea();break;
    case 'evAskDel':asheet('Supprimer cet événement et ses notes ?',[{label:'Supprimer l’événement',act:'evDel',data:{id},danger:true}]);break;
-   case 'evDel':db.events=events().filter(x=>x.id!==id);save();repaintArea();hud('Événement supprimé');break;
+   case 'evDel':{const e0=events().find(x=>x.id===id);if(e0?.with?.length||e0?.busyFor?.length)invDrop(id)}db.events=events().filter(x=>x.id!==id);save();repaintArea();hud('Événement supprimé');break;
    case 'addIv':$('#ivrows').insertAdjacentHTML('beforeend',ivRow());break;
    case 'rmIv':el.closest('[data-ivrow]').remove();break;
    case 'jobMenu':asheet(`${j.company} · envoyée le ${fdate(j.date)}`,[{label:'Relance faite aujourd’hui',act:'jobRelance',data:{id}},{label:'Réponse : entretien',act:'jobIv',data:{id}},{label:'Classer sans réponse',act:'jobSilence',data:{id}},{label:'Réponse : refus',act:'jobRefus',data:{id},danger:true}]);break;
@@ -2501,7 +2503,7 @@ function paintTodos(){const v=$('#area'),t=TODAY();
   const open=todos().filter(x=>!x.done).sort((a,b)=>prioRank(a.prio)-prioRank(b.prio)||(a.due||'9999').localeCompare(b.due||'9999')||(a.time||'99').localeCompare(b.time||'99'));
   const done=todos().filter(x=>x.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
   const cnt=k=>open.filter(x=>todoBucket(x,t)===k).length,week=Date.now()-7*864e5;
-  const cell=x=>`<div class="cell td${x.done?' done':''}" style="--pc:${PRIO_C[x.prio]||PRIO_C.moyenne}"><button type="button" class="td-check" data-act="tdToggle" data-id="${x.id}" aria-label="${x.done?'Remettre à faire':'Marquer comme faite'}">${x.done?I.check:''}</button><button type="button" class="td-body" data-act="tdEdit" data-id="${x.id}"><span class="td-t">${esc(x.title)}</span><span class="fn">${[x.due?whenDay(x.due)+(x.time?' à '+esc(x.time):''):null,x.rep?'↻ '+REP_SHORT[x.rep]:null,x.place?'📍 '+esc(x.place):null,x.cat&&esc(x.cat),(x.with||[]).length?'avec '+x.with.map(w=>esc(agName(w))+(INV_MARK[invStatus(x.id,w)]||'')).join(', '):null,(x.busyFor||[]).length?'occupé visible par '+x.busyFor.map(w=>esc(agName(w))).join(', '):null,x.note?'note':null].filter(Boolean).join(' · ')||'Sans échéance'}</span></button></div>`;
+  const cell=x=>`<div class="cell td${x.done?' done':''}" style="--pc:${PRIO_C[x.prio]||PRIO_C.moyenne}"><button type="button" class="td-check" data-act="tdToggle" data-id="${x.id}" aria-label="${x.done?'Remettre à faire':'Marquer comme faite'}">${x.done?I.check:''}</button><button type="button" class="td-body" data-act="tdEdit" data-id="${x.id}"><span class="td-t">${esc(x.title)}</span><span class="fn">${[x.due?whenDay(x.due)+(x.time?' à '+esc(x.time):''):null,x.rep?'↻ '+REP_SHORT[x.rep]:null,x.place?'📍 '+esc(x.place):null,x.cat&&esc(x.cat),...withTxt(x),x.note?'note':null].filter(Boolean).join(' · ')||'Sans échéance'}</span></button></div>`;
   if(S.tdView==='events'){v.innerHTML=`<div class="a-in car">${HOMEBTN}<div class="a-head"><p class="l2">Tâches</p><h1>Événements</h1></div>${carEvents()}</div>${bar}`;return}
   if(S.tdView==='week'){const late=open.filter(x=>x.due&&x.due<t).length;
     v.innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><h1>Tâches</h1></div>
@@ -2529,14 +2531,14 @@ function tdSheet(x){const isNew=!x;x=x||{title:'',due:'',time:'',prio:'moyenne',
      <label class="cell field" for="tdr"><span>Répéter</span><select id="tdr" name="rep">${REPEAT.map(([k,l])=>`<option value="${k}" ${k===(x.rep||'')?'selected':''}>${l}</option>`).join('')}</select></label>
      <label class="cell field" for="tdcs"><span>Catégorie</span><select id="tdcs" name="catSel"><option value="">Aucune</option>${cats.map(c=>`<option ${c===x.cat?'selected':''}>${esc(c)}</option>`).join('')}<option value="__new">Nouvelle catégorie</option></select></label>
      <label class="cell field" for="tdcn" id="tdcnw" hidden><span>Nom</span><input id="tdcn" name="catNew" placeholder="Ex. Voyage" autocomplete="off"></label>`,'Rappel le jour de l’échéance dans le résumé de 08:00, et 15 min avant si tu indiques une heure.')}
-   ${(()=>{const fr=A.user&&A.group?A.members.filter(m=>m.id!==A.user.id):[];return fr.length?sec('Avec',fr.map(m=>{const st0=invStatus(x.id,m.id),cur=(x.with||[]).includes(m.id)?'inv':(x.busyFor||[]).includes(m.id)?'busy':'';return `<div class="cell block"><span>${esc(m.name)}${cur==='inv'&&st0?` <small class="l2">· ${INV_ST[st0]}</small>`:''}</span>${seg('tw_'+m.id,[['','Non'],['inv','Invité'],['busy','Occupé']],cur)}</div>`}).join(''),'Invité : ton ami reçoit une notification, voit la tâche et répond. Occupé : il voit seulement que tu es pris à ce moment-là dans son calendrier, sans titre ni lieu, sans notification.'):''})()}
+   ${withSec(x)}
    ${sec('Note',`<div class="cell"><textarea name="note" rows="3" placeholder="Détails, liens…">${esc(x.note||'')}</textarea></div>`)}
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="tdAskDel" data-id="${x.id}">Supprimer la tâche</button>`)}
   </form>`)}
 function todoSubmit(f,v){let x=todos().find(y=>y.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid(),created:Date.now(),done:false};todos().push(x)}
   Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),place:String(v.place||'').trim(),due:v.due||'',time:v.time||'',dur:+v.dur||null,prio:v.prio||'moyenne',rep:v.rep||'',cat:(v.catSel==='__new'?v.catNew||'':v.catSel||'').trim(),note:(v.note||'').trim()});
   if(x.rep){if(!x.due)x.due=TODAY();x.dom=+x.due.slice(8)}else delete x.dom;
-  if(f.querySelector('[name^=tw_]')){const fd=new FormData(f),ids=[...new Set([...f.querySelectorAll('[name^=tw_]')].map(i=>i.name.slice(3)))];x.with=ids.filter(i=>fd.get('tw_'+i)==='inv');x.busyFor=ids.filter(i=>fd.get('tw_'+i)==='busy');invSync(x)}
+  if(withRead(f,x))invSync(x)
   save();closeSheet();paintTodos();if(!$('#home').hidden)paintAgenda();haptic();hud(isNew?'Tâche ajoutée':'Tâche enregistrée')}
 function todoAct(act,id,el){const x=todos().find(y=>y.id===id);
   switch(act){
@@ -3495,6 +3497,9 @@ async function agPull(){if(!sb||!A.user)return;try{const r=await sb.from('agenda
 const agName=id=>A.members?.find(m=>m.id===id)?.name||'Ami',agColor=id=>`hsl(${hueOf(id)} 55% 52%)`;
 /* ---------- inviter un ami sur une tâche (table invites) : il la voit dans son planning et répond ---------- */
 const INV_ST={pending:'Invité · pas encore répondu',yes:'Vient ✓',no:'Ne peut pas ✗'},INV_MARK={yes:' ✓',no:' ✗',pending:' ?'};
+function withSec(x){const fr=A.user&&A.group?A.members.filter(m=>m.id!==A.user.id):[];return fr.length?sec('Avec',fr.map(m=>{const st0=invStatus(x.id,m.id),cur=(x.with||[]).includes(m.id)?'inv':(x.busyFor||[]).includes(m.id)?'busy':'';return `<div class="cell block"><span>${esc(m.name)}${cur==='inv'&&st0?` <small class="l2">· ${INV_ST[st0]}</small>`:''}</span>${seg('tw_'+m.id,[['','Non'],['inv','Invité'],['busy','Occupé']],cur)}</div>`}).join(''),'Invité : ton ami reçoit une notification, voit le rendez-vous dans son planning et répond. Occupé : il voit seulement que tu es pris à ce moment-là dans son calendrier, sans titre ni lieu, sans notification.'):''}
+function withRead(f,x){if(!f.querySelector('[name^=tw_]'))return false;const fd=new FormData(f),ids=[...new Set([...f.querySelectorAll('[name^=tw_]')].map(i=>i.name.slice(3)))];x.with=ids.filter(i=>fd.get('tw_'+i)==='inv');x.busyFor=ids.filter(i=>fd.get('tw_'+i)==='busy');return true}
+const withTxt=x=>[(x.with||[]).length?'avec '+x.with.map(w=>esc(agName(w))+(INV_MARK[invStatus(x.id,w)]||'')).join(', '):null,(x.busyFor||[]).length?'occupé visible par '+x.busyFor.map(w=>esc(agName(w))).join(', '):null];
 const invStatus=(tid,v)=>(A.invOut||[]).find(r=>r.id===tid+':'+v)?.status||'';
 const invWhen=x=>x.due?whenDay(x.due)+(x.time?' à '+x.time:''):'';
 async function invSync(x){if(!sb||!A.user)return;const inv=x.with||[],busy=x.busyFor||[],want=[...inv,...busy],had=(A.invOut||[]).filter(r=>r.id.startsWith(x.id+':')).map(r=>r.viewer);
