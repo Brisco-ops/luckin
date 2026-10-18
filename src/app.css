@@ -695,3 +695,6 @@ a.cell{text-decoration:none}
 .cal-ev.friend,.cal-chip.friend{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--c) 30%,var(--card)) 0 6px,color-mix(in srgb,var(--c) 14%,var(--card)) 6px 12px);border-left-color:var(--c);font-weight:500}
 .cal-with{padding:6px 0 0}
 .fr-ag{border:0;background:var(--fill);color:var(--tint);font:600 11px var(--font);border-radius:99px;padding:2px 8px;margin-left:6px;vertical-align:middle}
+/* Lieu : bouton itinéraire dans le champ */
+.map-go{flex:none;display:grid;place-items:center;width:34px;height:34px;margin:-6px -6px -6px 4px;border-radius:50%;color:var(--area,var(--tint));background:var(--fill)}
+.map-row{display:flex;flex-wrap:wrap;gap:6px}.map-row button{border:0;border-radius:99px;padding:7px 12px;background:var(--fill);color:var(--tint);font:600 13px var(--font)}
