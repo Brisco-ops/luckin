@@ -75,7 +75,7 @@ type Iv = { date?: string; time?: string; kind?: string };
 type Job = { id: string; company?: string; role?: string; status?: string; interviews?: Iv[] };
 type Ev = { id: string; title?: string; kind?: string; date?: string; time?: string; place?: string; questions?: string };
 type Rem = { key: string; date: string; time?: string; what: string; who: string; how: string; prep: string; luck: string };
-type Todo = { id: string; title?: string; due?: string; time?: string; prio?: string; done?: boolean };
+type Todo = { id: string; title?: string; due?: string; dueEnd?: string; time?: string; prio?: string; done?: boolean };
 type Journal = { jobs?: Job[]; events?: Ev[]; todos?: Todo[] };
 const dataCache = new Map<string, Journal>();
 async function dataOf(userId: string) {
@@ -116,7 +116,7 @@ function todoMessages(todos: Todo[], now: { day: string; min: number }) {
   const open = todos.filter((x) => !x.done && x.due && x.title);
   if (inWin(now.min, IV_MORN)) {
     const due = open.filter((x) => x.due! <= now.day).sort((a, b) => (PRIO_RANK[a.prio || "moyenne"] ?? 1) - (PRIO_RANK[b.prio || "moyenne"] ?? 1) || a.due!.localeCompare(b.due!));
-    const late = due.filter((x) => x.due! < now.day).length;
+    const late = due.filter((x) => (x.dueEnd && x.dueEnd > x.due! ? x.dueEnd : x.due!) < now.day).length; // une tâche sur plusieurs jours n’est en retard qu’après son dernier jour
     if (due.length) {
       const names = due.slice(0, 3).map((x) => x.title).join(", ") + (due.length > 3 ? "…" : "");
       out.push({ key: `td:sum:${now.day}`, title: due.length === 1 ? "Une tâche pour aujourd’hui" : `${due.length} tâches pour aujourd’hui`,
