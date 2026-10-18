@@ -813,7 +813,7 @@ const next7=()=>Array.from({length:7},(_,k)=>addDays(TODAY(),k));
 const CAL={n:3,start:''};try{CAL.n=+localStorage.getItem(K+':caln')||3;S.homeView=localStorage.getItem(K+':hv')||'list'}catch(e){}
 const calDays=()=>{const s=CAL.start||TODAY();return Array.from({length:CAL.n},(_,k)=>addDays(s,k))};
 function calItems(from,to,focus,noFriend){const t=TODAY(),out=[],push=o=>out.push(o);
-  (A.invIn||[]).filter(r=>r.status!=='no'&&(!noFriend||r.status==='yes')&&r.item?.due>=from&&r.item?.due<=to).forEach(r=>{const it=r.item,s=toMinS(it.time);push({d:it.due,s,e:s!=null?s+(it.dur||60):null,title:(r.status==='pending'?'? ':'')+it.title+' · avec '+agName(r.owner),c:agColor(r.owner),act:'invOpen',id:r.id,inv:1})});
+  (A.invIn||[]).filter(r=>r.status!=='no'&&(!noFriend||(r.status==='yes'&&!r.item?.busy))&&r.item?.due>=from&&r.item?.due<=to).forEach(r=>{const it=r.item,s=toMinS(it.time);push(it.busy?{d:it.due,s,e:s!=null?s+(it.dur||60):null,title:'Occupé · '+agName(r.owner),c:agColor(r.owner),act:'calNone',fixed:1,friend:1}:{d:it.due,s,e:s!=null?s+(it.dur||60):null,title:(r.status==='pending'?'? ':'')+it.title+' · avec '+agName(r.owner),c:agColor(r.owner),act:'invOpen',id:r.id,inv:1})});
   if(!noFriend&&S.calWith){const f=(A.agFriends||[]).find(x=>x.owner===S.calWith);if(f)(f.blocks||[]).filter(b=>b.d>=from&&b.d<=to).forEach(b=>push({d:b.d,s:b.s,e:b.e,title:(f.level==='full'&&b.t?b.t:'Occupé')+' · '+agName(f.owner),c:agColor(f.owner),act:'calNone',fixed:1,friend:1}))}
   if(areaOn('taches'))todos().filter(x=>!x.done&&x.due).forEach(x=>{let d=x.due,late=false;if(d<t){d=t;late=true}if(d<from||d>to)return;const s=late?null:toMinS(x.time);
     push({d,s,e:s!=null?s+(x.dur||30):null,title:x.title,c:PRIO_C[x.prio]||PRIO_C.moyenne,act:'tdEdit',id:x.id,todo:1,late})});
@@ -1585,7 +1585,7 @@ function paintTodos(){const v=$('#area'),t=TODAY();
   const open=todos().filter(x=>!x.done).sort((a,b)=>prioRank(a.prio)-prioRank(b.prio)||(a.due||'9999').localeCompare(b.due||'9999')||(a.time||'99').localeCompare(b.time||'99'));
   const done=todos().filter(x=>x.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
   const cnt=k=>open.filter(x=>todoBucket(x,t)===k).length,week=Date.now()-7*864e5;
-  const cell=x=>`<div class="cell td${x.done?' done':''}" style="--pc:${PRIO_C[x.prio]||PRIO_C.moyenne}"><button type="button" class="td-check" data-act="tdToggle" data-id="${x.id}" aria-label="${x.done?'Remettre à faire':'Marquer comme faite'}">${x.done?I.check:''}</button><button type="button" class="td-body" data-act="tdEdit" data-id="${x.id}"><span class="td-t">${esc(x.title)}</span><span class="fn">${[x.due?whenDay(x.due)+(x.time?' à '+esc(x.time):''):null,x.rep?'↻ '+REP_SHORT[x.rep]:null,x.place?'📍 '+esc(x.place):null,x.cat&&esc(x.cat),(x.with||[]).length?'avec '+x.with.map(w=>esc(agName(w))+(INV_MARK[invStatus(x.id,w)]||'')).join(', '):null,x.note?'note':null].filter(Boolean).join(' · ')||'Sans échéance'}</span></button></div>`;
+  const cell=x=>`<div class="cell td${x.done?' done':''}" style="--pc:${PRIO_C[x.prio]||PRIO_C.moyenne}"><button type="button" class="td-check" data-act="tdToggle" data-id="${x.id}" aria-label="${x.done?'Remettre à faire':'Marquer comme faite'}">${x.done?I.check:''}</button><button type="button" class="td-body" data-act="tdEdit" data-id="${x.id}"><span class="td-t">${esc(x.title)}</span><span class="fn">${[x.due?whenDay(x.due)+(x.time?' à '+esc(x.time):''):null,x.rep?'↻ '+REP_SHORT[x.rep]:null,x.place?'📍 '+esc(x.place):null,x.cat&&esc(x.cat),(x.with||[]).length?'avec '+x.with.map(w=>esc(agName(w))+(INV_MARK[invStatus(x.id,w)]||'')).join(', '):null,(x.busyFor||[]).length?'occupé visible par '+x.busyFor.map(w=>esc(agName(w))).join(', '):null,x.note?'note':null].filter(Boolean).join(' · ')||'Sans échéance'}</span></button></div>`;
   if(S.tdView==='events'){v.innerHTML=`<div class="a-in car">${HOMEBTN}<div class="a-head"><p class="l2">Tâches</p><h1>Événements</h1></div>${carEvents()}</div>${bar}`;return}
   if(S.tdView==='week'){const late=open.filter(x=>x.due&&x.due<t).length;
     v.innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><h1>Tâches</h1></div>
@@ -1613,14 +1613,14 @@ function tdSheet(x){const isNew=!x;x=x||{title:'',due:'',time:'',prio:'moyenne',
      <label class="cell field" for="tdr"><span>Répéter</span><select id="tdr" name="rep">${REPEAT.map(([k,l])=>`<option value="${k}" ${k===(x.rep||'')?'selected':''}>${l}</option>`).join('')}</select></label>
      <label class="cell field" for="tdcs"><span>Catégorie</span><select id="tdcs" name="catSel"><option value="">Aucune</option>${cats.map(c=>`<option ${c===x.cat?'selected':''}>${esc(c)}</option>`).join('')}<option value="__new">Nouvelle catégorie</option></select></label>
      <label class="cell field" for="tdcn" id="tdcnw" hidden><span>Nom</span><input id="tdcn" name="catNew" placeholder="Ex. Voyage" autocomplete="off"></label>`,'Rappel le jour de l’échéance dans le résumé de 08:00, et 15 min avant si tu indiques une heure.')}
-   ${(()=>{const fr=A.user&&A.group?A.members.filter(m=>m.id!==A.user.id):[];return fr.length?sec('Avec',fr.map(m=>{const st0=invStatus(x.id,m.id);return `<label class="cell" for="tw-${m.id}"><span class="body"><span>${esc(m.name)}</span>${st0?`<span class="fn">${INV_ST[st0]}</span>`:''}</span><input id="tw-${m.id}" type="checkbox" class="switch" name="with" value="${m.id}" ${(x.with||[]).includes(m.id)?'checked':''}></label>`}).join(''),'Ton ami reçoit une notification, voit la tâche dans son planning et répond « je viens » ou « je ne peux pas ».'):''})()}
+   ${(()=>{const fr=A.user&&A.group?A.members.filter(m=>m.id!==A.user.id):[];return fr.length?sec('Avec',fr.map(m=>{const st0=invStatus(x.id,m.id),cur=(x.with||[]).includes(m.id)?'inv':(x.busyFor||[]).includes(m.id)?'busy':'';return `<div class="cell block"><span>${esc(m.name)}${cur==='inv'&&st0?` <small class="l2">· ${INV_ST[st0]}</small>`:''}</span>${seg('tw_'+m.id,[['','Non'],['inv','Invité'],['busy','Occupé']],cur)}</div>`}).join(''),'Invité : ton ami reçoit une notification, voit la tâche et répond. Occupé : il voit seulement que tu es pris à ce moment-là dans son calendrier, sans titre ni lieu, sans notification.'):''})()}
    ${sec('Note',`<div class="cell"><textarea name="note" rows="3" placeholder="Détails, liens…">${esc(x.note||'')}</textarea></div>`)}
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="tdAskDel" data-id="${x.id}">Supprimer la tâche</button>`)}
   </form>`)}
 function todoSubmit(f,v){let x=todos().find(y=>y.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid(),created:Date.now(),done:false};todos().push(x)}
   Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),place:String(v.place||'').trim(),due:v.due||'',time:v.time||'',dur:+v.dur||null,prio:v.prio||'moyenne',rep:v.rep||'',cat:(v.catSel==='__new'?v.catNew||'':v.catSel||'').trim(),note:(v.note||'').trim()});
   if(x.rep){if(!x.due)x.due=TODAY();x.dom=+x.due.slice(8)}else delete x.dom;
-  if(f.querySelector('[name=with]')){x.with=new FormData(f).getAll('with');invSync(x)}
+  if(f.querySelector('[name^=tw_]')){const fd=new FormData(f),ids=[...new Set([...f.querySelectorAll('[name^=tw_]')].map(i=>i.name.slice(3)))];x.with=ids.filter(i=>fd.get('tw_'+i)==='inv');x.busyFor=ids.filter(i=>fd.get('tw_'+i)==='busy');invSync(x)}
   save();closeSheet();paintTodos();if(!$('#home').hidden)paintAgenda();haptic();hud(isNew?'Tâche ajoutée':'Tâche enregistrée')}
 function todoAct(act,id,el){const x=todos().find(y=>y.id===id);
   switch(act){
@@ -1634,7 +1634,7 @@ function todoAct(act,id,el){const x=todos().find(y=>y.id===id);
    case 'tdClear':asheet('Effacer toutes les tâches faites ?',[{label:'Effacer les tâches faites',act:'tdClearDo',danger:true}]);break;
    case 'tdClearDo':db.todos=todos().filter(y=>!y.done);S.tdOld=false;save();paintTodos();hud('Tâches faites effacées');break;
    case 'tdAskDel':asheet('Supprimer cette tâche ?',[{label:'Supprimer la tâche',act:'tdDel',data:{id},danger:true}]);break;
-   case 'tdDel':if(x?.with?.length)invDrop(x.id);db.todos=todos().filter(y=>y.id!==id);save();paintTodos();hud('Tâche supprimée');break;
+   case 'tdDel':if(x?.with?.length||x?.busyFor?.length)invDrop(x.id);db.todos=todos().filter(y=>y.id!==id);save();paintTodos();hud('Tâche supprimée');break;
    default:return false}
   return true}
 /* ================= section Apprentissage : deuxième cerveau ================= */
@@ -2206,7 +2206,7 @@ function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntri
   // Agenda Google : rendez-vous du jour et des 7 prochains jours
   gcalItems(t,end).forEach(x=>add({day:x.d,time:x.time,area:'gcal',title:esc(x.title),meta:[x.allDay?T('Toute la journée','All day'):x.end?T('jusqu’à ','until ')+x.end:null,x.loc&&esc(x.loc)].filter(Boolean).join(' · '),act:'gcalShow',id:x.d+'|'+(x.time||'')+'|'+x.title,user:true}));
   // Invitations d'amis : à répondre, ou acceptées
-  (A.invIn||[]).filter(r=>r.status!=='no'&&r.item?.due&&r.item.due>=t&&r.item.due<=end).forEach(r=>add({day:r.item.due,time:r.item.time||'',area:'invite',c:agColor(r.owner),title:esc(r.item.title),meta:(r.status==='pending'?'Invitation de ':'Avec ')+esc(agName(r.owner))+(r.status==='pending'?' · réponds':''),act:'invOpen',id:r.id,user:true}));
+  (A.invIn||[]).filter(r=>r.status!=='no'&&!r.item?.busy&&r.item?.due&&r.item.due>=t&&r.item.due<=end).forEach(r=>add({day:r.item.due,time:r.item.time||'',area:'invite',c:agColor(r.owner),title:esc(r.item.title),meta:(r.status==='pending'?'Invitation de ':'Avec ')+esc(agName(r.owner))+(r.status==='pending'?' · réponds':''),act:'invOpen',id:r.id,user:true}));
   // Tâches : en retard, du jour et des 7 prochains jours
   todos().filter(x=>!x.done&&x.due&&x.due<=end).forEach(x=>add({day:x.due<t?t:x.due,late:x.due<t,time:x.time||'',area:'taches',title:esc(x.title),meta:[x.rep?'↻ '+REP_SHORT[x.rep]:null,x.cat&&esc(x.cat)].filter(Boolean).join(' · '),act:'tdEdit',id:x.id,todo:x}));
   out.forEach(o=>{if(o.todo?.place)o.meta=[o.meta,'📍 '+esc(o.todo.place)].filter(Boolean).join(' · ')});
@@ -2581,13 +2581,13 @@ const agName=id=>A.members?.find(m=>m.id===id)?.name||'Ami',agColor=id=>`hsl(${h
 const INV_ST={pending:'Invité · pas encore répondu',yes:'Vient ✓',no:'Ne peut pas ✗'},INV_MARK={yes:' ✓',no:' ✗',pending:' ?'};
 const invStatus=(tid,v)=>(A.invOut||[]).find(r=>r.id===tid+':'+v)?.status||'';
 const invWhen=x=>x.due?whenDay(x.due)+(x.time?' à '+x.time:''):'';
-async function invSync(x){if(!sb||!A.user)return;const want=x.with||[],had=(A.invOut||[]).filter(r=>r.id.startsWith(x.id+':')).map(r=>r.viewer);
-  const item={title:x.title,due:x.due||'',time:x.time||'',dur:x.dur||null,note:x.note||'',place:x.place||''};
-  try{for(const v of want){const r=await sb.from('invites').upsert({id:x.id+':'+v,owner:A.user.id,viewer:v,item,updated_at:new Date().toISOString()});
+async function invSync(x){if(!sb||!A.user)return;const inv=x.with||[],busy=x.busyFor||[],want=[...inv,...busy],had=(A.invOut||[]).filter(r=>r.id.startsWith(x.id+':')).map(r=>r.viewer);
+  const full={title:x.title,due:x.due||'',time:x.time||'',dur:x.dur||null,note:x.note||'',place:x.place||''},bare={busy:true,due:x.due||'',time:x.time||'',dur:x.dur||null};
+  try{for(const v of want){const isBusy=busy.includes(v),r=await sb.from('invites').upsert({id:x.id+':'+v,owner:A.user.id,viewer:v,item:isBusy?bare:full,updated_at:new Date().toISOString()});
       if(r.error){hud(/relation|does not exist|schema cache/i.test(r.error.message)?'Invitations pas encore activées : colle supabase/invites.sql dans Supabase':'Erreur : '+r.error.message);return}
-      if(!had.includes(v)){A.invOut=[...(A.invOut||[]),{id:x.id+':'+v,viewer:v,status:'pending'}];fnCall({kind:'invite',to:v,id:x.id+':'+v,title:x.title,when:invWhen(x)}).catch(()=>{})}}
+      if(!had.includes(v)){A.invOut=[...(A.invOut||[]),{id:x.id+':'+v,viewer:v,status:'pending'}];if(!isBusy)fnCall({kind:'invite',to:v,id:x.id+':'+v,title:x.title,when:invWhen(x)}).catch(()=>{})}}
     for(const v of had.filter(v=>!want.includes(v))){await sb.from('invites').delete().eq('id',x.id+':'+v);A.invOut=(A.invOut||[]).filter(r=>r.id!==x.id+':'+v)}
-    if(want.length&&want.some(v=>!had.includes(v)))hud('Invitation envoyée')}catch(e){}}
+    if(inv.some(v=>!had.includes(v)))hud('Invitation envoyée');else if(busy.some(v=>!had.includes(v)))hud('Créneau partagé : ton ami voit que tu es occupé')}catch(e){}}
 async function invDrop(tid){if(!sb||!A.user)return;try{await sb.from('invites').delete().eq('owner',A.user.id).like('id',tid+':%')}catch(e){}}
 async function invPull(){if(!sb||!A.user)return;try{const [a,b]=await Promise.all([sb.from('invites').select('id,owner,item,status').eq('viewer',A.user.id),sb.from('invites').select('id,viewer,status').eq('owner',A.user.id)]);
   if(!a.error)A.invIn=a.data||[];if(!b.error)A.invOut=b.data||[]}catch(e){}}
