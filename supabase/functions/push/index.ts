@@ -3,6 +3,8 @@
 //                  à l'heure choisie par chacun, seulement si le rituel n'est pas encore fait,
 //                  et les rappels d'entretien et d'événement (Carrière) : 2 jours avant et la veille à 19:00, le matin même à 08:00,
 //                  et les rappels de tâches : résumé à 08:00, puis ~15 min avant une tâche qui a une heure.
+//                  « Tu dors ? » (prefs.sleep = heure de début) : toutes les 30 min jusqu'à 04:00 ; sans réponse au bout de 10 min,
+//                  l'heure de la question est retenue comme heure d'endormissement (table sleep_probe) et on ne dérange plus cette nuit.
 // - kind "test"  : l'utilisateur connecté s'envoie une notification de test.
 // - kind "cheer" : encourager un ami du même groupe (une fois par jour et par ami).
 // - kind "ical"  : l'utilisateur connecté lit son agenda (adresse secrète iCal Google, iCloud ou Outlook).
@@ -142,14 +144,34 @@ function remMessages(rems: Rem[], now: { day: string; min: number }) {
   return out;
 }
 
+/* « Tu dors ? » : une question toutes les 30 min à partir de l'heure choisie ; pas de réponse en 10 min = endormi à l'heure de la question */
+async function sleepProbe(userId: string, startMin: number, now: { day: string; min: number }) {
+  const END = 4 * 60;
+  if (!(now.min >= startMin || now.min < END)) return false;
+  const night = now.min < 12 * 60 ? shiftDay(now.day, -1) : now.day;
+  const { data: r } = await sb.from("sleep_probe").select("*").eq("user_id", userId).maybeSingle();
+  const row = r && r.night === night ? r : { user_id: userId, night, last_probe: null, last_answer: null, asleep_at: null };
+  if (row.asleep_at) return false;
+  const t = Date.now(), lp = row.last_probe ? Date.parse(row.last_probe) : 0, la = row.last_answer ? Date.parse(row.last_answer) : 0;
+  if (lp && la < lp) {
+    if (t - lp >= 10 * 60e3) await sb.from("sleep_probe").upsert({ ...row, asleep_at: row.last_probe });
+    return false;
+  }
+  if (lp && t - lp < 29 * 60e3) return false;
+  await sb.from("sleep_probe").upsert({ ...row, last_probe: new Date(t).toISOString() });
+  return (await sendToUser(userId, { title: "Tu dors ?", body: "Touche ici si tu es encore debout. Sans réponse dans 10 min, je note que tu t’es endormi.", tag: "sleep", url: "./?sleep=1" })) > 0;
+}
+
 async function runCron() {
   dataCache.clear(); // l'instance peut rester chaude entre deux appels : on relit toujours le journal
   const { data: subs } = await sb.from("push_subs").select("*");
   let sent = 0;
+  const sleepDone = new Set<string>();
   for (const s of (subs || []) as Sub[]) {
     const p = s.prefs || {};
     if (!p.on) continue;
     const now = localNow(s.tz || "Europe/Paris");
+    { const sm = toMin(p.sleep); if (sm != null && !sleepDone.has(s.user_id)) { sleepDone.add(s.user_id); if (await sleepProbe(s.user_id, sm, now).catch(() => false)) sent++; } }
     const last = { ...(s.last_sent || {}) };
     let changed = false;
     for (const kind of ["morning", "evening", "weekly"]) {
