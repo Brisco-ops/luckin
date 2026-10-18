@@ -800,6 +800,10 @@ function weekBlocks(days,todoList,marks){const map=new Map(days.map(d=>[d,[]])),
     events().forEach(e=>{const s=toMinS(e.time);put(e.date,{s,e:s!=null?s+120:null,title:e.title,c:'#3E6FD8',fixed:1})})}
   if(areaOn('forme'))sessionsAhead(days[0],days[days.length-1]).forEach(x=>{const s=toMinS(x.time);put(x.d,{s,e:s!=null?s+x.dur:null,title:T('Séance','Workout')+(x.name!=='Séance'?' · '+x.name:'')+(s==null?' (~'+durTxt(x.dur)+')':''),c:'#F2994A',fixed:1})});
   return map}
+/* durée : de 15 min à 8 h, ou toute la journée (x.allDay) */
+const DURS=[15,30,45,60,90,120,150,180,240,300,360,480];
+const durSelect=(id,label,x)=>`<label class="cell field" for="${id}"><span>${label}</span><select id="${id}" name="dur"><option value="">—</option>${DURS.map(m=>`<option value="${m}" ${!x.allDay&&+x.dur===m?'selected':''}>${durTxt(m)}</option>`).join('')}<option value="all" ${x.allDay?'selected':''}>Toute la journée</option></select></label>`;
+const durRead=v=>v.dur==='all'?{allDay:true,dur:null}:{allDay:false,dur:+v.dur||null};
 const durTxt=m=>m>=60?Math.floor(m/60)+' h'+(m%60?' '+String(m%60).padStart(2,'0'):''):m+' min';
 function weekView(days,map){return days.map(d=>{const xs=map.get(d)||[],timed=xs.filter(o=>o.s!=null).sort((a,b)=>a.s-b.s),free=xs.filter(o=>o.s==null),span=(WK_H1-WK_H0)*60;
   const busy=sum(timed.filter(o=>!o.fixed).map(o=>Math.max(0,(o.e??o.s+30)-o.s)));
@@ -813,13 +817,13 @@ const next7=()=>Array.from({length:7},(_,k)=>addDays(TODAY(),k));
 const CAL={n:3,start:''};try{CAL.n=+localStorage.getItem(K+':caln')||3;S.homeView=localStorage.getItem(K+':hv')||'list'}catch(e){}
 const calDays=()=>{const s=CAL.start||TODAY();return Array.from({length:CAL.n},(_,k)=>addDays(s,k))};
 function calItems(from,to,focus,noFriend){const t=TODAY(),out=[],push=o=>out.push(o);
-  (A.invIn||[]).filter(r=>r.status!=='no'&&(!noFriend||(r.status==='yes'&&!r.item?.busy))&&r.item?.due>=from&&r.item?.due<=to).forEach(r=>{const it=r.item,s=toMinS(it.time);push(it.busy?{d:it.due,s,e:s!=null?s+(it.dur||60):null,title:'Occupé · '+agName(r.owner),c:agColor(r.owner),act:'calNone',fixed:1,friend:1}:{d:it.due,s,e:s!=null?s+(it.dur||60):null,title:(r.status==='pending'?'? ':'')+it.title+' · avec '+agName(r.owner),c:agColor(r.owner),act:'invOpen',id:r.id,inv:1})});
+  (A.invIn||[]).filter(r=>r.status!=='no'&&(!noFriend||(r.status==='yes'&&!r.item?.busy))&&r.item?.due>=from&&r.item?.due<=to).forEach(r=>{const it=r.item,s=it.allDay?null:toMinS(it.time);push(it.busy?{d:it.due,s,e:s!=null?s+(it.dur||60):null,title:'Occupé · '+agName(r.owner),c:agColor(r.owner),act:'calNone',fixed:1,friend:1}:{d:it.due,s,e:s!=null?s+(it.dur||60):null,title:(r.status==='pending'?'? ':'')+it.title+' · avec '+agName(r.owner),c:agColor(r.owner),act:'invOpen',id:r.id,inv:1})});
   if(!noFriend&&S.calWith){const f=(A.agFriends||[]).find(x=>x.owner===S.calWith);if(f)(f.blocks||[]).filter(b=>b.d>=from&&b.d<=to).forEach(b=>push({d:b.d,s:b.s,e:b.e,title:(f.level==='full'&&b.t?b.t:'Occupé')+' · '+agName(f.owner),c:agColor(f.owner),act:'calNone',fixed:1,friend:1}))}
   if(areaOn('taches'))todos().filter(x=>!x.done&&x.due).forEach(x=>{let d=x.due,late=false;if(d<t){d=t;late=true}if(d<from||d>to)return;const s=late?null:toMinS(x.time);
-    push({d,s,e:s!=null?s+(x.dur||30):null,title:x.title,c:PRIO_C[x.prio]||PRIO_C.moyenne,act:'tdEdit',id:x.id,todo:1,late})});
-  gcalItems(from,to).forEach(x=>{const s=x.allDay?null:toMinS(x.time);push({d:x.d,s,e:toMinS(x.end)||(s!=null?s+60:null),title:x.title,c:'#4285F4',act:'gcalShow',id:x.d+'|'+(x.time||'')+'|'+x.title,fixed:1})});
+    push({d,s:x.allDay?null:s,e:!x.allDay&&s!=null?s+(x.dur||30):null,title:x.title,c:PRIO_C[x.prio]||PRIO_C.moyenne,act:'tdEdit',id:x.id,todo:1,late,allDay:!!x.allDay})});
+  gcalItems(from,to).forEach(x=>{const s=x.allDay?null:toMinS(x.time);push({d:x.d,s,e:toMinS(x.end)||(s!=null?s+60:null),title:x.title,c:'#4285F4',act:'gcalShow',id:x.d+'|'+(x.time||'')+'|'+x.title,fixed:1,allDay:!!x.allDay})});
   if(areaOn('carriere')){jobs().filter(jobOpen).forEach(j=>(j.interviews||[]).forEach(i=>{if(i.date<from||i.date>to)return;const s=toMinS(i.time);push({d:i.date,s,e:s!=null?s+60:null,title:T('Entretien · ','Interview · ')+j.company,c:'#3E6FD8',act:'jobEdit',id:j.id,fixed:1})}));
-    events().forEach(e=>{if(e.date<from||e.date>to)return;const s=toMinS(e.time);push({d:e.date,s,e:s!=null?s+120:null,title:e.title,c:'#3E6FD8',act:'evEdit',id:e.id,fixed:1})})}
+    events().forEach(e=>{if(e.date<from||e.date>to)return;const s=e.allDay?null:toMinS(e.time);push({d:e.date,s,e:s!=null?s+(e.dur||120):null,title:e.title,c:'#3E6FD8',act:'evEdit',id:e.id,fixed:1,allDay:!!e.allDay})})}
   if(areaOn('forme'))sessionsAhead(from,to).forEach(x=>{const s=toMinS(x.time);push({d:x.d,s,e:s!=null?s+x.dur:null,title:T('Séance','Workout')+(x.name!=='Séance'?' · '+x.name:''),c:'#F2994A',act:x.d===t&&!x.done?'agWorkout':'',fixed:1,done:x.done})});
   if(!focus){const {today,soon}=agendaItems();[...today,...soon].filter(o=>o.day>=from&&o.day<=to&&!['tdEdit','gcalShow','jobEdit','evEdit','agWorkout'].includes(o.act))
     .forEach(o=>push({d:o.day,s:null,title:o.title,html:1,c:o.c,act:o.act,id:o.id,late:o.late}))}
@@ -838,8 +842,8 @@ function calView(items,opt={}){const days=calDays(),n=days.length,t=TODAY(),by=d
    ${(A.agFriends||[]).length?`<div class="fin-accs cal-with">${[['','Moi seul'],...A.agFriends.map(f=>[f.owner,'+ '+agName(f.owner)])].map(([k,l])=>`<button type="button" data-act="calWith" data-v="${k}" aria-pressed="${(S.calWith||'')===k}">${esc(l)}</button>`).join('')}</div>`:''}
    <div class="cal-modes">${[[1,T('Jour','Day')],[3,T('3 jours','3 days')],[7,T('Semaine','Week')]].map(([k,l])=>`<button type="button" data-act="calMode" data-n="${k}" aria-pressed="${CAL.n===k}">${l}</button>`).join('')}</div>`;
   const head=`<div class="cal-head" style="--n:${n}"><span></span>${days.map(d=>`<span class="${d===t?'is-today':''}"><small>${esc(wd(d))}</small><b>${+d.slice(8)}</b></span>`).join('')}</div>`;
-  const allDay=days.map(d=>{const xs=by(d).filter(o=>o.s==null);if(n===7)return `<div class="cal-ad">${xs.slice(0,4).map(o=>`<button type="button" class="cal-dot${o.late?' late':''}" style="--c:${o.c}" ${o.act?`data-act="${o.act}"`:''} ${o.id?`data-id="${esc(o.id)}"`:''} aria-label="${esc(String(o.title).replace(/<[^>]+>/g,''))}"></button>`).join('')}${xs.length>4?`<small>+${xs.length-4}</small>`:''}</div>`;
-    const max=n===1?8:3;return `<div class="cal-ad">${xs.slice(0,max).map(o=>`<button type="button" class="cal-chip${o.friend?' friend':''}${o.late?' late':''}${o.fixed&&opt.focus?' dim':''}" style="--c:${o.c}" ${o.act?`data-act="${o.act}"`:''} ${o.id?`data-id="${esc(o.id)}"`:''}><span class="no-tr">${ttl(o)}</span></button>`).join('')}${xs.length>max?`<button type="button" class="cal-more" data-act="calMode" data-n="1" data-d0="${d}">+${xs.length-max}</button>`:''}</div>`}).join('');
+  const allDay=days.map(d=>{const xs=by(d).filter(o=>o.s==null).sort((a,b)=>(b.allDay?2:b.fixed?1:0)-(a.allDay?2:a.fixed?1:0));if(n===7)return `<div class="cal-ad">${xs.slice(0,4).map(o=>`<button type="button" class="cal-dot${o.late?' late':''}" style="--c:${o.c}" ${o.act?`data-act="${o.act}"`:''} ${o.id?`data-id="${esc(o.id)}"`:''} aria-label="${esc(String(o.title).replace(/<[^>]+>/g,''))}"></button>`).join('')}${xs.length>4?`<small>+${xs.length-4}</small>`:''}</div>`;
+    const max=n===1?8:3;return `<div class="cal-ad">${xs.slice(0,max).map(o=>`<button type="button" class="cal-chip${o.friend?' friend':''}${o.allDay?' allday':''}${o.late?' late':''}${o.fixed&&opt.focus?' dim':''}" style="--c:${o.c}" ${o.act?`data-act="${o.act}"`:''} ${o.id?`data-id="${esc(o.id)}"`:''}><span class="no-tr">${ttl(o)}</span></button>`).join('')}${xs.length>max?`<button type="button" class="cal-more" data-act="calMode" data-n="1" data-d0="${d}">+${xs.length-max}</button>`:''}</div>`}).join('');
   const hours=Array.from({length:h1-h0},(_,k)=>`<span style="top:${k*HP}px">${String(h0+k).padStart(2,'0')}h</span>`).join('');
   const now=new Date(),nm=now.getHours()*60+now.getMinutes();
   const cols=days.map(d=>{const xs=calLanes(by(d).filter(o=>o.s!=null));
@@ -1427,7 +1431,7 @@ function carStats(){const all=jobs();
    ${sec('Par entreprise',bars(top.slice(0,8)),top.length>8?`Et ${top.length-8} autre${top.length>8+1?'s':''}.`:'','notile')}`}
 function carEvents(){const t=TODAY();
   const up=events().filter(e=>e.date>=t).sort((x,y)=>evWhen(x).localeCompare(evWhen(y))),past=events().filter(e=>e.date<t).sort((x,y)=>evWhen(y).localeCompare(evWhen(x)));
-  const cell=e=>`<button class="cell tap" data-act="evEdit" data-id="${e.id}"><span class="body"><span>${esc(e.title)}</span><span class="fn">${[whenDay(e.date)+(e.time?' à '+esc(e.time):''),(EVKIND.find(k=>k[0]===e.kind)||[])[1],e.place&&esc(e.place),...withTxt(e),nQ(e)?nQ(e)+' question'+(nQ(e)>1?'s':''):null].filter(Boolean).join(' · ')}</span></span>${e.date===t?'<span class="pill tint">Aujourd’hui</span>':''}${I.chev}</button>`;
+  const cell=e=>`<button class="cell tap" data-act="evEdit" data-id="${e.id}"><span class="body"><span>${esc(e.title)}</span><span class="fn">${[whenDay(e.date)+(e.allDay?' · toute la journée':e.time?' à '+esc(e.time):''),(EVKIND.find(k=>k[0]===e.kind)||[])[1],e.place&&esc(e.place),...withTxt(e),nQ(e)?nQ(e)+' question'+(nQ(e)>1?'s':''):null].filter(Boolean).join(' · ')}</span></span>${e.date===t?'<span class="pill tint">Aujourd’hui</span>':''}${I.chev}</button>`;
   const v=S.evView==='past'?'past':'up';
   return `<div class="ev-seg">${seg('evView',[['up',`À venir${up.length?' · '+up.length:''}`],['past',`Passés${past.length?' · '+past.length:''}`]],v)}</div>
    ${v==='up'?sec('',up.map(cell).join('')+addCell('Nouvel événement','evNew'),'Salons, masterclass, conférences… Rappels 2 jours avant et la veille à 19:00, le matin même à 08:00.')
@@ -1508,7 +1512,7 @@ function evSheet(e){const isNew=!e;e=e||{title:'',kind:'salon',date:'',time:'',p
    ${sec('',`<label class="cell field" for="et"><span>Nom</span><input id="et" name="title" value="${esc(e.title)}" required placeholder="Salon de l’emploi…" autocomplete="off"></label>
      <label class="cell field" for="ek"><span>Type</span><select id="ek" name="kind">${EVKIND.map(([k,l])=>`<option value="${k}" ${k===e.kind?'selected':''}>${l}</option>`).join('')}</select></label>
      <label class="cell field" for="ed"><span>Date</span><input id="ed" name="date" type="date" value="${e.date}" required></label>
-     <label class="cell field" for="eh"><span>Heure</span><input id="eh" name="time" type="time" value="${e.time||''}"></label>
+     <label class="cell field" for="eh"><span>Heure</span><input id="eh" name="time" type="time" value="${e.time||''}"></label>${durSelect('edu','Durée',e)}
      <label class="cell field" for="ep"><span>Lieu</span><input id="ep" name="place" value="${esc(e.place)}" placeholder="Adresse ou « en ligne »" autocomplete="off"><button type="button" class="map-go" data-act="mapOpen" data-src="#ep" aria-label="Itinéraire">${I.pin}</button></label>
      <label class="cell field" for="evl"><span>Lien</span><input id="evl" name="link" inputmode="url" autocapitalize="off" value="${esc(e.link)}" placeholder="Inscription, programme…" autocomplete="off"></label>`,'Rappels : 2 jours avant et la veille à 19:00, le matin même à 08:00.')}
    ${withSec(e)}
@@ -1518,8 +1522,8 @@ function evSheet(e){const isNew=!e;e=e||{title:'',kind:'salon',date:'',time:'',p
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="evAskDel" data-id="${e.id}">Supprimer l’événement</button>`)}
   </form>`)}
 function evSubmit(f,v){let e=events().find(x=>x.id===f.dataset.id);const isNew=!e;if(isNew){e={id:uid()};events().push(e)}
-  Object.assign(e,{title:v.title.trim(),kind:v.kind,date:v.date,time:v.time||'',place:(v.place||'').trim(),link:(v.link||'').trim(),questions:(v.questions||'').trim(),notes:(v.notes||'').trim()});
-  if(withRead(f,e))invSync({id:e.id,title:e.title,due:e.date,time:e.time,dur:120,note:'',place:e.place,with:e.with,busyFor:e.busyFor});
+  Object.assign(e,{title:v.title.trim(),kind:v.kind,date:v.date,time:v.dur==='all'?'':v.time||'',...durRead(v),place:(v.place||'').trim(),link:(v.link||'').trim(),questions:(v.questions||'').trim(),notes:(v.notes||'').trim()});
+  if(withRead(f,e))invSync({id:e.id,title:e.title,due:e.date,time:e.time,dur:e.dur||120,allDay:!!e.allDay,note:'',place:e.place,with:e.with,busyFor:e.busyFor});
   save();closeSheet();repaintArea();haptic();hud(isNew?'Événement ajouté':'Événement enregistré')}
 function jobAct(act,id,el){const j=jobs().find(x=>x.id===id);
   switch(act){
@@ -1587,7 +1591,7 @@ function paintTodos(){const v=$('#area'),t=TODAY();
   const open=todos().filter(x=>!x.done).sort((a,b)=>prioRank(a.prio)-prioRank(b.prio)||(a.due||'9999').localeCompare(b.due||'9999')||(a.time||'99').localeCompare(b.time||'99'));
   const done=todos().filter(x=>x.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
   const cnt=k=>open.filter(x=>todoBucket(x,t)===k).length,week=Date.now()-7*864e5;
-  const cell=x=>`<div class="cell td${x.done?' done':''}" style="--pc:${PRIO_C[x.prio]||PRIO_C.moyenne}"><button type="button" class="td-check" data-act="tdToggle" data-id="${x.id}" aria-label="${x.done?'Remettre à faire':'Marquer comme faite'}">${x.done?I.check:''}</button><button type="button" class="td-body" data-act="tdEdit" data-id="${x.id}"><span class="td-t">${esc(x.title)}</span><span class="fn">${[x.due?whenDay(x.due)+(x.time?' à '+esc(x.time):''):null,x.rep?'↻ '+REP_SHORT[x.rep]:null,x.place?'📍 '+esc(x.place):null,x.cat&&esc(x.cat),...withTxt(x),x.note?'note':null].filter(Boolean).join(' · ')||'Sans échéance'}</span></button></div>`;
+  const cell=x=>`<div class="cell td${x.done?' done':''}" style="--pc:${PRIO_C[x.prio]||PRIO_C.moyenne}"><button type="button" class="td-check" data-act="tdToggle" data-id="${x.id}" aria-label="${x.done?'Remettre à faire':'Marquer comme faite'}">${x.done?I.check:''}</button><button type="button" class="td-body" data-act="tdEdit" data-id="${x.id}"><span class="td-t">${esc(x.title)}</span><span class="fn">${[x.due?whenDay(x.due)+(x.allDay?' · toute la journée':x.time?' à '+esc(x.time):''):null,x.rep?'↻ '+REP_SHORT[x.rep]:null,x.place?'📍 '+esc(x.place):null,x.cat&&esc(x.cat),...withTxt(x),x.note?'note':null].filter(Boolean).join(' · ')||'Sans échéance'}</span></button></div>`;
   if(S.tdView==='events'){v.innerHTML=`<div class="a-in car">${HOMEBTN}<div class="a-head"><p class="l2">Tâches</p><h1>Événements</h1></div>${carEvents()}</div>${bar}`;return}
   if(S.tdView==='week'){const late=open.filter(x=>x.due&&x.due<t).length;
     v.innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><h1>Tâches</h1></div>
@@ -1611,7 +1615,7 @@ function tdSheet(x){const isNew=!x;x=x||{title:'',due:'',time:'',prio:'moyenne',
      <div class="cell"><div class="foods">${[[0,'Aujourd’hui'],[1,'Demain'],[7,'Dans 1 semaine'],['','Aucune']].map(([d,l])=>`<button type="button" data-act="tdQuick" data-d="${d}">${l}</button>`).join('')}</div></div>
      <label class="cell field" for="tdh"><span>Heure</span><input id="tdh" name="time" type="time" value="${x.time||''}"></label>
      <label class="cell field" for="tdpl"><span>Lieu</span><input id="tdpl" name="place" value="${esc(x.place||'')}" placeholder="Adresse, salle, café…" autocomplete="off"><button type="button" class="map-go" data-act="mapOpen" data-src="#tdpl" aria-label="Itinéraire">${I.pin}</button></label>
-     <label class="cell field" for="tdu"><span>Durée estimée</span><select id="tdu" name="dur"><option value="">—</option>${[15,30,45,60,90,120,180,240].map(m=>`<option value="${m}" ${+x.dur===m?'selected':''}>${m<60?m+' min':Math.floor(m/60)+' h'+(m%60?' '+(m%60):'')}</option>`).join('')}</select></label>
+     ${durSelect('tdu','Durée estimée',x)}
      <label class="cell field" for="tdr"><span>Répéter</span><select id="tdr" name="rep">${REPEAT.map(([k,l])=>`<option value="${k}" ${k===(x.rep||'')?'selected':''}>${l}</option>`).join('')}</select></label>
      <label class="cell field" for="tdcs"><span>Catégorie</span><select id="tdcs" name="catSel"><option value="">Aucune</option>${cats.map(c=>`<option ${c===x.cat?'selected':''}>${esc(c)}</option>`).join('')}<option value="__new">Nouvelle catégorie</option></select></label>
      <label class="cell field" for="tdcn" id="tdcnw" hidden><span>Nom</span><input id="tdcn" name="catNew" placeholder="Ex. Voyage" autocomplete="off"></label>`,'Rappel le jour de l’échéance dans le résumé de 08:00, et 15 min avant si tu indiques une heure.')}
@@ -1620,7 +1624,7 @@ function tdSheet(x){const isNew=!x;x=x||{title:'',due:'',time:'',prio:'moyenne',
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="tdAskDel" data-id="${x.id}">Supprimer la tâche</button>`)}
   </form>`)}
 function todoSubmit(f,v){let x=todos().find(y=>y.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid(),created:Date.now(),done:false};todos().push(x)}
-  Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),place:String(v.place||'').trim(),due:v.due||'',time:v.time||'',dur:+v.dur||null,prio:v.prio||'moyenne',rep:v.rep||'',cat:(v.catSel==='__new'?v.catNew||'':v.catSel||'').trim(),note:(v.note||'').trim()});
+  Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),place:String(v.place||'').trim(),due:v.due||'',time:v.dur==='all'?'':v.time||'',...durRead(v),prio:v.prio||'moyenne',rep:v.rep||'',cat:(v.catSel==='__new'?v.catNew||'':v.catSel||'').trim(),note:(v.note||'').trim()});
   if(x.rep){if(!x.due)x.due=TODAY();x.dom=+x.due.slice(8)}else delete x.dom;
   if(withRead(f,x))invSync(x)
   save();closeSheet();paintTodos();if(!$('#home').hidden)paintAgenda();haptic();hud(isNew?'Tâche ajoutée':'Tâche enregistrée')}
@@ -2568,7 +2572,7 @@ function agShareSec(){if(!A.user)return '';
   if(!fr.length)return sec('Partager mon agenda',`<div class="cell"><span class="body"><span>Personne d’autre dans « ${esc(A.group.name)} »</span><span class="fn">Envoie le code <b class="no-tr">${esc(A.group.code)}</b> à ton ami : quand il l’aura rejoint, il apparaîtra ici.</span></span></div><button type="button" class="cell tap link" data-act="groupShare">Inviter un ami</button>`,'');
   return sec('Partager mon agenda',fr.map(m=>`<div class="cell block"><span>${esc(m.name)}</span>${seg('ags_'+m.id,AGL,sh[m.id]||'')}</div>`).join(''),'Occupé : ton ami voit seulement quand tu es pris (heures), sans aucun titre. Tout : il voit aussi ce que tu fais. Tâches avec une heure, rendez-vous de ton agenda, entretiens, événements et séances, sur 14 jours. Il le voit dans son calendrier.')}
 function agBlocks(level){const t=TODAY(),to=addDays(t,13);
-  return calItems(t,to,'',true).filter(o=>o.s!=null||(o.fixed&&['gcalShow','evEdit','jobEdit'].includes(o.act))).map(o=>{const b={d:o.d,s:o.s??null,e:o.s!=null?(o.e??o.s+30):null};if(level==='full'){b.t=String(o.title).replace(/<[^>]+>/g,'').slice(0,80);b.c=o.c}return b})}
+  return calItems(t,to,'',true).filter(o=>o.s!=null||o.allDay||(o.fixed&&['gcalShow','evEdit','jobEdit'].includes(o.act))).map(o=>{const b={d:o.d,s:o.s??null,e:o.s!=null?(o.e??o.s+30):null};if(level==='full'){b.t=String(o.title).replace(/<[^>]+>/g,'').slice(0,80);b.c=o.c}return b})}
 let agBusy=false;
 async function agPush(force){if(!sb||!A.user||!A.group||agBusy)return;const sh=st().agShare||{},ids=Object.keys(sh).filter(k=>sh[k]&&A.members.some(m=>m.id===k));
   if(!force&&Date.now()-(A.agAt||0)<60e3)return;agBusy=true;A.agAt=Date.now();A.agLast=A.agLast||{};
@@ -2585,9 +2589,9 @@ function withSec(x){const fr=A.user&&A.group?A.members.filter(m=>m.id!==A.user.i
 function withRead(f,x){if(!f.querySelector('[name^=tw_]'))return false;const fd=new FormData(f),ids=[...new Set([...f.querySelectorAll('[name^=tw_]')].map(i=>i.name.slice(3)))];x.with=ids.filter(i=>fd.get('tw_'+i)==='inv');x.busyFor=ids.filter(i=>fd.get('tw_'+i)==='busy');return true}
 const withTxt=x=>[(x.with||[]).length?'avec '+x.with.map(w=>esc(agName(w))+(INV_MARK[invStatus(x.id,w)]||'')).join(', '):null,(x.busyFor||[]).length?'occupé visible par '+x.busyFor.map(w=>esc(agName(w))).join(', '):null];
 const invStatus=(tid,v)=>(A.invOut||[]).find(r=>r.id===tid+':'+v)?.status||'';
-const invWhen=x=>x.due?whenDay(x.due)+(x.time?' à '+x.time:''):'';
+const invWhen=x=>x.due?whenDay(x.due)+(x.allDay?', toute la journée':x.time?' à '+x.time:''):'';
 async function invSync(x){if(!sb||!A.user)return;const inv=x.with||[],busy=x.busyFor||[],want=[...inv,...busy],had=(A.invOut||[]).filter(r=>r.id.startsWith(x.id+':')).map(r=>r.viewer);
-  const full={title:x.title,due:x.due||'',time:x.time||'',dur:x.dur||null,note:x.note||'',place:x.place||''},bare={busy:true,due:x.due||'',time:x.time||'',dur:x.dur||null};
+  const full={title:x.title,due:x.due||'',time:x.time||'',dur:x.dur||null,allDay:!!x.allDay,note:x.note||'',place:x.place||''},bare={busy:true,due:x.due||'',time:x.time||'',dur:x.dur||null,allDay:!!x.allDay};
   try{for(const v of want){const isBusy=busy.includes(v),r=await sb.from('invites').upsert({id:x.id+':'+v,owner:A.user.id,viewer:v,item:isBusy?bare:full,updated_at:new Date().toISOString()});
       if(r.error){hud(/relation|does not exist|schema cache/i.test(r.error.message)?'Invitations pas encore activées : colle supabase/invites.sql dans Supabase':'Erreur : '+r.error.message);return}
       if(!had.includes(v)){A.invOut=[...(A.invOut||[]),{id:x.id+':'+v,viewer:v,status:'pending'}];if(!isBusy)fnCall({kind:'invite',to:v,id:x.id+':'+v,title:x.title,when:invWhen(x)}).catch(()=>{})}}

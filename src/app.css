@@ -698,3 +698,4 @@ a.cell{text-decoration:none}
 /* Lieu : bouton itinéraire dans le champ */
 .map-go{flex:none;display:grid;place-items:center;width:34px;height:34px;margin:-6px -6px -6px 4px;border-radius:50%;color:var(--area,var(--tint));background:var(--fill)}
 .map-row{display:flex;flex-wrap:wrap;gap:6px}.map-row button{border:0;border-radius:99px;padding:7px 12px;background:var(--fill);color:var(--tint);font:600 13px var(--font)}
+.cal-chip.allday{background:color-mix(in srgb,var(--c) 32%,transparent);font-weight:600}
