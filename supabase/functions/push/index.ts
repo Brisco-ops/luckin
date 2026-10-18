@@ -7,6 +7,7 @@
 //                  l'heure de la question est retenue comme heure d'endormissement (table sleep_probe) et on ne dérange plus cette nuit.
 // - kind "test"  : l'utilisateur connecté s'envoie une notification de test.
 // - kind "cheer" : encourager un ami du même groupe (une fois par jour et par ami).
+// - kind "invite": l'utilisateur connecté prévient un ami du même groupe qu'il l'a invité sur une tâche (ou qu'il a répondu).
 // - kind "ical"  : l'utilisateur connecté lit son agenda (adresse secrète iCal Google, iCloud ou Outlook).
 // - kind "pay"   : un raccourci iPhone (automatisation « Transaction » d'Apple Pay) envoie un paiement avec le code personnel
 //                  de l'utilisateur ; il est déposé dans pay_inbox et l'app le range dans le budget. Pas de session : le code suffit.
@@ -258,6 +259,22 @@ Deno.serve(async (req) => {
   if (body.kind === "test") {
     const n = await sendToUser(me.id, { title: "Luck’In", body: "Les notifications fonctionnent.", tag: "test" });
     return json({ ok: true, sent: n });
+  }
+
+  // Invitation sur une tâche : notification à l'ami (même groupe uniquement)
+  if (body.kind === "invite") {
+    const to = String(body.to || "");
+    const { data: mine } = await sb.from("group_members").select("group_id").eq("user_id", me.id);
+    const { data: theirs } = await sb.from("group_members").select("group_id").eq("user_id", to);
+    const g = new Set((mine || []).map((x: { group_id: string }) => x.group_id));
+    if (!to || !(theirs || []).some((x: { group_id: string }) => g.has(x.group_id))) return json({ error: "Pas dans ton groupe." }, 403);
+    const { data: prof } = await sb.from("profiles").select("name").eq("id", me.id).maybeSingle();
+    const who = (prof?.name as string) || "Un ami";
+    const title = String(body.title || "").slice(0, 80), when = String(body.when || "").slice(0, 60);
+    const msg = body.answer
+      ? { title: `${who} ${body.answer === "yes" ? "vient" : "ne peut pas venir"}`, body: title, tag: "inv-" + String(body.id || ""), url: "./" }
+      : { title: `${who} t’invite`, body: `${title}${when ? " · " + when : ""}`, tag: "inv-" + String(body.id || ""), url: "./?invite=" + encodeURIComponent(String(body.id || "")) };
+    return json({ sent: await sendToUser(to, msg) });
   }
 
   if (body.kind === "cheer") {
