@@ -912,6 +912,8 @@ a.cell{text-decoration:none}
 .map-go{flex:none;display:grid;place-items:center;width:34px;height:34px;margin:-6px -6px -6px 4px;border-radius:50%;color:var(--area,var(--tint));background:var(--fill)}
 .map-row{display:flex;flex-wrap:wrap;gap:6px}.map-row button{border:0;border-radius:99px;padding:7px 12px;background:var(--fill);color:var(--tint);font:600 13px var(--font)}
 .cal-chip.allday{background:color-mix(in srgb,var(--c) 32%,transparent);font-weight:600}
+.nt-prev{margin:8px 0 4px;padding:10px 12px;border-radius:12px;background:var(--fill);font-size:14px;max-height:260px;overflow:auto}
+.plan details summary{cursor:pointer}
 </style>
 
 </head><body>
@@ -1555,6 +1557,11 @@ const PROF={
  finances:{label:'Profil finances',f:[['income','Revenus nets par mois','text','2 400 € (salaire), variable…'],['situation','Situation','text','Seul, en couple, enfants…'],['home','Logement','text','Locataire, propriétaire, chez les parents…'],['safety','Épargne de précaution visée','text','3 mois de dépenses…'],['horizon','Horizon de placement','text','5 ans, 10 ans, retraite…'],['risk','Rapport au risque','text','Prudent, équilibré, dynamique'],['debts','Crédits ou dettes','text','Prêt étudiant 150 €/mois…'],['fgoals','Projets financiers','area','Achat immobilier, voyage, voiture…']]},
  taches:{label:'Profil organisation',f:[['hours','Horaires habituels','text','9 h–18 h en semaine…'],['energy','Moments où tu es le plus efficace','text','Le matin, après le sport…'],['constraints','Contraintes','area','Trajets, engagements fixes…'],['focus','Ce qui compte en ce moment','area','Trouver un emploi, finir un projet…']]},
  savoir:{label:'Profil apprentissage',f:[['topics','Sujets qui t’intéressent','area','Langues, histoire, cuisine, développement personnel…'],['lgoals','Objectifs d’apprentissage','area','Certification, langue, lectures…'],['time','Temps disponible par semaine','text','3 h, 30 min par jour…'],['how','Comment tu apprends le mieux','text','Lire, écouter, pratiquer, expliquer…']]}};
+const NOTES_NOTE=`
+
+Modifier les notes : si l’utilisateur te demande de corriger, réécrire, compléter, résumer, réorganiser, relier, renommer ou créer des notes, propose les changements, explique-les en une ou deux phrases, puis termine ton message par UN SEUL bloc :
+<notes>{"edit":[{"id":"…","title":"nouveau titre (facultatif)","body":"texte COMPLET de la note après modification","tags":["…"]}],"new":[{"title":"…","body":"…","tags":["…"]}]}</notes>
+JSON valide uniquement. « body » remplace tout le texte : recopie ce qui ne change pas. Garde la syntaxe de l’app : liens [[Titre d’une note]], **gras**, ## titres, listes « - », liens [texte](url), et recopie tels quels les jetons d’images ou de fichiers ![[media:…]]. Utilise les ids donnés dans le contexte. N’invente pas de contenu que l’utilisateur n’a pas fourni ou demandé. L’utilisateur verra le détail et appliquera d’un bouton.`;
 const PLAN_NOTE=`
 
 Réorganiser l’emploi du temps : si l’utilisateur te demande d’organiser, planifier ou réorganiser (sa journée, sa semaine, ses tâches), propose un planning réaliste (tâches majeures sur ses créneaux d’énergie, marges, en tenant compte des séances, entretiens, événements et échéances), explique-le brièvement, puis termine ton message par UN SEUL bloc :
@@ -1592,7 +1599,8 @@ Récurrent : revenus ${eur(sum(F.plans.filter(p=>p.rep&&pIn(p)).map(monthlyEq)))
 Placements : ${F.inv.map(a=>`${a.name} (${a.type}) valeur ${eur(invVal(a))}, versé ${eur(invIn(a))}`).join(' ; ')||'aucun'}`},
  savoir(){const rd=st().reading;const N=notes().slice().sort((a,b)=>(b.updated||0)-(a.updated||0)),tags=[...new Set(N.flatMap(n=>n.tags||[]))];
   return `${rd?.on?`Lecture chronométrée « ${rd.label} » (${rd.min} min) : faite ${Array.from({length:7},(_,k)=>addDays(TODAY(),-k)).filter(readDone).length} jours sur 7.\n`:''}${N.length} notes. Étiquettes : ${tags.join(', ')||'aucune'}.
-Notes (récentes d’abord) : ${N.slice(0,60).map(n=>`« ${n.title} »${(n.tags||[]).length?' #'+n.tags.join(' #'):''} [liens vers : ${brOut(n).join(', ')||'-'} ; citée par : ${brBack(n).map(x=>x.title).join(', ')||'-'}${(n.media||[]).length?' ; '+n.media.length+' média(s)':''}] ${cut((n.body||'').replace(/!\[\[media:[a-z0-9]+\]\]/g,''),220)}`).join('\n')||'aucune'}`},
+Notes (récentes d’abord, texte complet pour les plus récentes) :
+${(()=>{let budget=60000;return N.slice(0,80).map(n=>{const full=String(n.body||''),txt=budget>0?full.slice(0,4000):cut(full,200);budget-=txt.length;return `--- « ${n.title} » [id ${n.id}${(n.tags||[]).length?' ; #'+n.tags.join(' #'):''} ; liens vers : ${brOut(n).join(', ')||'-'} ; citée par : ${brBack(n).map(x=>x.title).join(', ')||'-'}${(n.media||[]).length?' ; '+n.media.length+' média(s)':''}]\n${txt}${txt.length<full.length?' […]':''}`}).join('\n')})()||'aucune'}`},
  central(){const t=TODAY(),{today,soon}=agendaItems(),strip=x=>String(x).replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"');
   const F=fin(),m=monthKey(t),out=sum(F.tx.filter(x=>monthKey(x.date)===m&&spend(x)).map(x=>x.amount)),a7=lastWeightAvg(),s=st();
   const txt=`Domaines suivis : ${AREA_PICK.filter(a=>areaOn(a[0])).map(a=>a[1]).join(', ')}.
@@ -1610,7 +1618,7 @@ Savoir : ${notes().length} notes, dernières : ${notes().slice().sort((a,b)=>(b.
 function systemFor(d,forBoss){if(d==='forme')return rules()+(forBoss?'\n\nTu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui, sans bloc <programme>.':'');
   const wd=new Date().toLocaleDateString(LOC,{weekday:'long'});
   const allProf=d==='central'?Object.keys(PROF).filter(k=>k!=='central'&&profFilled(k)).map(k=>`${PROF[k].label} :\n${profText(k)}`).join('\n'):'';
-  return `${ROLE[d].replace('${name}',st().name)}${d==='taches'||d==='central'?PLAN_NOTE:''}
+  return `${ROLE[d].replace('${name}',st().name)}${d==='taches'||d==='central'?PLAN_NOTE:''}${d==='savoir'?NOTES_NOTE:''}
 
 ${PROF[d].label} de l’utilisateur :
 ${profText(d)}${allProf?'\n\nProfils des autres domaines :\n'+allProf:''}
@@ -1685,8 +1693,8 @@ async function coachSend(d,text){text=String(text||'').trim();if(!text||CC.busy|
 function coachPage(d,o={}){const k=COACH[d],c=chatOf(d),b=backend();
   const head=`<div class="a-head">${o.back?`<button type="button" class="link br-back" data-act="${o.back}">‹ ${o.backLabel}</button>`:`<p class="l2">${d==='central'?'Vue d’ensemble · '+AREA_PICK.filter(a=>areaOn(a[0])).length+' coach'+(AREA_PICK.filter(a=>areaOn(a[0])).length>1?'s spécialisés':' spécialisé'):'Spécialiste '+COACH_DOMS[d]}</p>`}<h1>${k.name}</h1></div>`;
   if(!b)return head+sec('',`<div class="cell"><span class="body"><span>Active ton coach</span><span class="fn">Le coach utilise Claude avec ta clé API Anthropic (Réglages › Coach IA), stockée uniquement sur ce téléphone.</span></span></div><button class="cell tap link" data-act="goKey">Saisir ma clé API</button>`,'','notile');
-  const items=c.map((m,k)=>{if(m.role==='user')return `<div class="msg u">${esc(m.content)}</div>`;if(m.err)return `<div class="msg a err">${esc(m.content)}</div>`;const sp=splitPlan(m.content);
-    return `${sp.text||m.via?`<div class="msg a">${md(sp.text)}${m.via?`<p class="cc-via">A consulté : ${m.via.map(esc).join(', ')}</p>`:''}</div>`:''}${sp.plan?planCard(sp.plan,d,k,m.applied):''}`}).join('');
+  const items=c.map((m,k)=>{if(m.role==='user')return `<div class="msg u">${esc(m.content)}</div>`;if(m.err)return `<div class="msg a err">${esc(m.content)}</div>`;const sp0=splitPlan(m.content),sn=splitNotes(sp0.text),sp={...sp0,text:sn.text};
+    return `${sp.text||m.via?`<div class="msg a">${md(sp.text)}${m.via?`<p class="cc-via">A consulté : ${m.via.map(esc).join(', ')}</p>`:''}</div>`:''}${sp.plan?planCard(sp.plan,d,k,m.applied):''}${sn.notes?notesCard(sn.notes,d,k,m.applied):''}`}).join('');
   const nf=profFilled(d),nt=PROF[d].f.length;
   const profCell=`<button type="button" class="cc-prof" data-act="ccProfile" data-dom="${d}"><span><b>${PROF[d].label}</b> · ${nf?nf+'/'+nt+' renseigné'+(nf>1?'s':''):'à remplir pour des conseils vraiment personnalisés'}</span><span class="cc-prof-go">${nf?'Modifier':'Remplir'}</span></button>`;
   return `${head}${profCell}<div class="cc-msgs">${c.length?'':`<div class="msg a">${md(k.hello(st().name))}</div><div class="chips">${k.starters.map(x=>`<button class="chip-s" data-act="ccStarter" data-dom="${d}">${esc(x)}</button>`).join('')}</div>`}
@@ -1694,6 +1702,10 @@ function coachPage(d,o={}){const k=COACH[d],c=chatOf(d),b=backend();
    ${c.length&&!CC.busy?`<button class="note link" data-act="ccNew" data-dom="${d}" style="margin-top:6px">Nouvelle conversation</button>`:''}</div>
    <div class="composer cc-comp${o.tabs?' with-tabs':''}"><div class="in"><textarea id="ccin" rows="1" placeholder="${d==='central'?T('Écris à Luck…','Write to Luck…'):'Écris à '+esc(k.name.toLowerCase().replace('coach','ton coach'))+'…'}" aria-label="Message"></textarea>
    <button class="send" data-act="${CC.busy?'ccStop':'ccSend'}" data-dom="${d}" aria-label="${CC.busy?'Arrêter':'Envoyer'}">${CC.busy?I.stop:I.up}</button></div></div>`}
+function splitNotes(t){const i=t.indexOf('<notes>');if(i<0)return {text:t,notes:null,pending:false};const j=t.indexOf('</notes>',i);
+  if(j<0)return {text:t.slice(0,i).trim(),notes:null,pending:true};let notes=null;
+  try{notes=JSON.parse(t.slice(i+7,j).trim().replace(/^```(json)?/,'').replace(/```$/,'').trim())}catch(e){notes='bad'}
+  return {text:(t.slice(0,i)+t.slice(j+8)).trim(),notes,pending:false}}
 function splitPlan(t){const i=t.indexOf('<planning>');if(i<0)return {text:t,plan:null,pending:false};const j=t.indexOf('</planning>',i);
   if(j<0)return {text:t.slice(0,i).trim(),plan:null,pending:true};let plan=null;
   try{plan=JSON.parse(t.slice(i+10,j).trim().replace(/^```(json)?/,'').replace(/```$/,'').trim())}catch(e){plan='bad'}
@@ -1786,6 +1798,31 @@ function calAct(act,el,ev){switch(act){
   haptic(6);calRepaint();return true}
 {let sx=0,sy=0,on=false;document.addEventListener('touchstart',e=>{on=!!e.target.closest?.('.cal-grid,.cal-head,.cal-adrow');if(on){sx=e.touches[0].clientX;sy=e.touches[0].clientY}},{passive:true});
  document.addEventListener('touchend',e=>{if(!on)return;on=false;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.abs(dx)>60&&Math.abs(dy)<45){CAL.start=addDays(CAL.start||TODAY(),(dx<0?1:-1)*CAL.n);haptic(6);calRepaint()}},{passive:true})}
+/* modifications de notes proposées par le coach Savoir */
+function cleanNotes(raw){if(!raw||raw==='bad')return null;const byId=new Map(notes().map(n=>[n.id,n])),byT=new Map(notes().map(n=>[brNorm(n.title),n]));
+  const tg=a=>Array.isArray(a)?[...new Set(a.map(x=>String(x).replace(/^#/,'').trim().toLowerCase()).filter(Boolean))].slice(0,12):null;
+  const edit=(raw.edit||[]).map(e=>{const n=byId.get(e.id)||byT.get(brNorm(e.title||''));if(!n)return null;const o={id:n.id};
+    if(typeof e.body==='string'&&e.body.trim()&&e.body.trim()!==(n.body||'').trim())o.body=e.body.replace(/\s+$/,'');
+    if(e.title&&String(e.title).trim()&&brNorm(e.title)!==brNorm(n.title)&&!byT.has(brNorm(e.title)))o.title=String(e.title).replace(/\s+/g,' ').trim().slice(0,120);
+    const t=tg(e.tags);if(t&&t.join()!==(n.tags||[]).join())o.tags=t;return o.body!=null||o.title||o.tags?o:null}).filter(Boolean);
+  const seen=new Set(notes().map(n=>brNorm(n.title)));
+  const add=(raw.new||[]).filter(n=>n&&String(n.title||'').trim()).map(n=>({title:String(n.title).replace(/\s+/g,' ').trim().slice(0,120),body:String(n.body||''),tags:tg(n.tags)||[]})).filter(n=>{const k=brNorm(n.title);if(seen.has(k))return false;seen.add(k);return true});
+  return edit.length||add.length?{edit,add}:null}
+function notesCard(raw,d,idx,applied){if(raw==='bad')return `<div class="note">Les modifications proposées sont illisibles. Demande au coach de les renvoyer.</div>`;
+  const p=cleanNotes(raw);if(!p)return applied?'':`<div class="note">Rien à appliquer (notes introuvables ou déjà à jour).</div>`;const N=new Map(notes().map(n=>[n.id,n]));
+  const rows=[...p.edit.map(e=>{const n=N.get(e.id),dl=e.body!=null?e.body.length-(n.body||'').length:0;return `<li><details><summary><b>${esc(n.title)}</b>${e.title?` → <b>${esc(e.title)}</b>`:''} : ${[e.body!=null?'texte modifié ('+(dl>=0?'+':'')+dl+' caractères)':null,e.tags?'étiquettes #'+e.tags.join(' #'):null].filter(Boolean).join(' · ')}</summary>${e.body!=null?`<div class="br-text nt-prev">${brText(Object.assign({},n,{body:e.body}))}</div>`:''}</details></li>`}),
+    ...p.add.map(n=>`<li class="pl-add"><details><summary><b>+ ${esc(n.title)}</b> : nouvelle note</summary><div class="br-text nt-prev">${brText({body:n.body,media:[]})}</div></details></li>`)];
+  return `<div class="plan pl"><div class="ph"><b>Modifications de notes</b><span class="l2">${p.edit.length?p.edit.length+' modif.':''}${p.edit.length&&p.add.length?' · ':''}${p.add.length?p.add.length+' nouvelle'+(p.add.length>1?'s':''):''}</span></div><ul>${rows.join('')}</ul>
+   <p class="fn">Touche une note pour voir son texte après modification.</p>
+   <div class="pa">${applied?`<button class="btn-fill" disabled>Appliqué à tes notes</button>`:`<button class="btn-fill" data-act="ccApplyNotes" data-dom="${d}" data-i="${idx}">Appliquer</button>`}</div></div>`}
+function applyNotes(raw){const p=cleanNotes(raw);if(!p)return 0;let n=0;
+  p.edit.forEach(e=>{const x=notes().find(y=>y.id===e.id);if(!x)return;
+    if(e.body!=null){/* aucun média ne doit disparaître : un jeton oublié est remis à la fin */const keep=[...String(x.body||'').matchAll(/!\[\[media:[a-z0-9]+\]\]/g)].map(m=>m[0]).filter(tk=>!e.body.includes(tk));x.body=e.body+(keep.length?'\n\n'+keep.join('\n'):'')}
+    if(e.tags)x.tags=e.tags;
+    if(e.title){const old=x.title,re=new RegExp('\\[\\['+old.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\]\\]','gi');x.title=e.title;notes().forEach(y=>{if(y.id!==x.id&&re.test(y.body||'')){y.body=y.body.replace(re,'[['+e.title+']]');y.updated=Date.now()}})}
+    x.updated=Date.now();n++});
+  p.add.forEach(a=>{notes().push({id:uid(),created:Date.now(),updated:Date.now(),title:a.title,body:a.body,tags:a.tags,media:[],links:[]});n++});
+  save();return n}
 function planCard(raw,d,idx,applied){if(raw==='bad')return `<div class="note">Le planning proposé est illisible. Demande au coach de le renvoyer.</div>`;
   const p=cleanPlan(raw);if(!p)return applied?'':`<div class="note">Rien à appliquer dans ce planning (tâches introuvables ou déjà à jour).</div>`;const TM=new Map(todos().map(x=>[x.id,x]));
   /* semaine telle qu'elle sera après application */
@@ -1804,7 +1841,7 @@ function applyPlan(raw){const p=cleanPlan(raw);if(!p)return 0;const T=new Map(to
   p.add.forEach(n=>todos().push(Object.assign({id:uid(),created:Date.now(),done:false,note:'Ajoutée par le coach'},n)));
   if(p.remove.length)db.todos=todos().filter(x=>!p.remove.includes(x.id));
   save();return p.changes.length+p.add.length+p.remove.length}
-function ccLiveHTML(){if(CC.live){const sp=splitPlan(CC.live);return `${sp.text?`<div class="msg a">${md(sp.text)}</div>`:''}${sp.pending?'<div class="note">Préparation du planning…</div>':''}`}return CC.live?`<div class="msg a">${md(CC.live)}</div>`:`<div class="msg a">${CC.status?`<p class="cc-via">${esc(CC.status)}</p>`:''}<span class="typing"><i></i><i></i><i></i></span></div>`}
+function ccLiveHTML(){if(CC.live){const sp=splitPlan(CC.live),sn=splitNotes(sp.text);return `${sn.text?`<div class="msg a">${md(sn.text)}</div>`:''}${sp.pending?'<div class="note">Préparation du planning…</div>':''}${sn.pending?'<div class="note">Préparation des modifications de notes…</div>':''}`}return CC.live?`<div class="msg a">${md(CC.live)}</div>`:`<div class="msg a">${CC.status?`<p class="cc-via">${esc(CC.status)}</p>`:''}<span class="typing"><i></i><i></i><i></i></span></div>`}
 function ccLive(){const el=$('#cclive');if(el){el.hidden=false;el.innerHTML=ccLiveHTML();const a=$('#area');a.scrollTop=a.scrollHeight}}
 function coachRepaint(){const d=CC.dom;if($('#area').hidden)return;
   if(H.cur==='coach'&&d==='central')paintCentral();else if(H.cur==='carriere')paintCareer();else if(H.cur==='finances')paintFinance();else if(H.cur==='taches')paintTodos();else if(H.cur==='savoir')paintBrain();
@@ -1821,6 +1858,7 @@ function coachAct(act,id,el){const d=el.dataset.dom;
    case 'ccStop':CC.ctl?.abort();break;
    case 'ccProfile':profSheet(d);break;
    case 'ccApplyPlan':{const c=chatOf(d),m=c[+el.dataset.i];if(!m||m.applied)break;const n=applyPlan(splitPlan(m.content).plan);if(!n){hud('Rien à appliquer');break}m.applied=true;saveChatOf(d);CC.dom=d;coachRepaint();haptic(12);hud(n+' changement'+(n>1?'s':'')+' appliqué'+(n>1?'s':'')+' à tes tâches');break}
+   case 'ccApplyNotes':{const c=chatOf(d),m=c[+el.dataset.i];if(!m||m.applied)break;const n=applyNotes(splitNotes(splitPlan(m.content).text).notes);if(!n){hud('Rien à appliquer');break}m.applied=true;saveChatOf(d);CC.dom=d;coachRepaint();haptic(12);hud(n+' note'+(n>1?'s':'')+' mise'+(n>1?'s':'')+' à jour');break}
    case 'ccNew':asheet('Effacer cette conversation ?',[{label:'Nouvelle conversation',act:'ccNewGo',data:{dom:d},danger:true}]);break;
    case 'ccNewGo':chats[d]=[];saveChatOf(d);CC.dom=d;coachRepaint();break;
    case 'tdTab':case 'brTab':{const td=act==='tdTab',cur=td?tdCur():brCur(),v=el.dataset.v,a=$('#area');
