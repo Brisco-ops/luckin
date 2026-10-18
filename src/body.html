@@ -1156,9 +1156,9 @@ document.addEventListener('click',ev=>{
   if(act==='sleepAwake'||act==='sleepNow'){sleepAnswer(act==='sleepNow');return}
   if(act==='invOpen'){invOpen(id);return}
   if(act==='mapOpen'){if(el.dataset.src){/* dans une fiche : choix sous le champ, sans fermer la fiche */const inp=$(el.dataset.src),lab=el.closest('label'),nx=lab?.nextElementSibling;if(nx?.classList.contains('map-row')){nx.remove();return}
-      const v=String(inp?.value||'').trim();if(!v){hud('Indique d’abord un lieu');return}lab.insertAdjacentHTML('afterend',`<div class="cell map-row">${MAPS.map(([k,l])=>`<button type="button" data-act="mapGo" data-k="${k}" data-v="${esc(v)}">${l}</button>`).join('')}</div>`);return}
+      const v=String(inp?.value||'').trim();if(!v){hud('Indique d’abord un lieu');return}lab.insertAdjacentHTML('afterend',`<div class="cell map-row">${MAPS.map(([k,l])=>`<button type="button" data-act="mapGo" data-k="${k}" data-v="${esc(v)}">${l}</button>`).join('')}</div>`);cmPrep(lab.nextElementSibling,v);return}
     mapSheet(el.dataset.v);return}
-  if(act==='mapGo'){mapGo(el.dataset.k,el.dataset.v);return}
+  if(act==='mapGo'){mapGo(el.dataset.k,el.dataset.v,el.dataset.c?el.dataset.c.split(',').map(Number):null);return}
   if(act==='invYes'||act==='invNo'){invAnswer(id,act==='invYes');return}
   if(jobAct(act,id,el)||todoAct(act,id,el)||brainAct(act,id,el)||finAct(act,id,el)||coachAct(act,id,el)){if(!$('#home').hidden)paintAgenda();return} /* actions des sections Carrière et Tâches */
   switch(act){
@@ -2525,11 +2525,20 @@ function paintFriends(){const el=$('#friends');if(!el)return;
    <div class="fr-legend"><span><i class="d2"></i>journée suivie</span><span><i class="d0 s"></i>séance</span><span>% vers l’objectif</span></div></div>`}
 function accountSec(){return accountSec0()+agShareSec()+notifSec()}
 /* ---------- itinéraire : Citymapper, Waze, Google Maps ou Plans (liens universels : ouvrent l'appli si elle est installée) ---------- */
-const MAPS=[['citymapper','Citymapper',a=>'https://citymapper.com/directions?endaddress='+encodeURIComponent(a)],['waze','Waze',a=>'https://waze.com/ul?q='+encodeURIComponent(a)+'&navigate=yes'],
+/* Citymapper exige des coordonnées : l'adresse est convertie (OpenStreetMap / Nominatim) dès que les choix s'affichent, et gardée en cache */
+const GEOK=K+':geo';let GEO={};try{GEO=JSON.parse(localStorage.getItem(GEOK)||'{}')}catch(e){}
+async function geocode(a){const k=a.toLowerCase();if(GEO[k])return GEO[k];
+  try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=fr&q='+encodeURIComponent(a));const j=await r.json();if(!j[0])return null;
+    GEO[k]=[+(+j[0].lat).toFixed(6),+(+j[0].lon).toFixed(6)];const ks=Object.keys(GEO);if(ks.length>200)delete GEO[ks[0]];try{localStorage.setItem(GEOK,JSON.stringify(GEO))}catch(e){}return GEO[k]}catch(e){return null}}
+const cmUrl=(a,c)=>'https://citymapper.com/directions?'+(c?'endcoord='+encodeURIComponent(c.join(','))+'&':'')+'endname='+encodeURIComponent(a)+'&endaddress='+encodeURIComponent(a);
+/* prépare les coordonnées puis active le bouton Citymapper (le lien doit s'ouvrir directement au toucher, pas après une attente) */
+function cmPrep(root,a){const b=root.querySelector('[data-k=citymapper]');if(!b)return;const c=GEO[a.toLowerCase()];if(c){b.dataset.c=c.join(',');return}
+  b.disabled=true;const lab=b.textContent;b.textContent='Citymapper…';geocode(a).then(c=>{b.disabled=false;b.textContent=lab;if(c)b.dataset.c=c.join(',');else b.dataset.nc='1'})}
+const MAPS=[['citymapper','Citymapper',(a,c)=>cmUrl(a,c)],['waze','Waze',a=>'https://waze.com/ul?q='+encodeURIComponent(a)+'&navigate=yes'],
  ['google','Google Maps',a=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(a)],['apple','Plans (Apple)',a=>'https://maps.apple.com/?q='+encodeURIComponent(a)]];
 function mapSheet(addr){addr=String(addr||'').trim();if(!addr){hud('Indique d’abord un lieu');return}const last=st().mapApp;
-  asheet('Itinéraire vers '+addr,MAPS.slice().sort((a,b)=>(b[0]===last)-(a[0]===last)).map(([k,l])=>({label:l,act:'mapGo',data:{k,v:addr}})))}
-function mapGo(k,addr){const m=MAPS.find(x=>x[0]===k);if(!m)return;st().mapApp=k;save();const a=document.createElement('a');a.href=m[2](addr);a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}
+  asheet('Itinéraire vers '+addr,MAPS.slice().sort((a,b)=>(b[0]===last)-(a[0]===last)).map(([k,l])=>({label:l,act:'mapGo',data:{k,v:addr}})));cmPrep($('#layer'),addr)}
+function mapGo(k,addr,c){const m=MAPS.find(x=>x[0]===k);if(!m)return;if(k==='citymapper'&&!c&&GEO[addr.toLowerCase()])c=GEO[addr.toLowerCase()];if(k==='citymapper'&&!c){hud('Adresse introuvable pour Citymapper : précise la ville');return}st().mapApp=k;save();const a=document.createElement('a');a.href=m[2](addr,c);a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}
 /* ---------- « Tu dors ? » : réponse depuis la notification, et calcul du sommeil au réveil (table sleep_probe) ---------- */
 const nightOf=()=>{const d=new Date();return d.getHours()<12?addDays(TODAY(),-1):TODAY()};
 async function sleepRow(){if(!sb||!A.user)return null;try{const r=await sb.from('sleep_probe').select('*').eq('user_id',A.user.id).maybeSingle();return r.data||null}catch(e){return null}}
