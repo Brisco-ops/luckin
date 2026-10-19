@@ -168,7 +168,7 @@ function seedTemplates(){
 function seed(){
   let old={};try{old=JSON.parse(localStorage.getItem('cap-objectifs-v1')||'{}').settings||{}}catch(e){}
   return {v:1,settings:{name:old.name||'',onboarded:0,reading:{on:false,label:'Lecture',min:10},supps:false,height:null,startWeight:null,targetWeight:null,targetDate:'',kcalTarget:null,protTarget:null,
-    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,trainTime:'',formeGoal:'',sugarTrack:false,bloatTrack:false,payOn:false,lastBackup:'',goalFix:1,catV2:1,agShare:{},suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
+    countMode:'kcal',trainingDays:[0,2,4],muscleUnit:'kg',muscleFix:1,restFix:1,diet:'',autoTimer:true,autoFix:1,trainTime:'',formeGoal:'',sugarTrack:false,bloatTrack:false,payOn:false,lastBackup:'',goalFix:1,catV2:1,agShare:{},guide:{hide:{},seen:{}},suppList:[],areas:['forme','carriere','taches','finances','savoir'],strictFrom:'2000-01-01',restBetween:0,sound:true,failureBonus:true,
     apiKey:old.apiKey||'',model:old.model||'claude-sonnet-5-5',coachMode:'eq',career:{goal:5,relance:7}},
     days:{},workouts:[],templates:seedTemplates(),weekly:{},active:null,foods:[],jobs:[],events:[],contacts:[],todos:[],notes:[],fin:{tx:[],plans:[],goals:[],inv:[],budget:null}};
 }
@@ -182,6 +182,7 @@ if(!db.settings.restFix){db.templates.forEach(t=>t.exercises.forEach(e=>e.rest=4
 if(db.settings.trainTime==null)db.settings.trainTime='';
 if(db.settings.payOn==null)db.settings.payOn=false;
 if(!db.settings.agShare)db.settings.agShare={};
+if(!db.settings.guide)db.settings.guide={hide:{},seen:{}};
 if(db.settings.lastBackup==null)db.settings.lastBackup='';
 if(!db.settings.goalFix&&db.fin){(db.fin.goals||[]).forEach(g=>{if((g.hist||[]).length){const h=g.hist.slice().sort((a,b)=>String(a.d).localeCompare(String(b.d)));let v=0;h.forEach(x=>{v=Math.max(0,v+(+x.amt||0))});v=Math.round(v*100)/100;if(Math.abs(v-(g.saved||0))>=0.01)g.hist.push({d:new Date().toLocaleDateString('sv'),amt:Math.round(((g.saved||0)-v)*100)/100,adj:true});}});db.settings.goalFix=1;writeLocal()}
 /* suivis personnels (sans sucre, ballonnements) : gardés pour les journaux déjà utilisés, éteints pour les nouveaux */
@@ -321,7 +322,7 @@ function vToday(){
   if(sun)rows.push(`<button class="cell tap" data-act="weekly">${ico('ruler','#30B0C7')}<span class="body"><span>Bilan du dimanche</span><span class="fn">${wk?.done?`Taille ${fmt(wk.waist)} cm${wk.belt!=null?' · cran '+fmt(wk.belt,0):''}`:'Mensurations et bilan de la semaine'}</span></span>${stateP(weeklyFull(t),!!wk)}</button>`);
   const done=[morningDone(t),eveningDone(t)].filter(Boolean).length;
   const ws=weightSeries(),a7=lastWeightAvg(),last=ws[ws.length-1];
-  return `
+  return `${guideCard('forme')}
   <div class="kpis tilesrow">${kp(tt.kcal,s.kcalTarget,'kcal','')}${kp(tt.prot,s.protTarget,'prot.',' g')}<div><span class="v">${e?.water!=null?fmt(e.water)+' L':'–'}</span><span class="k">eau</span></div><div><span class="v">${streak()} j</span><span class="k">série</span></div></div>
   ${sec('Ma journée',rows.join(''),'','ic tiles rituals')}
   ${D.meals.length?sec('Repas',D.meals.map(mealCell).join('')+addCell('Ajouter un repas','newMeal'),'','ic tiles'):''}
@@ -464,6 +465,7 @@ function paintPrefs(){const s=st();
   ${sec(T('Langue','Language'),`<label class="cell field" for="lng"><span>${T('Langue','Language')}</span><select id="lng" data-change="lang">${[['auto',T('Automatique (langue du téléphone)','Automatic (phone language)')],['fr','Français'],['en','English']].map(([k,l])=>`<option value="${k}" ${k===(s.lang||'auto')?'selected':''}>${l}</option>`).join('')}</select></label>`)}
   ${sec(T('Agenda Google','Google Calendar'),gcalUrls().length?`<div class="cell"><span class="body"><span>${T('Agenda connecté','Calendar connected')}</span><span class="fn">${GCAL?T(`${GCAL.items.length} rendez-vous sur 30 jours · mis à jour à ${hm(new Date(GCAL.at))}`,`${GCAL.items.length} events over 30 days · updated at ${hm(new Date(GCAL.at))}`):T('Pas encore lu : touche Actualiser','Not read yet: tap Refresh')}</span></span></div><button class="cell tap link" data-act="gcalRefresh">${T('Actualiser','Refresh')}</button><button class="cell tap link" data-act="gcalSetup">${T('Modifier l’adresse','Change address')}</button><button class="cell tap danger" data-act="gcalOff">${T('Déconnecter','Disconnect')}</button>`
      :`<button class="cell tap link" data-act="gcalSetup">${T('Connecter mon agenda Google','Connect my Google Calendar')}</button>`,T('Tes rendez-vous apparaissent sur l’accueil et ton coach en tient compte. Lecture seule. Nécessite un compte connecté.','Your events appear on the home screen and your coach takes them into account. Read only. Requires a signed-in account.'))}
+  ${sec('',`<button type="button" class="cell tap" data-act="guideOpen"><span class="body"><span>Guide de prise en main</span><span class="fn">Chaque section expliquée, étapes pour bien démarrer</span></span>${I.chev}</button>`)}
   ${accountSec()}
   ${sec('Coach IA',`<label class="cell field" for="ak"><span>Clé API</span><input id="ak" data-change="apikey" type="password" autocomplete="off" placeholder="sk-ant-…" value="${esc(s.apiKey||'')}"></label>
      <div class="cell block"><span>Coachs</span>${seg('coachMode',COACH_MODES.map(m=>[m[0],m[1]]),s.coachMode||'eq')}</div><div class="cell"><span class="body fn">${esc((COACH_MODES.find(m=>m[0]===(s.coachMode||'eq'))||COACH_MODES[1])[2])}</span></div>`,
@@ -801,6 +803,62 @@ function cleanPlan(p){if(!p||p==='bad')return null;const T=todos(),byId=new Map(
   const remove=(p.remove||[]).filter(id=>byId.has(id)&&!byId.get(id).done);
   return changes.length||add.length||remove.length?{changes,add,remove}:null}
 const pwhen=(d,t)=>d?(whenDay(d)+(t?' '+t:'')):(t||'sans échéance');
+/* ================= guide de prise en main : carte « Bien démarrer » par section + page Guide ================= */
+const gSeen=k=>!!st().guide?.seen?.[k],gMark=k=>{const g=st().guide||(st().guide={hide:{},seen:{}});if(!g.seen[k]){g.seen[k]=1;save()}};
+const anyDay=f=>Object.values(db.days||{}).some(f);
+const GUIDE={
+ home:{name:'Luck’In',color:'#2B3FC4',intro:'Ton tableau de bord : tout ce que tu as à faire, toutes sections confondues, et Luck, ton coach qui voit l’ensemble.',
+  steps:[['Compléter ton profil (prénom, sections suivies)',()=>!!st().name&&st().onboarded,'reWelcome'],
+   ['Activer les notifications (rappels, « Tu dors ? », invitations)',()=>notif().on,'openPrefs'],
+   ['Ajouter ta clé du coach pour parler à Luck',()=>!!st().apiKey,'openPrefs'],
+   ['Rejoindre ou créer un groupe d’amis',()=>!!A.group,'groupMenu'],
+   ['Faire ta première sauvegarde complète',()=>!!st().lastBackup,'backupFull']],
+  tips:['L’accueil se lit en liste ou en calendrier (bouton Liste | Calendrier) ; touche un créneau vide du calendrier pour y créer une tâche.','Luck (carte bleue) voit tout et demande l’avis des coachs spécialisés ; dis-lui « organise ma semaine ».','La barre du bas ouvre chaque section ; dans une section, glisse à gauche ou à droite pour changer d’onglet.','Réglages : le rond à ton initiale, en haut à droite.']},
+ forme:{name:'Forme',color:'#F2994A',intro:'Sport et nutrition : un rituel le matin, tes repas, un rituel le soir, tes séances et ton bilan du dimanche.',
+  steps:[['Remplir ton profil Forme (taille, poids, objectif)',()=>st().height!=null&&!!st().formeGoal,'formeSetup'],
+   ['Faire ton premier réveil (poids, sommeil)',()=>anyDay(D=>D.morning),'morning'],
+   ['Noter un repas (ou l’analyser en photo)',()=>anyDay(D=>(D.meals||[]).length),'newMeal'],
+   ['Clôturer une journée avec le soir',()=>anyDay(D=>D.evening),'evening'],
+   ['Faire une séance',()=>db.workouts.some(w=>w.end),'guideTab','workout']],
+  tips:['La coche devient verte quand un rituel est rempli en entier.','Le chrono de repos se lance seul après chaque série.','« Tu dors ? » (Réglages › Notifications) calcule ta durée de sommeil.','Le coach Forme est le dernier onglet de la barre.']},
+ carriere:{name:'Carrière',color:'#3E6FD8',intro:'Ta recherche d’emploi ou ton évolution : candidatures, relances, entretiens, contacts et bilan.',
+  steps:[['Remplir ton profil carrière (poste visé, CV)',()=>profFilled('carriere')>=2,'ccProfile','carriere'],
+   ['Ajouter une candidature (ou importer ton tableau Excel)',()=>jobs().length>0,'jobNew'],
+   ['Enregistrer un contact rencontré',()=>contacts().length>0,'ctNew'],
+   ['Demander conseil au coach Carrière',()=>chatOf('carriere').length>0,'carTab','coach']],
+  tips:['Une relance est proposée après 7 jours sans nouvelles (réglable).','Rappels d’entretien 2 jours avant, la veille et le matin même.','Depuis un contact : « Écrire un message » prépare un mail ou un SMS.','Les événements (salons, masterclass) sont dans Tâches › Événements.']},
+ taches:{name:'Tâches',color:'#D94F70',intro:'Tes tâches avec échéance, priorité, durée et lieu, tes événements, et un calendrier pour organiser ta semaine.',
+  steps:[['Créer une tâche avec une échéance',()=>todos().length>0,'tdNew'],
+   ['Lui donner une heure et une durée',()=>todos().some(x=>x.time&&x.dur),'tdNew'],
+   ['Voir ta semaine en calendrier',()=>gSeen('tdCal'),'tdTab','week'],
+   ['Demander au coach « organise ma semaine »',()=>chatOf('taches').length>0,'tdTab','coach']],
+  tips:['« Avec » : invite un ami (il répond) ou montre-lui seulement que tu es occupé.','Un lieu donne l’itinéraire (Citymapper, Waze, Google Maps).','« Jusqu’au » pour plusieurs jours, « Toute la journée » dans la durée.','Une tâche répétée se décale toute seule quand tu la coches.']},
+ finances:{name:'Finances',color:'#2F9E6E',intro:'Ton budget du mois, tes échéances et revenus à venir, ton épargne et tes placements.',
+  steps:[['Ajouter une dépense',()=>fin().tx.some(x=>x.kind==='out'),'fiNewOut'],
+   ['Déclarer une dépense ou un revenu récurrent (loyer, salaire)',()=>fin().plans.length>0,'fiNewPlan'],
+   ['Créer un objectif d’épargne',()=>fin().goals.length>0,'fiNewGoal'],
+   ['Importer un relevé ou brancher Apple Pay',()=>fin().tx.some(x=>x.src==='bank'||x.src==='applepay'),'fiPaySetup'],
+   ['Fixer un budget mensuel',()=>!!fin().budget,'finBudgetSet']],
+  tips:['Catégories et sous-catégories : touche une catégorie du budget pour voir le détail (ex. total voiture).','Épargne, placements, virements entre tes comptes et argent pour un proche ne comptent pas comme des dépenses.','« À anticiper » calcule combien mettre de côté chaque mois pour une grosse dépense.','Un prélèvement groupé (loyer + parking) est reconnu à l’import.']},
+ savoir:{name:'Savoir',color:'#8E5CC9',intro:'Ton deuxième cerveau : des notes reliées entre elles, avec photos, mémos vocaux et liens, plus ta lecture chronométrée.',
+  steps:[['Écrire une première note',()=>notes().length>0,'brNew'],
+   ['Relier deux notes avec [[Titre]]',()=>notes().some(n=>/\[\[[^\]]+\]\]/.test(n.body||'')),'brNew'],
+   ['Voir la carte des connexions',()=>gSeen('brMap'),'brTab','map'],
+   ['Activer la lecture chronométrée',()=>!!st().reading?.on,'readSet']],
+  tips:['Appui long dans le texte : titre, gras, liste, lien, image ou fichier.','Le coach Savoir peut réécrire, résumer ou relier tes notes (tu valides avant).','« Exporter mes notes » crée un dossier lisible partout (Obsidian).']}};
+function guideCard(a){const G=GUIDE[a],g=st().guide||{};if(!G||g.hide?.[a])return '';const done=G.steps.map(x=>{try{return !!x[1]()}catch(e){return false}}),n=done.filter(Boolean).length;if(n===G.steps.length)return '';
+  return `<div class="guide-card" style="--gc:${G.color}"><div class="gc-h"><b>Bien démarrer${a==='home'?'':' · '+G.name}</b><span class="l2">${n}/${G.steps.length}</span><button type="button" class="gc-x" data-act="guideHide" data-v="${a}" aria-label="Masquer">✕</button></div>
+   <div class="gc-bar"><i style="width:${n/G.steps.length*100}%"></i></div>
+   ${G.steps.map(([l,,act,v],k)=>`<button type="button" class="gc-step${done[k]?' done':''}" data-act="${act}" ${v?`data-v="${v}" data-dom="${v}"`:''}><span class="gc-c">${done[k]?'✓':''}</span><span>${esc(l)}</span></button>`).join('')}
+   <button type="button" class="gc-more" data-act="guideOpen" data-v="${a}">Guide complet</button></div>`}
+function guidePage(focus){const sects=['home',...AREA_PICK.map(x=>x[0]).filter(areaOn)];
+  sheet('Guide de prise en main',sects.map(a=>{const G=GUIDE[a];if(!G)return '';const done=G.steps.map(x=>{try{return !!x[1]()}catch(e){return false}});
+    return `<section class="sec guide-sec" id="gd-${a}" style="--gc:${G.color}"><div class="sec-h">${esc(G.name)}</div><div class="group"><div class="cell"><span class="body fn">${esc(G.intro)}</span></div>
+      ${G.steps.map(([l],k)=>`<div class="cell gc-row"><span class="gc-c${done[k]?' on':''}">${done[k]?'✓':k+1}</span><span class="body">${esc(l)}</span></div>`).join('')}
+      ${a!=='home'?`<button type="button" class="cell tap link" data-act="guideGo" data-v="${a}">Ouvrir ${esc(G.name)}</button>`:''}</div>
+      <div class="sec-f"><b>Bon à savoir</b><ul class="gd-tips">${G.tips.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div></section>`}).join('')+
+   sec('Données',`<div class="cell"><span class="body fn">Tout est sauvegardé dans ton compte et gardé 90 jours dans l’historique (Réglages › Données › Versions précédentes). Fais une sauvegarde complète chaque mois dans iCloud Drive.</span></div><button type="button" class="cell tap link" data-act="guideReset">Réafficher les cartes « Bien démarrer »</button>`),{save:''});
+  if(focus)setTimeout(()=>$('#gd-'+focus)?.scrollIntoView({block:'start'}),150)}
 /* ---------- vue de la semaine par jour et par heure (tâches, agenda, Carrière, séances) ---------- */
 const WK_H0=7,WK_H1=22,toMinS=t=>{const m=String(t||'').match(/^(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:null},minHM=m=>String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
 function weekBlocks(days,todoList,marks){const map=new Map(days.map(d=>[d,[]])),put=(d,o)=>{if(map.has(d))map.get(d).push(o)};
@@ -942,7 +1000,7 @@ function coachAct(act,id,el){const d=el.dataset.dom;
    case 'ccApplyNotes':{const c=chatOf(d),m=c[+el.dataset.i];if(!m||m.applied)break;const n=applyNotes(splitNotes(splitPlan(m.content).text).notes);if(!n){hud('Rien à appliquer');break}m.applied=true;saveChatOf(d);CC.dom=d;coachRepaint();haptic(12);hud(n+' note'+(n>1?'s':'')+' mise'+(n>1?'s':'')+' à jour');break}
    case 'ccNew':asheet('Effacer cette conversation ?',[{label:'Nouvelle conversation',act:'ccNewGo',data:{dom:d},danger:true}]);break;
    case 'ccNewGo':chats[d]=[];saveChatOf(d);CC.dom=d;coachRepaint();break;
-   case 'tdTab':case 'brTab':{const td=act==='tdTab',cur=td?tdCur():brCur(),v=el.dataset.v,a=$('#area');
+   case 'tdTab':case 'brTab':{const td=act==='tdTab',cur=td?tdCur():brCur(),v=el.dataset.v,a=$('#area');if(v==='week')gMark('tdCal');if(v==='map')gMark('brMap');
      if(cur===v&&!(!td&&S.note&&v==='list')){if(a.scrollTop>8)a.scrollTo({top:0,behavior:reduce()?'auto':'smooth'});else if(v==='list')showHome(true);break}
      haptic(6);if(td){S.tdCoach=v==='coach';if(v!=='coach')S.tdView=v;paintTodos()}else{S.brCoach=v==='coach';if(v!=='coach')S.brView=v;S.note=null;paintBrain()}
      a.scrollTop=v==='coach'?a.scrollHeight:0;break}
@@ -1195,6 +1253,11 @@ document.addEventListener('click',ev=>{
   if(/^(fiPaySetup|pay[A-Z])/.test(act)){payAct(act,el);return}
   if(/^(backupFull|hist[A-Z]|restoreGo|guard[A-Z])/.test(act)){histAct(act,el);return}
   if(act==='sleepAwake'||act==='sleepNow'){sleepAnswer(act==='sleepNow');return}
+  if(act==='guideHide'){const g=st().guide||(st().guide={hide:{},seen:{}});g.hide[el.dataset.v]=1;save();el.closest('.guide-card')?.remove();hud('Retrouve le guide dans Réglages › Guide de prise en main');return}
+  if(act==='guideOpen'){guidePage(el.dataset.v);return}
+  if(act==='guideReset'){st().guide={hide:{},seen:st().guide?.seen||{}};save();closeSheet(true);refreshAll();hud('Cartes « Bien démarrer » réaffichées');return}
+  if(act==='guideGo'){closeSheet(true);showHome(false);setTimeout(()=>openArea(el.dataset.v),300);return}
+  if(act==='guideTab'){setTab(el.dataset.v);return}
   if(act==='invOpen'){invOpen(id);return}
   if(act==='mapOpen'){if(el.dataset.src){/* dans une fiche : choix sous le champ, sans fermer la fiche */const inp=$(el.dataset.src),lab=el.closest('label'),nx=lab?.nextElementSibling;if(nx?.classList.contains('map-row')){nx.remove();return}
       const v=String(inp?.value||'').trim();if(!v){hud('Indique d’abord un lieu');return}lab.insertAdjacentHTML('afterend',`<div class="cell map-row">${MAPS.map(([k,l])=>`<button type="button" data-act="mapGo" data-k="${k}" data-v="${esc(v)}">${l}</button>`).join('')}</div>`);cmPrep(lab.nextElementSibling,v);return}
@@ -1432,7 +1495,7 @@ const repaintArea=()=>{const a=AREAS.find(x=>x.id===H.cur);if(a?.paint&&!$('#are
 function paintCareer(o={}){const v=$('#area'),tab=CTABS.find(x=>x[0]===S.car)||CTABS[0];
   if(tab[0]==='coach'){v.innerHTML=`<div class="a-in cc">${HOMEBTN}${coachPage('carriere',{tabs:1})}</div>${ctabsHTML(CTABS,'carTab',tab[0],'Carrière')}`;if(o.top)v.scrollTop=v.scrollHeight;return}
   const body={jobs:carJobs,contacts:carContacts,stats:carStats}[tab[0]]();
-  v.innerHTML=`<div class="a-in car">${HOMEBTN}<div class="a-head"><p class="l2">Carrière</p><h1>${tab[1]}</h1></div>${body}</div>
+  v.innerHTML=`<div class="a-in car">${HOMEBTN}<div class="a-head"><p class="l2">Carrière</p><h1>${tab[1]}</h1></div>${tab[0]==='jobs'?guideCard('carriere'):''}${body}</div>
   ${ctabsHTML(CTABS,'carTab',tab[0],'Carrière')}`;
   if(o.top)v.scrollTop=0}
 function carJobs(){const c=car(),t=TODAY();
@@ -1640,7 +1703,7 @@ function paintTodos(){const v=$('#area'),t=TODAY();
      ${late?`<button class="cell tap td-late" data-act="tdViewList">${late} ${T('tâche'+(late>1?'s':'')+' en retard : à replanifier','overdue task'+(late>1?'s':'')+': reschedule')}</button>`:''}
      ${(()=>{const ds=calDays();return calView(calItems(ds[0],ds[ds.length-1],'taches'),{where:'td',focus:1})})()}
      <p class="sec-f">${T('Donne une heure et une durée à tes tâches pour les voir en créneaux. Demande au coach (ou à Luck) « organise ma semaine » pour les placer.','Give tasks a time and duration to see them as slots. Ask the coach (or Luck) “organise my week” to place them.')}</p></div>${bar}`;return}
-  v.innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><h1>Tâches</h1></div>
+  v.innerHTML=`<div class="a-in">${HOMEBTN}<div class="a-head"><h1>Tâches</h1></div>${guideCard('taches')}
    <div class="kpis tilesrow"><div><span class="v">${cnt('late')}</span><span class="k">en retard</span></div><div><span class="v">${cnt('today')}</span><span class="k">aujourd’hui</span></div><div><span class="v">${cnt('tomorrow')+cnt('week')}</span><span class="k">7 jours</span></div><div><span class="v">${done.filter(x=>(x.doneAt||0)>=week).length+sum(todos().map(x=>(x.hist||[]).filter(h=>h>=week).length))}</span><span class="k">faites 7 j</span></div></div>
    ${sec('',addCell('Nouvelle tâche','tdNew'))}
    ${TBUCKETS.map(([k,l])=>{const xs=open.filter(x=>todoBucket(x,t)===k);return xs.length?sec(l,xs.map(cell).join('')):''}).join('')}
@@ -1736,7 +1799,7 @@ function readSheet(){const r=st().reading||{on:false,label:'Lecture',min:10};
 function brList(){const tag=S.brTag||'';
   const tags=[...new Set(notes().flatMap(n=>n.tags||[]))].sort((a,b)=>a.localeCompare(b,'fr'));
   return `<div class="a-head"><p class="l2">Deuxième cerveau</p><h1>Apprentissage</h1></div>
-   ${S.brView!=='map'?readCard():''}
+   ${S.brView!=='map'?guideCard('savoir')+readCard():''}
    ${S.brView==='map'?brGraph():`<div class="br-search"><input type="search" id="brq" placeholder="Rechercher dans tes notes" value="${esc(S.brQ||'')}" autocomplete="off" enterkeyhint="search"></div>
    ${tags.length?`<div class="foods br-tags"><button type="button" data-act="brTag" data-t="" class="${tag?'':'on'}">Toutes</button>${tags.map(t=>`<button type="button" data-act="brTag" data-t="${esc(t)}" class="${t===tag?'on':''}">#${esc(t)}</button>`).join('')}</div>`:''}
    ${sec('',addCell('Nouvelle note','brNew')+`<button class="cell tap link" data-act="brExport"><span class="plus">${I.up}</span><span>Exporter mes notes</span></button>`,'','notile')}
@@ -2023,7 +2086,7 @@ const upcoming=(from,to)=>fin().plans.flatMap(p=>planOcc(p,from,to).map(d=>({p,d
 function paintFinance(o={}){const v=$('#area'),tab=FTABS.find(x=>x[0]===S.fin)||FTABS[0];
   if(tab[0]==='coach'){v.innerHTML=`<div class="a-in cc">${HOMEBTN}${coachPage('finances',{tabs:1})}</div>${ctabsHTML(FTABS,'finTab',tab[0],'Finances')}`;if(o.top)v.scrollTop=v.scrollHeight;return}
   const body={budget:finBudget,plans:finPlans,save:finSave,inv:finInv}[tab[0]]();
-  v.innerHTML=`<div class="a-in fin">${HOMEBTN}<div class="a-head"><p class="l2">Finances</p><h1>${tab[1]}</h1></div>${body}</div>
+  v.innerHTML=`<div class="a-in fin">${HOMEBTN}<div class="a-head"><p class="l2">Finances</p><h1>${tab[1]}</h1></div>${tab[0]==='budget'?guideCard('finances'):''}${body}</div>
   <nav class="tabs ctabs" aria-label="Finances"><div class="in">${FTABS.map(([k,l,ic])=>`<button data-act="finTab" data-v="${k}" aria-label="${l}" title="${l}" aria-current="${k===tab[0]?'page':'false'}"><svg viewBox="0 0 24 24" aria-hidden="true">${ic}</svg></button>`).join('')}</div></nav>`;
   if(o.top)v.scrollTop=0}
 const fbars=(rows,max)=>{const mx=max||Math.max(...rows.map(r=>r[1]),1);return rows.map(([l,n,sub])=>`<div class="cell st-row"><span class="st-l">${esc(l)}</span><span class="st-bar"><i style="width:${Math.max(3,Math.min(100,n/mx*100))}%"></i></span><span class="st-v fin-v">${eur(n)}</span></div>`).join('')};
@@ -2266,11 +2329,11 @@ function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntri
   return {today:out.filter(o=>o.day===t).sort((a,b)=>rank(a).localeCompare(rank(b))),soon:out.filter(o=>o.day>t).sort((a,b)=>(a.day+(a.time||'99')).localeCompare(b.day+(b.time||'99')))}}
 function paintAgenda(){const el=$('#agenda');if(!el)return;
   const sw=`<div class="cal-sw">${[['list',T('Liste','List')],['cal',T('Calendrier','Calendar')]].map(([k,l])=>`<button type="button" data-act="homeView" data-v="${k}" aria-pressed="${(S.homeView==='cal')===(k==='cal')}">${l}</button>`).join('')}</div>`;
-  if(S.homeView==='cal'){const ds=calDays();el.innerHTML=sw+calView(calItems(ds[0],ds[ds.length-1]),{where:'home'});return}
+  if(S.homeView==='cal'){const ds=calDays();el.innerHTML=guideCard('home')+sw+calView(calItems(ds[0],ds[ds.length-1]),{where:'home'});return}
   const {today,soon}=agendaItems(),t=TODAY();
   const row=o=>`<div class="cell ag" style="--c:${o.c};--pc:${o.todo?PRIO_C[o.todo.prio]||PRIO_C.moyenne:o.c}">${o.todo?`<button type="button" class="td-check" data-act="tdToggle" data-id="${o.id}" aria-label="Marquer comme faite"></button>`:'<span class="ag-dot"></span>'}
     <button type="button" class="ag-body" data-act="${o.act}" ${o.id?`data-id="${o.id}"`:''}><span class="ag-t${o.todo||o.user?' no-tr':''}">${o.title}</span><span class="fn">${[o.time?esc(o.time):null,o.meta||null].filter(Boolean).join(' · ')}</span></button>${o.late?'<span class="pill late">En retard</span>':''}</div>`;
-  el.innerHTML=sw+`<section class="sec"><div class="sec-h">Aujourd’hui${today.length?` · ${today.length}`:''}</div><div class="group">${today.length?today.map(row).join(''):`<div class="cell"><span class="body fn">Rien de prévu aujourd’hui. Profite !</span></div>`}</div></section>
+  el.innerHTML=guideCard('home')+sw+`<section class="sec"><div class="sec-h">Aujourd’hui${today.length?` · ${today.length}`:''}</div><div class="group">${today.length?today.map(row).join(''):`<div class="cell"><span class="body fn">Rien de prévu aujourd’hui. Profite !</span></div>`}</div></section>
    ${[...new Set(soon.map(o=>o.day))].map(d=>{const xs=soon.filter(o=>o.day===d);return `<section class="sec"><div class="sec-h">${esc(whenDay(d))} · ${xs.length}</div><div class="group">${xs.map(row).join('')}</div></section>`}).join('')}`}
 /* ================= accueil : cercles des aspects de vie ================= */
 const AREAS=[
@@ -2480,7 +2543,8 @@ function paintWelcome(dir){const g=$('#gate'),{step,d}=S.ob;g.hidden=false;g.dat
      <div class="ob-tour">
       <div><span class="ob-n">1</span><span><b>L’accueil</b>Ce que tu as à faire aujourd’hui et les jours suivants, toutes sections confondues.</span></div>
       <div><span class="ob-n">2</span><span><b>Luck, ton coach</b>Il voit tout, anticipe et peut réorganiser tes tâches. Chaque section a aussi son coach spécialisé.</span></div>
-      <div><span class="ob-n">3</span><span><b>La barre du bas</b>Tes sections. Le rond à ton initiale, en haut à droite, ouvre tes réglages.</span></div></div>${nav('C’est parti')}`][step];
+      <div><span class="ob-n">3</span><span><b>La barre du bas</b>Tes sections. Le rond à ton initiale, en haut à droite, ouvre tes réglages.</span></div>
+      <div><span class="ob-n">4</span><span><b>Bien démarrer</b>Chaque section a une petite liste d’étapes qui se cochent toutes seules. Le guide complet est dans Réglages › Guide de prise en main.</span></div></div>${nav('C’est parti')}`][step];
   g.innerHTML=`<div class="g-in ob ${dir?'ob-'+dir:''}">${dots}${body()}</div>`;g.scrollTop=0}
 function obCollect(){const d=S.ob.d,v=id=>$('#'+id)?.value;
   if(S.ob.step===1){d.name=(v('ob_name')||'').trim();d.last=(v('ob_last')||'').trim();d.sex=v('ob_sex')||'';d.birth=v('ob_birth')||''}

@@ -701,3 +701,15 @@ a.cell{text-decoration:none}
 .cal-chip.allday{background:color-mix(in srgb,var(--c) 32%,transparent);font-weight:600}
 .nt-prev{margin:8px 0 4px;padding:10px 12px;border-radius:12px;background:var(--fill);font-size:14px;max-height:260px;overflow:auto}
 .plan details summary{cursor:pointer}
+/* Guide : carte « Bien démarrer » */
+.guide-card{margin:6px 0 14px;padding:12px 14px;border-radius:20px;background:var(--glass,var(--card));border:1px solid var(--glass-line,transparent);box-shadow:var(--glass-shadow,none);-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%)}
+.gc-h{display:flex;align-items:center;gap:8px}.gc-h b{flex:1;font:700 16px var(--display)}
+.gc-x{border:0;background:var(--fill);width:26px;height:26px;border-radius:50%;color:var(--label2);font-size:12px}
+.gc-bar{height:5px;border-radius:3px;background:var(--fill);margin:8px 0 6px;overflow:hidden}.gc-bar i{display:block;height:100%;background:var(--gc);border-radius:3px}
+.gc-step{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:8px 0;text-align:left;font:15px/1.3 var(--font);color:var(--label)}
+.gc-step.done{color:var(--label2);text-decoration:line-through}
+.gc-c{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--gc,var(--tint));display:grid;place-items:center;font:700 12px var(--font);color:#fff}
+.gc-step.done .gc-c,.gc-c.on{background:var(--gc,var(--tint))}
+.gc-row .gc-c{color:var(--gc,var(--tint))}.gc-row .gc-c.on{color:#fff}
+.gc-more{border:0;background:none;color:var(--gc,var(--tint));font:600 14px var(--font);padding:6px 0 0}
+.gd-tips{margin:6px 0 0;padding-left:18px}.gd-tips li{margin:3px 0}
