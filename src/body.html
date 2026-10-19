@@ -2592,21 +2592,25 @@ function mapGo(k,addr,c){const m=MAPS.find(x=>x[0]===k);if(!m)return;if(k==='cit
 /* ---------- « Tu dors ? » : réponse depuis la notification, et calcul du sommeil au réveil (table sleep_probe) ---------- */
 const nightOf=()=>{const d=new Date();return d.getHours()<12?addDays(TODAY(),-1):TODAY()};
 async function sleepRow(){if(!sb||!A.user)return null;try{const r=await sb.from('sleep_probe').select('*').eq('user_id',A.user.id).maybeSingle();return r.data||null}catch(e){return null}}
+/* toucher la notification « Tu dors ? » = « je suis encore debout » : enregistré tout de suite, puis confirmation (après l'animation d'ouverture) */
+async function sleepTapped(){let k=0;while(!A.user&&k++<20)await new Promise(r=>setTimeout(r,500));if(!A.user)return;
+  const ok=await sleepAnswer(false,true);const show=()=>{if($('#splash'))return setTimeout(show,400);
+    asheet(ok?'Noté : tu es encore debout. Je te redemande dans 30 min.':'Je n’ai pas pu enregistrer ta réponse (pas de réseau ?). Réessaie :',[...(ok?[]:[{label:'Je suis encore debout',act:'sleepAwake'}]),{label:'Je vais dormir maintenant',act:'sleepNow'}])};show()}
 function sleepAsk(){if(!A.user){hud('Connecte-toi pour utiliser « Tu dors ? »');return}
   asheet('Tu dors ?',[{label:'Non, je suis encore debout',act:'sleepAwake'},{label:'Je vais dormir maintenant',act:'sleepNow'}])}
-async function sleepAnswer(asleep){const r=await sleepRow(),night=nightOf(),now=new Date().toISOString();
+async function sleepAnswer(asleep,quiet){let r;try{r=await sleepRow()}catch(e){r=null}const night=nightOf(),now=new Date().toISOString();
   const row=r&&r.night===night?r:{user_id:A.user.id,night,last_probe:null,last_answer:null,asleep_at:null};
-  const {error}=await sb.from('sleep_probe').upsert(asleep?{...row,asleep_at:now}:{...row,last_answer:now,asleep_at:null});
-  if(error){hud(/relation|does not exist|schema cache/i.test(error.message)?'Colle supabase/sleep.sql dans Supabase':'Erreur : '+error.message);return}
-  hud(asleep?'Bonne nuit 🌙 Ta durée de sommeil sera calculée au réveil':'Noté : je te redemande dans 30 min')}
+  let error=null;try{({error}=await sb.from('sleep_probe').upsert(asleep?{...row,asleep_at:now}:{...row,last_answer:now,asleep_at:null}))}catch(e){error={message:'Pas de réseau'}}
+  if(error){if(!quiet)hud(/relation|does not exist|schema cache/i.test(error.message)?'Colle supabase/sleep.sql dans Supabase':'Erreur : '+error.message);return false}
+  if(!quiet)hud(asleep?'Bonne nuit 🌙 Ta durée de sommeil sera calculée au réveil':'Noté : je te redemande dans 30 min');return true}
 /* au réveil : durée = maintenant − heure d'endormissement de la nuit passée */
 async function sleepFill(d){if(d!==TODAY()||!notif().sleep)return;const r=await sleepRow();if(!r?.asleep_at||r.night!==addDays(TODAY(),-1))return;
   const a=new Date(r.asleep_at),h=Math.round((Date.now()-a)/36e5*4)/4,inp=$('#sleepH'),bed=a.toLocaleTimeString(LOC,{hour:'2-digit',minute:'2-digit'});
   if(!inp||h<=0||h>16)return;if(!inp.value)inp.value=String(h).replace('.',',');const hb=$('#sleepbed');if(hb)hb.value=bed;
   const n=$('#sleepnote');if(n)n.textContent=`Endormi vers ${bed} (sans réponse à « Tu dors ? »), réveillé maintenant : ${String(h).replace('.',',')} h. Corrige si besoin.`}
-navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type!=='notif')return;const u=e.data.url||'';if(/sleep=1/.test(u))setTimeout(sleepAsk,300);const m=u.match(/invite=([^&]+)/);if(m)invPull().then(()=>invOpen(decodeURIComponent(m[1])))});
+navigator.serviceWorker?.addEventListener('message',e=>{if(e.data?.type!=='notif')return;const u=e.data.url||'';if(/sleep=1/.test(u))sleepTapped();const m=u.match(/invite=([^&]+)/);if(m)invPull().then(()=>invOpen(decodeURIComponent(m[1])))});
 {const m=location.search.match(/[?&]invite=([^&]+)/);if(m){try{history.replaceState(null,'',location.pathname)}catch(e){}const id=decodeURIComponent(m[1]);let k=0;const go=()=>(A.invIn||[]).some(r=>r.id===id)?invOpen(id):++k<15&&setTimeout(go,800);setTimeout(go,1500)}}
-if(/[?&]sleep=1/.test(location.search)){try{history.replaceState(null,'',location.pathname)}catch(e){}const go=()=>A.user?sleepAsk():setTimeout(go,800);setTimeout(go,1500)}
+if(/[?&]sleep=1/.test(location.search)){try{history.replaceState(null,'',location.pathname)}catch(e){}sleepTapped()}
 /* ---------- partage de l'agenda avec des amis du groupe (table agenda_share) ----------
    niveau « busy » : on n'envoie que les heures (aucun titre) ; « full » : heures et titres. 14 jours, renvoyé à chaque synchro si ça a changé. */
 const AGL=[['','Non'],['busy','Occupé'],['full','Tout']];
