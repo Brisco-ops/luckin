@@ -1248,7 +1248,7 @@ function vToday(){
   else if(wo.length)rows.push(`<button class="cell tap" data-act="goWorkout">${ico('dumb','#0A84FF')}<span class="body"><span>Séance</span><span class="fn">${wo.map(w=>esc(w.name)+(w.duration?' · '+w.duration+' min':'')).join(' + ')}</span></span>${state(true)}</button>`);
   else if(isTrainingDay(t))rows.push(`<button class="cell tap" data-act="goWorkout">${ico('dumb','#0A84FF')}<span class="body"><span>Séance du jour</span><span class="fn">${tpl?'Prochaine : '+esc(tpl.name):'Jour d’entraînement'}</span></span>${state(false)}</button>`);
   rows.push(`<button class="cell tap" data-act="evening">${ico('moon','#5856D6')}<span class="body"><span>Soir</span><span class="fn">${eveningDone(t)?[e.water!=null?fmt(e.water)+' L':null,e.steps!=null?fmt(e.steps,0)+' pas':null,e.energy?'énergie '+e.energy+'/5':null].filter(Boolean).join(' · '):'Ballonnements, eau, pas, ressentis · 1 min'}</span></span>${stateP(eveningFull(t),!!e)}</button>`);
-  {const c=catchUps();if(c.length)rows.push(`<button class="cell tap" data-act="catchUp">${ico('spark','#8E8E93')}<span class="body"><span>Rattraper ${c.some(x=>x.d===addDays(t,-1))?'hier':'avant-hier'}</span><span class="fn">${c.map(x=>x.label.toLowerCase()).filter((v,i,a)=>a.indexOf(v)===i).join(', ')} à compléter</span></span>${I.chev}</button>`)}
+  {const c=catchUps();if(!c.length)rows.push(`<button class="cell tap" data-act="catchUp">${ico('spark','#8E8E93')}<span class="body"><span>Ajouter pour un jour passé</span><span class="fn">Un repas, une séance, un réveil ou un soir oublié</span></span>${I.chev}</button>`);if(c.length)rows.push(`<button class="cell tap" data-act="catchUp">${ico('spark','#8E8E93')}<span class="body"><span>Rattraper ${c.some(x=>x.d===addDays(t,-1))?'hier':'avant-hier'}</span><span class="fn">${c.map(x=>x.label.toLowerCase()).filter((v,i,a)=>a.indexOf(v)===i).join(', ')} à compléter</span></span>${I.chev}</button>`)}
   const sun=dow(t)===6;const wk=db.weekly[t];
   if(sun)rows.push(`<button class="cell tap" data-act="weekly">${ico('ruler','#30B0C7')}<span class="body"><span>Bilan du dimanche</span><span class="fn">${wk?.done?`Taille ${fmt(wk.waist)} cm${wk.belt!=null?' · cran '+fmt(wk.belt,0):''}`:'Mensurations et bilan de la semaine'}</span></span>${stateP(weeklyFull(t),!!wk)}</button>`);
   const done=[morningDone(t),eveningDone(t)].filter(Boolean).length;
@@ -1264,7 +1264,7 @@ function vToday(){
 function mealCell(m){const k=mealKcal(m),p=mealProt(m);const src=SOURCES.find(x=>x[0]===m.source);
   return `<button class="cell tap" data-act="editMeal" data-id="${m.id}"><span class="body"><span>${esc((MEALTYPES.find(x=>x[0]===m.type)||[])[1]||'Repas')} <span class="l2" style="font-size:15px">${esc(m.time||'')}</span></span><span class="fn clamp2">${esc(m.foods||'—')}${m.sugar?' · <span style="color:var(--orange)">sucre ajouté</span>':''}</span></span>
   <span style="display:flex;flex-direction:column;align-items:flex-end;gap:3px"><span class="pill ${m.source==='maison'?'ok':'late'}">${src?src[1]:'?'}</span><span class="fn num">${k!=null?fmt(k,0)+' kcal':''}${p!=null?' · '+fmt(p,0)+' g':''}</span></span>${I.chev}</button>`}
-function workoutVisible(){const t=TODAY();return isTrainingDay(t)||!!db.active||workoutsOn(t).length>0}
+function workoutVisible(){const t=TODAY();return isTrainingDay(t)||!!db.active||workoutsOn(t).length>0||!!S.woAny}
 /* séances prévues des prochains jours : programme suivant dans la rotation, heure habituelle, durée moyenne */
 function sessionsAhead(from,to){const out=[],done=db.workouts.filter(w=>w.end&&w.duration>0).slice(-6),avg=done.length?Math.round(sum(done.map(w=>w.duration))/done.length):60;
   let i=db.templates.length?Math.max(0,db.templates.indexOf(nextTemplate())):-1;
@@ -1942,20 +1942,29 @@ function coachAct(act,id,el){const d=el.dataset.dom;
 document.addEventListener('input',e=>{if(e.target.id!=='ccin')return;const t=e.target;t.style.height='auto';t.style.height=Math.min(140,t.scrollHeight)+'px'});
 /* ================= timer ================= */
 let actx=null;
-function unlockAudio(){try{if(!actx){const A=window.AudioContext||window.webkitAudioContext;if(A)actx=new A()}if(actx&&actx.state==='suspended')actx.resume()}catch(e){}}
-function beep(){if(!st().sound||!actx)return;try{[0,.28,.56].forEach((o,k)=>{const os=actx.createOscillator(),g=actx.createGain();os.frequency.value=k===2?1320:880;os.connect(g);g.connect(actx.destination);const t0=actx.currentTime+o;g.gain.setValueAtTime(.0001,t0);g.gain.exponentialRampToValueAtTime(.35,t0+.02);g.gain.exponentialRampToValueAtTime(.0001,t0+.22);os.start(t0);os.stop(t0+.24)})}catch(e){}}
+function unlockAudio(){try{if(navigator.audioSession&&navigator.audioSession.type!=='transient')navigator.audioSession.type='transient';}catch(e){}
+  try{if(!actx){const A=window.AudioContext||window.webkitAudioContext;if(A)actx=new A()}if(actx&&actx.state!=='running')actx.resume()}catch(e){}}
+/* sons de fin de repos programmés à l'avance dans le moteur audio : ils partent même si l'écran affiché n'est pas la séance */
+let SCHED={end:0,nodes:[]};
+function tones(at){const out=[];[0,.28,.56].forEach((o,k)=>{const os=actx.createOscillator(),g=actx.createGain();os.frequency.value=k===2?1320:880;os.connect(g);g.connect(actx.destination);const t0=at+o;g.gain.setValueAtTime(.0001,t0);g.gain.exponentialRampToValueAtTime(.35,t0+.02);g.gain.exponentialRampToValueAtTime(.0001,t0+.22);os.start(t0);os.stop(t0+.24);out.push(os)});return out}
+function schedCancel(){SCHED.nodes.forEach(n=>{try{n.stop()}catch(e){}});SCHED={end:0,nodes:[]}}
+function schedBeep(T){schedCancel();if(!T||!st().sound)return;unlockAudio();if(!actx)return;const go=T.kind==='work'?T.end:T.end,d=(go-Date.now())/1000;if(d<=0.2)return;
+  const arm=()=>{try{SCHED={end:go,nodes:tones(actx.currentTime+d-(Date.now()-t0)/1000)}}catch(e){}},t0=Date.now();if(actx.state==='running')arm();else actx.resume().then(arm).catch(()=>{})}
+function beep(){if(!st().sound)return;unlockAudio();if(!actx)return;const play=()=>{try{tones(actx.currentTime+.02)}catch(e){}};if(actx.state==='running')play();else actx.resume().then(play).catch(()=>{})}
 const haptic=(p=10)=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
-function startTimer(secs,label,extra={}){if(!db.active)return;db.active.timer=Object.assign({kind:'rest',end:Date.now()+secs*1000,total:secs,label,fired:false},extra);save();paintTimer()}
+function startTimer(secs,label,extra={}){if(!db.active)return;db.active.timer=Object.assign({kind:'rest',end:Date.now()+secs*1000,total:secs,label,fired:false},extra);schedBeep(db.active.timer);save();paintTimer()}
 function shortBeep(f=660){if(!st().sound||!actx)return;try{const os=actx.createOscillator(),g=actx.createGain();os.frequency.value=f;os.connect(g);g.connect(actx.destination);const t0=actx.currentTime;g.gain.setValueAtTime(.0001,t0);g.gain.exponentialRampToValueAtTime(.3,t0+.02);g.gain.exponentialRampToValueAtTime(.0001,t0+.15);os.start(t0);os.stop(t0+.17)}catch(e){}}
 function paintTimer(){
   const el=$('#timer');const T=db.active?.timer;
-  if(!T||S.tab!=='workout'&&S.tab!=='today'){el.hidden=true;el.dataset.mode='';return}
-  el.hidden=false;el.style.bottom=tabsGap()+'px';
+  if(!T){el.hidden=true;el.dataset.mode='';return}
+  const shown=(S.tab==='workout'||S.tab==='today')&&$('#area').hidden&&$('#home').hidden;
   const now=Date.now();const work=T.kind==='work';const prep=work&&now<T.go;
   const rem=prep?(T.go-now)/1000:(T.end-now)/1000;const over=!prep&&rem<=0;
   if(work){const sec=Math.ceil(rem);if(prep&&T.lastTick!==sec){T.lastTick=sec;shortBeep(520)}if(!prep&&!T.started){T.started=true;shortBeep(990);haptic(30)}}
-  if(over&&!T.fired){T.fired=true;beep();haptic([200,100,200]);
+  if(over&&!T.fired){T.fired=true;if(!(SCHED.end===T.end&&actx?.state==='running'))beep();SCHED={end:0,nodes:[]};haptic([200,100,200]);
     if(work){logSet(T.i,{load:T.load,secs:T.total,t:now});return}save()}
+  if(!shown){el.hidden=true;el.dataset.mode='';return}
+  el.hidden=false;el.style.bottom=tabsGap()+'px';
   const mode=(prep?'prep':over?'end':'run')+'|'+T.kind+'|'+(T.label||'');
   if(el.dataset.mode!==mode){el.dataset.mode=mode;el.classList.toggle('end',over);el.classList.toggle('work',work&&!prep);
     const title=work?(prep?'Prépare-toi':'Effort · tiens bon'):(over?'Repos terminé':'Repos');
@@ -1980,7 +1989,7 @@ function paintReading(){const el=$('#reader');const R=db.reading;if(!el)return;
 setInterval(()=>{paintReading();if(db.active){paintTimer();const el=$('#elapsed');const w=db.workouts.find(x=>x.id===db.active.id);if(el&&w)el.textContent=mmss((Date.now()-w.start)/1000)}},500);
 let wakeLock=null;
 async function keepAwake(){try{if(db.active&&document.visibilityState==='visible'&&'wakeLock' in navigator&&!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null})}}catch(e){wakeLock=null}}
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){keepAwake();paintTimer()}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){keepAwake();unlockAudio();paintTimer();const T=db.active?.timer;if(T&&!T.fired)schedBeep(T)}});
 
 /* ================= render ================= */
 const tabsGap=()=>Math.max(0,Math.round(innerHeight-$('.tabs').getBoundingClientRect().top+8));
@@ -2013,8 +2022,9 @@ function asheet(caption,items){
 function closeSheet(now){setTimeout(()=>{const y=window.scrollY;window.scrollTo(window.scrollX,y+1);window.scrollTo(window.scrollX,y)},260);const s=$('#layer .scrim');if(!s)return;if(now||matchMedia('(prefers-reduced-motion: reduce)').matches){$('#layer').innerHTML='';return}s.classList.add('out');setTimeout(()=>{if($('#layer .scrim.out'))$('#layer').innerHTML=''},220)}
 
 function catchUps(){const out=[];for(const k of [1,2]){const d=addDays(TODAY(),-k);if(!morningDone(d))out.push({d,what:'morning',label:'Réveil'});if(!eveningDone(d))out.push({d,what:'evening',label:'Soir'})}return out}
-function catchUpMenu(){const c=catchUps();if(!c.length){hud('Rien à rattraper');return}
-  asheet('Compléter un jour passé (hier ou avant-hier) : il comptera dans tes séries.',c.map(x=>({label:`${x.label} · ${x.d===addDays(TODAY(),-1)?'hier':fday(x.d)}`,act:x.what==='morning'?'pastMorning':'pastEvening',data:{d:x.d}})))}
+function catchUpMenu(){const c=catchUps(),y=addDays(TODAY(),-1),y2=addDays(TODAY(),-2);
+  asheet('Compléter un jour passé : il comptera dans tes séries.',[...c.map(x=>({label:`${x.label} · ${x.d===y?'hier':fday(x.d)}`,act:x.what==='morning'?'pastMorning':'pastEvening',data:{d:x.d}})),
+    {label:'Repas · hier',act:'pastMeal',data:{d:y}},{label:'Repas · '+fday(y2),act:'pastMeal',data:{d:y2}},{label:'Séance faite un autre jour',act:'pastWorkout'}])}
 const dayTitle=(l,d)=>d===TODAY()?l:l+' · '+(d===addDays(TODAY(),-1)?'hier':fday(d));
 function morningSheet(d=TODAY()){const m=peekDay(d).morning||{};const s=st(),past=d!==TODAY();
   sheet(dayTitle('Réveil',d),`<form id="sf" data-form="morning" data-d="${d}">
@@ -2024,12 +2034,12 @@ function morningSheet(d=TODAY()){const m=peekDay(d).morning||{};const s=st(),pas
    ${s.bloatTrack?sec('Ventre au réveil',`<div class="cell block"><span>Ventre gonflé (visible)</span>${scale('belly',0,3,m.belly??0)}</div>`,'0 = plat, 3 = très gonflé. À comparer avec le soir : un ventre plat le matin et gonflé le soir n’a pas la même cause qu’un ventre gonflé dès le réveil.'):''}
    ${sec('Notes du réveil',`<div class="cell"><textarea name="note" rows="4" placeholder="Rêves, humeur, idées, intentions pour la journée…">${esc(m.note||'')}</textarea></div>`)}
   </form>`);if(!m.sleepH)sleepFill(d)}
-function mealSheet(m){const isNew=!m;const s=st();S.mealImg=null;m=m||{type:defaultMealType(),foods:'',source:'maison',speed:'pose',time:nowHM()};
+function mealSheet(m,d=TODAY()){const isNew=!m;const s=st();S.mealImg=null;m=m||{type:defaultMealType(),foods:'',source:'maison',speed:'pose',time:d===TODAY()?nowHM():''};
   const recent=db.foods.slice(0,14);
   const hands=m.hands||{p:0,c:0,f:0,v:0};
   const hand=(k,l,h)=>`<div class="cell"><span class="body"><span>${l}</span><span class="fn">${h}</span></span><div class="stepper"><button type="button" data-hstep="${k}" data-d="-0.5" aria-label="Moins">−</button><output id="h-${k}">${fmt(hands[k]||0)}</output><button type="button" data-hstep="${k}" data-d="0.5" aria-label="Plus">+</button></div><input type="hidden" id="hi-${k}" name="h_${k}" value="${hands[k]||0}"></div>`;
-  sheet(isNew?'Nouveau repas':'Modifier le repas',`<form id="sf" data-form="meal" data-id="${m.id||''}">
-   ${sec('',`<div class="cell">${seg('type',MEALTYPES,m.type)}</div><label class="cell field" for="mtime"><span>Heure</span><input id="mtime" name="time" type="time" value="${m.time||''}"></label>`)}
+  sheet(dayTitle(isNew?'Nouveau repas':'Modifier le repas',d),`<form id="sf" data-form="meal" data-id="${m.id||''}" data-d="${d}">
+   ${sec('',`<div class="cell">${seg('type',MEALTYPES,m.type)}</div><label class="cell field" for="mday"><span>Jour</span><input id="mday" name="mday" type="date" value="${d}" max="${TODAY()}"></label><label class="cell field" for="mtime"><span>Heure</span><input id="mtime" name="time" type="time" value="${m.time||''}"></label>`)}
    ${sec('Photo du repas',`<div class="cell mp-row"><label class="mp-btn">Analyser une photo<input type="file" accept="image/*" capture="environment" data-change="mealPhoto" hidden></label><button type="button" class="mp-again" data-act="mealPhotoAgain" hidden>Recalculer</button></div>
      <label class="cell field" for="mph"><span>Poids, précision</span><input id="mph" placeholder="350 g, riz complet…" autocomplete="off"></label>
      <div class="cell mp-res" id="mpres" hidden></div><input type="hidden" name="ai_kcal" id="aik"><input type="hidden" name="ai_prot" id="aip">`,'L’app estime aliments, calories et protéines (≈ 1 centime par photo, avec ta clé Anthropic). La photo n’est pas gardée. Indique le poids pour plus de précision.')}
@@ -2202,6 +2212,8 @@ document.addEventListener('click',ev=>{
    case 'catchUp':catchUpMenu();break;
    case 'pastMorning':morningSheet(el.dataset.d);break;
    case 'pastEvening':eveningSheet(el.dataset.d);break;
+   case 'pastMeal':mealSheet(null,el.dataset.d);break;
+   case 'pastWorkout':S.woAny=true;S.tab='workout';try{localStorage.setItem(K+':tab','workout')}catch(e){}render({top:true});hud('Lance la séance et valide tes séries : en la terminant, tu choisis le jour et la durée');break;
    case 'mealPhotoAgain':mealAnalyze();break;
    case 'stepsImport':importSteps();break;
    case 'gcalSetup':gcalSheet();break;
@@ -2227,18 +2239,18 @@ document.addEventListener('click',ev=>{
    case 'startWorkout':if(db.active){hud('Une séance est déjà en cours');setTab('workout');break}startWorkout(id);break;
    case 'openEx':{const i=+el.dataset.i;const w=db.workouts.find(x=>x.id===db.active.id);const cur=S.openEx??w.exercises.findIndex(e=>e.logged.length<e.sets);S.openEx=cur===i?-1:i;render();break}
    case 'restNow':{const w=db.workouts.find(x=>x.id===db.active.id);const e=w.exercises[+el.dataset.i];startTimer(e.rest,e.name);break}
-   case 'timerAdd':{const T=db.active?.timer;if(T){T.end+= +el.dataset.d*1000;T.total=Math.max(T.total+ +el.dataset.d,1);if(T.end<=Date.now())T.end=Date.now();T.fired=false;save();paintTimer()}break}
+   case 'timerAdd':{const T=db.active?.timer;if(T){T.end+= +el.dataset.d*1000;T.total=Math.max(T.total+ +el.dataset.d,1);if(T.end<=Date.now())T.end=Date.now();T.fired=false;schedBeep(T);save();paintTimer()}break}
    case 'workStart':{const i=+el.dataset.i;const f=el.closest('form');const secs=Math.max(5,Math.round(num(f.querySelector('[name=secs]').value)||timedSecs(db.workouts.find(x=>x.id===db.active.id).exercises[i])||30));
      unlockAudio();const w=db.workouts.find(x=>x.id===db.active.id);startTimer(secs,w.exercises[i].name+' · '+secs+' s',{kind:'work',go:Date.now()+3000,end:Date.now()+3000+secs*1000,i,load:num(f.querySelector('[name=load]').value)});break}
    case 'workDone':{const T=db.active?.timer;if(T&&T.kind==='work'){const held=Math.max(0,Math.round((Date.now()-T.go)/1000));if(held>0){T.fired=true;logSet(T.i,{load:T.load,secs:Math.min(held,T.total),t:Date.now()})}else{db.active.timer=null;save();paintTimer()}}break}
-   case 'workCancel':if(db.active){db.active.timer=null;save();paintTimer()}break;
-   case 'timerClose':if(db.active){db.active.timer=null;save();paintTimer();render()}break;
+   case 'workCancel':if(db.active){schedCancel();db.active.timer=null;save();paintTimer()}break;
+   case 'timerClose':if(db.active){schedCancel();db.active.timer=null;save();paintTimer();render()}break;
    case 'techNote':{const w=db.workouts.find(x=>x.id===db.active.id);const i=+el.dataset.i;sheet('Note technique',`<form id="sf" data-form="tech" data-i="${i}">${sec(esc(w.exercises[i].name),`<div class="cell"><textarea name="t" rows="3" placeholder="Ex. coudes plus serrés, descente contrôlée">${esc(w.exercises[i].tech||'')}</textarea></div>`)}</form>`);break}
    case 'setMenu':asheet('Série '+(+el.dataset.k+1),[{label:'Supprimer cette série',act:'delSet',data:{i:el.dataset.i,k:el.dataset.k},danger:true}]);break;
    case 'delSet':{const w=db.workouts.find(x=>x.id===db.active.id);w.exercises[+el.dataset.i].logged.splice(+el.dataset.k,1);save();render();break}
    case 'addEx':addExSheet();break;
    case 'finishWorkout':{const w=db.workouts.find(x=>x.id===db.active.id);const n=sum(w.exercises.map(e=>e.logged.length));
-     sheet('Terminer la séance',`<form id="sf" data-form="finish">${sec('',`<div class="cell"><span class="body">Durée</span><span class="acc num">${Math.round((Date.now()-w.start)/60000)} min</span></div><div class="cell"><span class="body">Séries validées</span><span class="acc num">${n}</span></div>`)}
+     sheet('Terminer la séance',`<form id="sf" data-form="finish">${sec('',`<label class="cell field" for="wday"><span>Jour de la séance</span><input id="wday" name="wday" type="date" value="${w.date}" max="${TODAY()}"></label>${fieldNum('wdur','Durée',Math.max(1,Math.round((Date.now()-w.start)/60000)),'min')}`,'Séance oubliée ? Choisis le jour où tu l’as faite et sa vraie durée.')}${sec('',`<div class="cell"><span class="body">Séries validées</span><span class="acc num">${n}</span></div>`)}
        ${sec('',`<div class="cell block"><span>Ressenti global</span>${scale('feel',1,5,3)}</div><div class="cell"><textarea name="note" rows="2" placeholder="Note (facultatif)"></textarea></div>`)}</form>`,{save:'Terminer'});break}
    case 'askCancelWorkout':asheet('Abandonner la séance ? Les séries saisies seront supprimées.',[{label:'Abandonner la séance',act:'cancelWorkout',danger:true}]);break;
    case 'cancelWorkout':db.workouts=db.workouts.filter(w=>w.id!==db.active.id);db.active=null;save();try{wakeLock?.release()}catch(e){}render({top:true});break;
@@ -2324,11 +2336,11 @@ document.addEventListener('submit',ev=>{
      Object.assign(x,{name,dose:String(v.dose||'').trim(),when:v.when||'repas',meals:fd.getAll('meals'),daily:!!v.daily,season:v.season||'all',tip:String(v.tip||'').trim()});if(x.when==='repas'&&!x.meals.length)x.meals=ALLM.slice();
      if(isNew)st().supps=true;save();closeSheet();render();hud(isNew?'Complément ajouté':'Complément enregistré');break}
    case 'morning':{const dd=f.dataset.d||t,D=day(dd);D.morning=Object.assign(D.morning||{},{weight:num(v.weight),fat:num(v.fat),muscle:num(v.muscle),visceral:num(v.visceral),time:v.time||nowHM(),sleepH:num(v.sleepH),sleepQ:v.sleepQ?+v.sleepQ:null,note:String(v.note||'').trim(),...(v.bed?{bed:v.bed}:{}),...(v.belly!=null?{belly:+v.belly}:{})},f.querySelector('#mbi')?{bible:!!v.bible}:{});save();closeSheet();render();haptic();hud(dd===t?'Réveil enregistré':'Réveil rattrapé');break}
-   case 'meal':{const D=day(t);const o={type:v.type,time:v.time,foods:(v.foods||'').trim(),source:v.source,speed:v.speed,comment:(v.comment||'').trim(),supps:fd.getAll('msupp'),sugar:!!v.sugar};
+   case 'meal':{const src=f.dataset.d||t,dd=v.mday&&v.mday<=t?v.mday:src,D=day(dd);const o={type:v.type,time:v.time,foods:(v.foods||'').trim(),source:v.source,speed:v.speed,comment:(v.comment||'').trim(),supps:fd.getAll('msupp'),sugar:!!v.sugar};
      if(st().countMode==='mains'){o.hands={p:num(v.h_p)||0,c:num(v.h_c)||0,f:num(v.h_f)||0,v:num(v.h_v)||0};o.kcal=num(v.ai_kcal);o.prot=num(v.ai_prot)}else{o.kcal=num(v.kcal);o.prot=num(v.prot)}
-     if(f.dataset.id)Object.assign(D.meals.find(m=>m.id===f.dataset.id),o);else D.meals.push(Object.assign({id:uid()},o));
+     if(f.dataset.id){const S0=day(src),old=S0.meals.find(m=>m.id===f.dataset.id);if(old&&src!==dd){S0.meals=S0.meals.filter(m=>m!==old);D.meals.push(Object.assign(old,o))}else if(old)Object.assign(old,o);else D.meals.push(Object.assign({id:f.dataset.id},o))}else D.meals.push(Object.assign({id:uid()},o));
      o.foods.split(/[,;]+/).map(x=>x.trim().toLowerCase()).filter(x=>x&&x.length<30).reverse().forEach(x=>{db.foods=[x,...db.foods.filter(y=>y!==x)]});db.foods=db.foods.slice(0,30);
-     D.meals.sort((a,b)=>(a.time||'').localeCompare(b.time||''));save();closeSheet();render();haptic();hud('Repas enregistré');break}
+     D.meals.sort((a,b)=>(a.time||'').localeCompare(b.time||''));save();closeSheet();render();haptic();hud(dd===t?'Repas enregistré':'Repas ajouté à '+(dd===addDays(t,-1)?'hier':fday(dd)));break}
    case 'evening':{const dd=f.dataset.d||t,D=day(dd);
      D.meals.forEach(m=>{const sc=+(v['b_'+m.id]||0),gd=+(v['g_'+m.id]||0);if(!f.querySelector('[name="b_'+m.id+'"]'))return;m.bloat=sc||gd?{score:sc,dist:gd,delay:num(v['bd_'+m.id]),duration:num(v['bu_'+m.id]),signs:(v['bs_'+m.id]||'').trim()}:{score:0,dist:0}});
      const pz=fd.getAll('pz'),pi=fd.getAll('pi');
@@ -2347,7 +2359,7 @@ document.addEventListener('submit',ev=>{
    case 'tech':{const w=db.workouts.find(x=>x.id===db.active.id);w.exercises[+f.dataset.i].tech=(v.t||'').trim();save();closeSheet();render();break}
    case 'addEx':{const w=db.workouts.find(x=>x.id===db.active.id);const r=f.querySelector('[data-exrow]');const g=n=>r.querySelector(`[name=${n}]`).value;
      w.exercises.push({name:g('en').trim()||'Exercice',sets:+g('es')||3,reps:g('er'),rest:+g('et')||40,logged:[],tech:''});S.openEx=w.exercises.length-1;save();closeSheet();render();break}
-   case 'finish':{const w=db.workouts.find(x=>x.id===db.active.id);w.end=Date.now();w.duration=Math.round((w.end-w.start)/60000);w.feel=+v.feel;w.note=(v.note||'').trim();
+   case 'finish':{const w=db.workouts.find(x=>x.id===db.active.id);w.end=Date.now();w.duration=Math.max(1,Math.round(num(v.wdur)||(w.end-w.start)/60000));if(v.wday&&v.wday<=t)w.date=v.wday;schedCancel();w.feel=+v.feel;w.note=(v.note||'').trim();
      w.exercises=w.exercises.filter(e=>e.logged.length);db.active=null;save();try{wakeLock?.release()}catch(e){}closeSheet();render({top:true});hud('Séance enregistrée');break}
    case 'tpl':{const rows=[...f.querySelectorAll('[data-exrow]')].map(r=>({name:r.querySelector('[name=en]').value.trim(),sets:+r.querySelector('[name=es]').value||3,reps:r.querySelector('[name=er]').value.trim(),rest:+r.querySelector('[name=et]').value||40})).filter(e=>e.name);
      if(!rows.length){hud('Ajoute au moins un exercice');break}
@@ -3371,8 +3383,13 @@ async function cloudFlush(){
   {const nl=dataCount(db),nr=A.remoteN||0;if(!A.force&&nr>30&&nl<nr*0.6){A.dirty=true;if(!A.guarded||!$('#layer').innerHTML){A.guarded=true;guardSheet(nl,nr)}return false}}
   A.flushing=true;A.dirty=false;const me=A.user.id;let ok=true;
   try{
+    /* quelqu'un (un autre appareil) a-t-il écrit depuis notre dernier état commun ? alors on fusionne avant d'envoyer */
+    {const h=await sb.from('user_data').select('mod:data->mod').eq('user_id',me).maybeSingle();const rm=+(h.data?.mod||0);
+      if(!h.error&&rm&&rm>A.base&&rm!==db.mod){const f=await sb.from('user_data').select('data').eq('user_id',me).maybeSingle();const R=f.data?.data;
+        if(R?.settings){const key=st().apiKey;db=mergeDb(db,R);db.settings.apiKey=key||'';db.owner=me;db.mod=Math.max(Date.now(),rm+1);writeLocal();A.merged=true}}}
+    const sentMod=db.mod;
     const r=await sb.from('user_data').upsert({user_id:me,data:cloudCopy(),updated_at:new Date().toISOString()});if(r.error)throw r.error;
-    A.remoteN=dataCount(db);A.force=false;A.guarded=false;agPush(false);
+    setBase(sentMod);A.remoteN=dataCount(db);A.force=false;A.guarded=false;agPush(false);if(A.merged){A.merged=false;refreshAll()}
     const t=TODAY();const rows=Array.from({length:7},(_,k)=>shareRow(addDays(t,-k)));
     const r2=await sb.from('daily_share').upsert(rows,{onConflict:'user_id,day'});if(r2.error)throw r2.error;
     const nm=st().name||'';if(A.sentName!==nm){const r3=await sb.from('profiles').upsert({id:me,name:nm});if(!r3.error)A.sentName=nm}
@@ -3381,14 +3398,30 @@ async function cloudFlush(){
   if(A.dirty){clearTimeout(A.t);A.t=setTimeout(cloudFlush,ok?1500:10000)}
   return ok}
 window.addEventListener('online',()=>{if(A.dirty)cloudFlush()});
+window.addEventListener('pagehide',()=>{if(A.user&&(A.dirty||(db.mod||0)>A.base))cloudFlush()});
 document.addEventListener('visibilitychange',()=>{if(!A.user)return;
-  if(document.visibilityState==='hidden'){if(A.dirty)cloudFlush()}
+  if(document.visibilityState==='hidden'){if(A.dirty||(db.mod||0)>A.base)cloudFlush()}
   else{cloudPull(true).then(ch=>{if(ch)refreshAll();payPull()});loadGroup(true)}});
 /* plusieurs appareils (téléphone + ordinateur) : une page restée ouverte récupère les changements faits ailleurs */
 setInterval(()=>{if(A.user&&document.visibilityState==='visible')cloudPull(true).then(ch=>{if(ch)refreshAll();payPull()})},60e3);
 
 const blankLocal=()=>!Object.keys(db.days).length&&!db.workouts.length;
 /* Récupère les données du compte. Renvoie true si les données locales ont été remplacées. */
+/* ---------- synchro sans perte : fusion quand les deux côtés ont changé ----------
+   A.base = version (mod) du dernier état commun avec le compte. Si le téléphone ET le compte ont changé depuis, on fusionne
+   (repas, séances, tâches, notes, opérations… réunis par identifiant) au lieu de garder l'un et jeter l'autre. */
+const BASEK=K+':base';A.base=(()=>{try{return +localStorage.getItem(BASEK)||0}catch(e){return 0}})();
+const setBase=m=>{A.base=m||0;try{localStorage.setItem(BASEK,String(A.base))}catch(e){}};
+function mergeById(L=[],R=[],stamp){const m=new Map();(R||[]).forEach(x=>x&&x.id!=null&&m.set(x.id,x));(L||[]).forEach(x=>{if(!x||x.id==null)return;const y=m.get(x.id);m.set(x.id,y&&stamp&&(y[stamp]||0)>(x[stamp]||0)?y:x)});
+  const extra=(L||[]).filter(x=>x&&x.id==null);return [...m.values(),...extra]}
+function mergeDb(L,R){const o=JSON.parse(JSON.stringify(L)),r=JSON.parse(JSON.stringify(R));
+  o.days=Object.assign({},r.days||{});Object.entries(L.days||{}).forEach(([d,D])=>{const x=r.days?.[d];if(!x){o.days[d]=D;return}
+    const y=Object.assign({},x,D);y.meals=mergeById(D.meals,x.meals);if(!D.morning&&x.morning)y.morning=x.morning;else if(D.morning&&x.morning)y.morning=Object.assign({},x.morning,D.morning);
+    if(!D.evening&&x.evening)y.evening=x.evening;else if(D.evening&&x.evening)y.evening=Object.assign({},x.evening,D.evening);o.days[d]=y});
+  ['workouts','templates','jobs','events','contacts','todos'].forEach(k=>o[k]=mergeById(L[k],r[k]));o.notes=mergeById(L.notes,r.notes,'updated');
+  o.weekly=Object.assign({},r.weekly||{},L.weekly||{});o.foods=[...new Set([...(L.foods||[]),...(r.foods||[])])].slice(0,40);
+  const lf=L.fin||{},rf=r.fin||{};o.fin=Object.assign({},rf,lf);['tx','plans','goals','inv','accounts'].forEach(k=>o.fin[k]=mergeById(lf[k],rf[k]));o.fin.tx.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  return o}
 async function cloudPull(onlyIfNewer){
   if(!sb||!A.user)return false;
   if(onlyIfNewer&&(A.dirty||A.flushing||db.active||$('#layer').innerHTML))return false;
@@ -3397,7 +3430,12 @@ async function cloudPull(onlyIfNewer){
   const mine=!db.owner||db.owner===A.user.id;const remote=res.data?.data;if(remote&&mine)A.remoteN=dataCount(remote);
   if(remote&&remote.settings){
     /* appareil jamais relié à un compte (ex. ordinateur) qui se connecte à un compte existant : le compte gagne, pour ne jamais écraser le téléphone */
-    if(!mine||(!db.owner&&!onlyIfNewer)||blankLocal()||(remote.mod||0)>(db.mod||0)){const key=mine?st().apiKey:'';db=remote;db.settings.apiKey=key||'';db.owner=A.user.id;writeLocal();return true}
+    const adopt=()=>{const key=mine?st().apiKey:'';db=remote;db.settings.apiKey=key||'';db.owner=A.user.id;writeLocal();setBase(remote.mod);return true};
+    if(!mine||(!db.owner&&!onlyIfNewer)||blankLocal())return adopt();
+    const rm=remote.mod||0,lm=db.mod||0;if(rm===lm){setBase(rm);return false}
+    const remoteChanged=rm>A.base,localChanged=lm>A.base;
+    if(remoteChanged&&localChanged){/* les deux ont bougé : on réunit tout, puis on renvoie le résultat */const key=st().apiKey;db=mergeDb(db,remote);db.settings.apiKey=key||'';db.owner=A.user.id;db.mod=Math.max(Date.now(),rm+1);writeLocal();cloudQueue();return true}
+    if(remoteChanged)return adopt();
     return false}
   if(onlyIfNewer)return false;
   if(!mine){db=seed()}
