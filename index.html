@@ -1793,6 +1793,7 @@ function guidePage(focus){const sects=['home',...AREA_PICK.map(x=>x[0]).filter(a
 /* ---------- vue de la semaine par jour et par heure (tâches, agenda, Carrière, séances) ---------- */
 const WK_H0=7,WK_H1=22,toMinS=t=>{const m=String(t||'').match(/^(\d{1,2}):(\d{2})/);return m?+m[1]*60+ +m[2]:null},minHM=m=>String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
 function weekBlocks(days,todoList,marks){const map=new Map(days.map(d=>[d,[]])),put=(d,o)=>{if(map.has(d))map.get(d).push(o)};
+  todoList.filter(x=>!x.done&&x.rep&&x.due).forEach(x=>repOccs(x,days[0],days[days.length-1]).forEach(d=>{const s=toMinS(x.time);put(d,{s,e:s!=null?s+(x.dur||30):null,title:'↻ '+x.title,c:PRIO_C[x.prio]||PRIO_C.moyenne,dur:x.dur})}));
   todoList.filter(x=>!x.done&&x.due).forEach(x=>{const s=toMinS(x.time);put(x.due,{s,e:s!=null?s+(x.dur||30):null,title:x.title,c:PRIO_C[x.prio]||PRIO_C.moyenne,mark:marks?.get(x.id)||'',dur:x.dur})});
   gcalItems(days[0],days[days.length-1]).forEach(x=>{const s=toMinS(x.time);put(x.d,{s,e:toMinS(x.end)||(s!=null?s+60:null),title:x.title,c:'#4285F4',fixed:1})});
   if(areaOn('carriere')){jobs().filter(jobOpen).forEach(j=>(j.interviews||[]).forEach(i=>{const s=toMinS(i.time);put(i.date,{s,e:s!=null?s+60:null,title:T('Entretien · ','Interview · ')+j.company,c:'#3E6FD8',fixed:1})}));
@@ -1819,6 +1820,7 @@ function calItems(from,to,focus,noFriend){const t=TODAY(),out=[],push=o=>out.pus
   (A.invIn||[]).filter(r=>r.status!=='no'&&(!noFriend||(r.status==='yes'&&!r.item?.busy))&&r.item?.due).flatMap(r=>spanIn(r.item.due,r.item.end,from,to).map(d=>[r,d])).forEach(([r,d])=>{const it=Object.assign({},r.item,{due:d}),multi=r.item.end>r.item.due,s=it.allDay||multi?null:toMinS(it.time);it.allDay=it.allDay||multi;push(it.busy?{d:it.due,s,e:s!=null?s+(it.dur||60):null,title:'Occupé · '+agName(r.owner),c:agColor(r.owner),act:'calNone',fixed:1,friend:1}:{d:it.due,s,e:s!=null?s+(it.dur||60):null,title:(r.status==='pending'?'? ':'')+it.title+' · avec '+agName(r.owner),c:agColor(r.owner),act:'invOpen',id:r.id,inv:1})});
   if(!noFriend&&S.calWith){const f=(A.agFriends||[]).find(x=>x.owner===S.calWith);if(f)(f.blocks||[]).filter(b=>b.d>=from&&b.d<=to).forEach(b=>push({d:b.d,s:b.s,e:b.e,title:(f.level==='full'&&b.t?b.t:'Occupé')+' · '+agName(f.owner),c:agColor(f.owner),act:'calNone',fixed:1,friend:1}))}
   if(areaOn('taches'))todos().filter(x=>!x.done&&x.due&&x.dueEnd>x.due).forEach(x=>{const n=diff(x.due,x.dueEnd)+1,late=dueLast(x)<t;(late?[t].filter(d=>d>=from&&d<=to):spanIn(x.due,x.dueEnd,from,to)).forEach(d=>push({d,s:null,e:null,title:x.title+(late?'':` (${diff(x.due,d)+1}/${n})`),c:PRIO_C[x.prio]||PRIO_C.moyenne,act:'tdEdit',id:x.id,todo:1,late,allDay:true}))});
+  if(areaOn('taches'))todos().filter(x=>!x.done&&x.rep&&x.due).forEach(x=>repOccs(x,x.due<t&&addDays(t,1)>from?addDays(t,1):from,to).forEach(d=>{const s=x.allDay?null:toMinS(x.time);push({d,s,e:s!=null?s+(x.dur||30):null,title:'↻ '+x.title,c:PRIO_C[x.prio]||PRIO_C.moyenne,act:'tdEdit',id:x.id,todo:1,rep:1,allDay:!!x.allDay})}));
   if(areaOn('taches'))todos().filter(x=>!x.done&&x.due&&!(x.dueEnd>x.due)).forEach(x=>{let d=x.due,late=false;if(d<t){d=t;late=true}if(d<from||d>to)return;const s=late?null:toMinS(x.time);
     push({d,s:x.allDay?null:s,e:!x.allDay&&s!=null?s+(x.dur||30):null,title:x.title,c:PRIO_C[x.prio]||PRIO_C.moyenne,act:'tdEdit',id:x.id,todo:1,late,allDay:!!x.allDay})});
   gcalItems(from,to).forEach(x=>{const s=x.allDay?null:toMinS(x.time);push({d:x.d,s,e:toMinS(x.end)||(s!=null?s+60:null),title:x.title,c:'#4285F4',act:'gcalShow',id:x.d+'|'+(x.time||'')+'|'+x.title,fixed:1,allDay:!!x.allDay})});
@@ -2622,6 +2624,8 @@ function stepDue(d,r,dom){if(r==='day')return addDays(d,1);if(r==='week')return 
   if(r==='weekday'){let n=addDays(d,1);while(dow(n)>4)n=addDays(n,1);return n}
   const [y,m]=d.split('-').map(Number),k=(m-1)+(r==='year'?12:1),ny=y+Math.floor(k/12),nm=k%12+1,last=new Date(ny,nm,0).getDate();
   return `${ny}-${String(nm).padStart(2,'0')}-${String(Math.min(dom||+d.slice(8),last)).padStart(2,'0')}`}
+/* occurrences à venir d'une tâche répétée (après son échéance actuelle), dans une fenêtre de dates */
+function repOccs(x,from,to){const out=[];if(!x.rep||!x.due)return out;let d=x.due,k=0;while(k++<400){d=stepDue(d,x.rep,x.dom);if(d>to)break;if(d>=from)out.push(d)}return out}
 function nextDue(x){let n=stepDue(x.due||TODAY(),x.rep,x.dom);while(n<=TODAY())n=stepDue(n,x.rep,x.dom);return n}
 const TD_CATS=['Perso','Travail','Carrière','Admin','Maison','Santé','Finances','Courses'];
 const PRIO_C={haute:'var(--red)',moyenne:'var(--orange)',basse:'var(--label3)'};
@@ -3266,6 +3270,7 @@ function agendaItems(){const t=TODAY(),end=addDays(t,AG_SOON),C=Object.fromEntri
   // Tâches : en retard, du jour et des 7 prochains jours
   todos().filter(x=>!x.done&&x.due&&x.due<=end).flatMap(x=>(x.dueEnd&&x.dueEnd>x.due&&dueLast(x)>=t?spanIn(x.due,x.dueEnd,t,end):[x.due<t?t:x.due]).map(d=>[x,d])).forEach(([x,d])=>add({day:d,late:dueLast(x)<t,time:x.time||'',area:'taches',title:esc(x.title),meta:[x.rep?'↻ '+REP_SHORT[x.rep]:null,x.cat&&esc(x.cat)].filter(Boolean).join(' · '),act:'tdEdit',id:x.id,todo:x}));
   out.forEach(o=>{if(o.todo?.place)o.meta=[o.meta,'📍 '+esc(o.todo.place)].filter(Boolean).join(' · ')});
+  todos().filter(x=>!x.done&&x.rep&&x.due).forEach(x=>repOccs(x,addDays(t,1),end).forEach(d=>{if(d===x.due)return;add({day:d,time:x.time||'',area:'taches',title:esc(x.title),meta:'↻ '+REP_SHORT[x.rep]+(x.cat?' · '+esc(x.cat):''),act:'tdEdit',id:x.id,c:PRIO_C[x.prio]||PRIO_C.moyenne,user:true})}));
   const rank=o=>(o.late?'0':'1')+(o.time||'99:99')+(o.todo?prioRank(o.todo.prio):3);
   out.forEach(o=>o.c=C[o.area]||o.c);
   out.forEach(o=>{if(o.area==='gcal')o.c='#4285F4';if(o.area==='backup')o.c='#8E8E93'});const kept=out.filter(o=>o.area==='gcal'||o.area==='backup'||o.area==='invite'||areaOn(o.area));out.length=0;out.push(...kept);
