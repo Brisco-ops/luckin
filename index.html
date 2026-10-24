@@ -1910,7 +1910,7 @@ function planCard(raw,d,idx,applied){if(raw==='bad')return `<div class="note">Le
    <div class="pa">${applied?`<button class="btn-fill" disabled>Appliqué à tes tâches</button>`:`<button class="btn-fill" data-act="ccApplyPlan" data-dom="${d}" data-i="${idx}">Appliquer</button>`}</div></div>`}
 function applyPlan(raw){const p=cleanPlan(raw);if(!p)return 0;const T=new Map(todos().map(x=>[x.id,x]));
   p.changes.forEach(c=>{const x=T.get(c.id);if(c.due)x.due=c.due;if(c.time!=null)x.time=c.time;if(c.prio)x.prio=c.prio;if(c.dur)x.dur=c.dur;if(x.rep&&c.due)x.dom=+c.due.slice(8)});
-  p.add.forEach(n=>todos().push(Object.assign({id:uid(),created:Date.now(),done:false,note:'Ajoutée par le coach'},n)));
+  p.add.forEach(n=>todos().push(Object.assign({id:uid(),created:Date.now(),done:false,note:'Ajoutée par le coach'},n)));tdCatsFix();
   if(p.remove.length)db.todos=todos().filter(x=>!p.remove.includes(x.id));
   save();return p.changes.length+p.add.length+p.remove.length}
 function ccLiveHTML(){if(CC.live){const sp=splitPlan(CC.live),sn=splitNotes(sp.text);return `${sn.text?`<div class="msg a">${md(sn.text)}</div>`:''}${sp.pending?'<div class="note">Préparation du planning…</div>':''}${sn.pending?'<div class="note">Préparation des modifications de notes…</div>':''}`}return CC.live?`<div class="msg a">${md(CC.live)}</div>`:`<div class="msg a">${CC.status?`<p class="cc-via">${esc(CC.status)}</p>`:''}<span class="typing"><i></i><i></i><i></i></span></div>`}
@@ -2628,8 +2628,13 @@ function stepDue(d,r,dom){if(r==='day')return addDays(d,1);if(r==='week')return 
 function repOccs(x,from,to){const out=[];if(!x.rep||!x.due)return out;let d=x.due,k=0;while(k++<400){d=stepDue(d,x.rep,x.dom);if(d>to)break;if(d>=from)out.push(d)}return out}
 function nextDue(x){let n=stepDue(x.due||TODAY(),x.rep,x.dom);while(n<=TODAY())n=stepDue(n,x.rep,x.dom);return n}
 const TD_CATS=['Perso','Travail','Carrière','Admin','Maison','Santé','Finances','Courses'];
+/* catégories de tâches sans doublon : « carriere », « Carrière » et « Carrière » (espace) = une seule, écrite comme la catégorie prévue ou la première utilisée */
+const tdCatKey=c=>normH(String(c||'').replace(/\s+/g,' ').trim());
+function tdCatCanon(c){c=String(c||'').replace(/\s+/g,' ').trim();if(!c)return '';const k=tdCatKey(c);return TD_CATS.find(x=>tdCatKey(x)===k)||todos().map(y=>y.cat).find(y=>y&&tdCatKey(y)===k&&TD_CATS.every(z=>tdCatKey(z)!==k))||c}
+function tdCatsFix(){let ch=false;todos().forEach(x=>{if(!x.cat)return;const c=tdCatCanon(x.cat);if(c!==x.cat){x.cat=c;ch=true}});return ch}
 const PRIO_C={haute:'var(--red)',moyenne:'var(--orange)',basse:'var(--label3)'};
 const todos=()=>db.todos||(db.todos=[]);
+try{if(tdCatsFix())writeLocal()}catch(e){}
 const prioRank=p=>({haute:0,moyenne:1,basse:2}[p]??1);
 const TBUCKETS=[['late','En retard'],['today','Aujourd’hui'],['tomorrow','Demain'],['week','Dans les 7 jours'],['later','Plus tard'],['none','Sans échéance']];
 /* sur plusieurs jours : x.dueEnd (tâche), e.dateEnd (événement), item.end (invitation) ; en retard seulement après le dernier jour */
@@ -2659,7 +2664,7 @@ function paintTodos(){const v=$('#area'),t=TODAY();
    ${open.length?`<p class="sec-f td-legend"><i style="--pc:var(--red)"></i>haute <i style="--pc:var(--orange)"></i>moyenne <i style="--pc:var(--label3)"></i>basse · rangées par échéance, puis priorité</p>`:''}
   </div>${bar}`}
 function tdSheet(x){const isNew=!x;x=x||{title:'',due:'',time:'',prio:'moyenne',cat:'',note:''};
-  const cats=[...new Set([...TD_CATS,...todos().map(y=>y.cat).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,'fr'));
+  const cats=[...new Map([...TD_CATS,...todos().map(y=>y.cat).filter(Boolean)].map(c=>[tdCatKey(c),tdCatCanon(c)])).values()].sort((a,b)=>a.localeCompare(b,'fr'));
   sheet(isNew?'Nouvelle tâche':'Tâche',`<form id="sf" data-form="todo" data-id="${x.id||''}">
    ${sec('',`<div class="cell"><textarea name="title" rows="2" required placeholder="Que dois-tu faire ?">${esc(x.title)}</textarea></div>`)}
    ${sec('',`<div class="cell block"><span>Priorité</span>${seg('prio',PRIO,x.prio||'moyenne')}</div>
@@ -2677,7 +2682,7 @@ function tdSheet(x){const isNew=!x;x=x||{title:'',due:'',time:'',prio:'moyenne',
    ${isNew?'':sec('',`<button type="button" class="cell tap danger center" data-act="tdAskDel" data-id="${x.id}">Supprimer la tâche</button>`)}
   </form>`)}
 function todoSubmit(f,v){let x=todos().find(y=>y.id===f.dataset.id);const isNew=!x;if(isNew){x={id:uid(),created:Date.now(),done:false};todos().push(x)}
-  Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),place:String(v.place||'').trim(),due:v.due||'',time:v.dur==='all'?'':v.time||'',...durRead(v),prio:v.prio||'moyenne',rep:v.rep||'',cat:(v.catSel==='__new'?v.catNew||'':v.catSel||'').trim(),note:(v.note||'').trim()});
+  Object.assign(x,{title:v.title.replace(/\s+/g,' ').trim(),place:String(v.place||'').trim(),due:v.due||'',time:v.dur==='all'?'':v.time||'',...durRead(v),prio:v.prio||'moyenne',rep:v.rep||'',cat:tdCatCanon(v.catSel==='__new'?v.catNew||'':v.catSel||''),note:(v.note||'').trim()});
   x.dueEnd=!x.rep&&x.due&&v.dueEnd>x.due?v.dueEnd:'';
   if(x.rep){if(!x.due)x.due=TODAY();x.dom=+x.due.slice(8)}else delete x.dom;
   if(withRead(f,x))invSync(x)
