@@ -2314,7 +2314,7 @@ document.addEventListener('change',ev=>{const t=ev.target;
   if(t.name==='evView'){S.evView=t.value;repaintArea();return}
   if(t.name&&t.name.startsWith('ags_')){const v=t.name.slice(4),sh=st().agShare||(st().agShare={});if(t.value)sh[v]=t.value;else delete sh[v];save();if(t.value)agPush(true).then(()=>hud(t.value==='busy'?'Ton ami voit quand tu es occupé':'Ton ami voit ton agenda'));else agUnshare(v).then(()=>hud('Agenda plus partagé'));return}
   if(t.name==='tdView'){S.tdView=t.value;paintTodos();return}
-  if(t.name==='ctCh'){const m=t.value==='mail';const sj=$('.ct-subj');if(sj)sj.hidden=!m;const b=$('#ctgo');if(b)b.textContent=m?'Ouvrir dans Mail':'Ouvrir dans Messages';return}
+  if(t.name==='ctCh'){const m=t.value==='mail';const sj=$('.ct-subj');if(sj)sj.hidden=!m;const b=$('#ctgo');if(b)b.textContent=m?'Ouvrir dans Mail':t.value==='wa'?'Ouvrir dans WhatsApp':'Ouvrir dans Messages';return}
   if(t.name==='brView'){S.brView=t.value;paintBrain();return}
   if(!t.closest('form')&&t.closest('.seg')){if(t.name==='coachMode'){st().coachMode=t.value;save();if(prefsOn())paintPrefs();hud('Coachs : '+(COACH_MODES.find(m=>m[0]===t.value)||[])[1])}if(t.name==='countMode'){st().countMode=t.value;save();hud(t.value==='mains'?'Portions de main activées':'Calories activées')}if(t.name==='muscleUnit'){st().muscleUnit=t.value;save()}return}
 });
@@ -2500,14 +2500,16 @@ function ctTemplates(x){const p=firstName(x.name),me=st().name&&st().name!=='toi
 function ctMsgSheet(x){const t=ctTemplates(x),ch=x.email?'mail':'sms';
   sheet('Écrire à '+esc(firstName(x.name)||x.name),`<form id="sf" data-form="ctMsg" data-id="${x.id}">
    ${sec('',`<div class="cell block"><span>Modèle</span><div class="foods">${t.map(([k,l])=>`<button type="button" data-act="ctTpl" data-id="${x.id}" data-k="${k}">${l}</button>`).join('')}</div></div>
-     ${x.email&&x.phone?`<div class="cell block"><span>Envoyer par</span>${seg('ctCh',[['mail','E-mail'],['sms','Message']],ch)}</div>`:''}`)}
+     ${(()=>{const o=[...(x.email?[['mail','E-mail']]:[]),...(x.phone?[['sms','Message'],['wa','WhatsApp']]:[])];return o.length>1?`<div class="cell block"><span>Envoyer par</span>${seg('ctCh',o,ch)}</div>`:''})()}`)}
    ${sec('',`<label class="cell field ct-subj" for="cms" ${ch==='mail'?'':'hidden'}><span>Objet</span><input id="cms" name="subj" value="${esc(t[0][2])}" autocomplete="off"></label>
-     <div class="cell"><textarea id="cmt" name="text" rows="11">${esc(t[0][3])}</textarea></div>`,'Le message s’ouvre dans Mail ou Messages, déjà rempli : relis-le puis envoie. Le contact est noté comme fait aujourd’hui.')}
+     <div class="cell"><textarea id="cmt" name="text" rows="11">${esc(t[0][3])}</textarea></div>`,'Le message s’ouvre dans Mail, Messages ou WhatsApp, déjà rempli : relis-le puis envoie. Le contact est noté comme fait aujourd’hui.')}
    ${sec('',`<button type="button" class="cell tap link center" data-act="ctSend" data-id="${x.id}" id="ctgo">${ch==='mail'?'Ouvrir dans Mail':'Ouvrir dans Messages'}</button>`)}
   </form>`,{save:''})}
+/* WhatsApp veut le numéro international sans + ni espaces : un numéro français 0X XX XX XX XX devient 33X… */
+const waNum=p=>{let d=String(p||'').replace(/[^\d+]/g,'');if(d.startsWith('+'))return d.slice(1);if(d.startsWith('00'))return d.slice(2);if(/^0\d{9}$/.test(d))return '33'+d.slice(1);return d};
 const ctAction=(href,label)=>`<a class="cell tap link" href="${esc(href)}" ${/^https/.test(href)?'target="_blank" rel="noopener"':''}>${label}</a>`;
 function ctSheet(x){const isNew=!x;x=x||{name:'',company:'',role:'',email:'',linkedin:'',phone:'',met:'',next:'',notes:''};
-  const acts=[(x.email||x.phone)&&!isNew&&`<button type="button" class="cell tap link" data-act="ctMsg" data-id="${x.id}">Écrire un message</button>`,x.linkedin&&ctAction(safeUrl(x.linkedin),'Ouvrir LinkedIn'),x.phone&&ctAction('tel:'+x.phone.replace(/[^\d+]/g,''),'Appeler')].filter(Boolean);
+  const acts=[(x.email||x.phone)&&!isNew&&`<button type="button" class="cell tap link" data-act="ctMsg" data-id="${x.id}">Écrire un message</button>`,x.linkedin&&ctAction(safeUrl(x.linkedin),'Ouvrir LinkedIn'),x.phone&&ctAction('tel:'+x.phone.replace(/[^\d+]/g,''),'Appeler'),x.phone&&ctAction('https://wa.me/'+waNum(x.phone),'Ouvrir WhatsApp')].filter(Boolean);
   sheet(isNew?'Nouveau contact':'Contact',`<form id="sf" data-form="ct" data-id="${x.id||''}">
    ${acts.length?sec('',acts.join('')):''}
    ${sec('',`<label class="cell field" for="cn"><span>Nom</span><input id="cn" name="name" value="${esc(x.name)}" required placeholder="Prénom Nom" autocomplete="off"></label>
@@ -2585,9 +2587,9 @@ function jobAct(act,id,el){const j=jobs().find(x=>x.id===id);
      const ta=$('#cmt');if(ta.value.trim()&&!ctTemplates(x).some(y=>y[3]===ta.value)&&!confirm('Remplacer le texte déjà écrit ?'))break;ta.value=t[3];if(t[2])$('#cms').value=t[2];break}
    case 'ctSend':{const x=contacts().find(c=>c.id===id);if(!x)break;const ch=document.querySelector('input[name=ctCh]:checked')?.value||(x.email?'mail':'sms');
      const text=$('#cmt').value.replace(/\s+$/,''),subj=$('#cms').value.trim();if(!text.trim()){hud('Le message est vide');break}
-     const url=ch==='mail'?`mailto:${encodeURIComponent(x.email).replace(/%40/g,'@')}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(text)}`:`sms:${x.phone.replace(/[^\d+]/g,'')}&body=${encodeURIComponent(text)}`;
+     const url=ch==='mail'?`mailto:${encodeURIComponent(x.email).replace(/%40/g,'@')}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(text)}`:ch==='wa'?`https://wa.me/${waNum(x.phone)}?text=${encodeURIComponent(text)}`:`sms:${x.phone.replace(/[^\d+]/g,'')}&body=${encodeURIComponent(text)}`;
      (x.msgs||(x.msgs=[])).push({d:TODAY(),ch,subj:ch==='mail'?subj:'',text});if(x.msgs.length>30)x.msgs.splice(0,x.msgs.length-30);x.last=TODAY();if(x.next&&x.next<=TODAY())x.next='';save();
-     location.href=url;closeSheet();if(careerOn2())paintCareer();break}
+     if(ch==='wa'){const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}else location.href=url;closeSheet();if(careerOn2())paintCareer();break}
    case 'ctDone':{const x=contacts().find(c=>c.id===id);x.last=TODAY();x.next='';const n=$('#cnx');if(n)n.value='';save();haptic();hud('Contact noté');const l=$('#clast');if(l)l.textContent='Dernier contact le '+fdate(x.last);paintCareer();break}
    case 'ctAskDel':asheet('Supprimer ce contact et ses notes ?',[{label:'Supprimer le contact',act:'ctDel',data:{id},danger:true}]);break;
    case 'ctDel':db.contacts=contacts().filter(c=>c.id!==id);save();paintCareer();hud('Contact supprimé');break;
