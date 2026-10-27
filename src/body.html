@@ -512,7 +512,7 @@ function dataContext(){
   const wos=db.workouts.filter(w=>w.end).slice(-6).map(w=>`${w.date} ${w.name}: `+(w.kind==='muscu'?w.exercises.filter(e=>e.logged.length).map(e=>`${e.name} ${e.logged.map(x=>x.secs!=null?x.secs+'s':`${x.load??'PDC'}x${x.reps}@${x.rir}`).join(' ')}`).join('; '):`${w.cardio?.type} ${w.duration} min ${w.cardio?.distance??''} km`));
   const wk=Object.keys(db.weekly).sort().slice(-3).map(d=>{const x=db.weekly[d];return `${d}: taille ${x.waist??'-'} cm${x.belt!=null?', cran '+x.belt:''}, victoires: ${x.wins||'-'}, difficultés: ${x.struggles||'-'}, questions: ${x.questions||'-'}`});
   return `Profil : ${s.name}, ${s.height} cm, départ ${s.startWeight} kg, cible ${s.targetWeight??'non fixée'}${s.targetDate?' le '+s.targetDate:''}. Cibles : ${s.kcalTarget??'?'} kcal, ${s.protTarget??'?'} g de protéines. Contraintes alimentaires : ${s.diet||'aucune'}. Entraînement prévu ${s.trainingDays.length} jours par semaine. Comptage : ${s.countMode==='mains'?'portions de main':'calories'}.
-Programmes : ${db.templates.map(t=>t.name+' ('+t.exercises.map(e=>`${e.name} ${e.sets}x${e.reps} repos ${e.rest}s`).join(', ')+')').join(' ; ')||'aucun'}
+Programmes : ${db.templates.map(t=>'[id '+t.id+'] '+t.name+' ('+t.exercises.map(e=>`${e.name} ${e.sets}x${e.reps} repos ${e.rest}s`).join(', ')+')').join(' ; ')||'aucun'}
 Journal des 14 derniers jours :
 ${lines.join('\n')||'(vide)'}
 Notes du réveil : ${mnotes.join(' ; ')||'(aucune)'}
@@ -527,7 +527,7 @@ Méthodes : surcharge progressive avec RIR 1 à 3, volume de 10 à 20 séries pa
 Sécurité : pas de diagnostic ni de conseil médical. Distingue le ballonnement (sensation : gaz, tension) du ventre gonflé (distension visible, parfois sans sensation) : causes et pistes ne sont pas les mêmes (fermentation, aliments FODMAP, vitesse de repas, sel, transit, posture, cycle…). Douleur persistante ou intense, ballonnements ou ventre gonflé fréquents ou accompagnés d'autres signes : recommande un médecin ou un kinésithérapeute.
 Si tu proposes un programme de musculation et que l'utilisateur est d'accord, termine ton message par UN bloc <programme>…</programme> contenant uniquement du JSON valide :
 {"templates":[{"name":"Haut du corps A","exercises":[{"name":"Développé couché","sets":4,"reps":"6-8","rest":150}]}]}
-(rest en secondes). L'utilisateur l'ajoutera d'un bouton.
+(rest en secondes). L'utilisateur l'ajoutera d'un bouton.${ACT_NOTE.forme}
 
 ${dataContext()}`}
 function splitProg(t){const i=t.indexOf('<programme>');if(i<0)return {text:t,prog:null,pending:false};const j=t.indexOf('</programme>',i);
@@ -549,7 +549,7 @@ function vCoach(){
    <div class="l2" style="font-size:15px">Le coach lit ton journal (pesées, repas, séances, soirées) et te répond avec tes chiffres. Il utilise Claude via ta clé API Anthropic, stockée uniquement sur ce téléphone.</div>
    <button class="btn-fill" data-act="goKey">Saisir ma clé API</button></div>`;
   const items=chat.map((m,k)=>{if(m.role==='user')return `<div class="msg u">${esc(m.content)}</div>`;if(m.err)return `<div class="msg a err">${esc(m.content)}</div>`;
-    const p=splitProg(m.content);return (p.text?`<div class="msg a">${md(p.text)}</div>`:'')+(p.prog?progCard(p.prog,k,m.applied):'')}).join('');
+    const p0=splitProg(m.content),sa=splitActs(p0.text),p={...p0,text:sa.text};return (p.text?`<div class="msg a">${md(p.text)}</div>`:'')+(p.prog?progCard(p.prog,k,m.applied):'')+(sa.acts?actsCard(sa.acts,'forme',k,m.appliedActs,'applyActsForme'):'')}).join('');
   const starters=['Analyse ma semaine et donne-moi 3 priorités.','Aide-moi à fixer un objectif réaliste et mes cibles.','Propose-moi un programme adapté à mes jours.',...(st().bloatTrack?['Pourquoi je suis ballonné ? Regarde mes repas.']:[]),'Idées de repas qui respectent mes contraintes.'];
   return `<div class="lt"><span class="eyebrow">${b==='claude'?'Via ton compte Claude':'Via ta clé API'}</span><h1>Coach</h1></div>
    ${chat.length?'':`<div class="msg a">${md(`Salut ${st().name}. Je lis ton journal pour t’aider à ajuster nutrition, entraînement et récupération. Que veux-tu regarder ?`)}</div><div class="chips">${starters.map(s=>`<button class="chip-s" data-act="starter">${esc(s)}</button>`).join('')}</div>`}
@@ -559,7 +559,7 @@ function vCoach(){
    <div class="composer" id="composer"><div class="in"><textarea id="cin" rows="1" placeholder="Écris au coach…" aria-label="Message au coach"></textarea>
    <button class="send" id="csend" data-act="${C.busy?'stop':'send'}" aria-label="${C.busy?'Arrêter':'Envoyer'}">${C.busy?I.stop:I.up}</button></div></div>`;
 }
-function liveHTML(){const p=splitProg(C.live);if(!C.live)return `<div class="msg a"><span class="typing"><i></i><i></i><i></i></span></div>`;
+function liveHTML(){const p0=splitProg(C.live||''),sa=splitActs(p0.text),p={...p0,text:sa.text,pending:p0.pending||sa.pending};if(!C.live)return `<div class="msg a"><span class="typing"><i></i><i></i><i></i></span></div>`;
   return (p.text?`<div class="msg a">${md(p.text)}</div>`:'')+(p.pending?`<div class="note">Préparation du programme…</div>`:'')}
 function paintLive(){const el=$('#live');if(el){el.hidden=false;el.innerHTML=liveHTML();window.scrollTo(0,document.body.scrollHeight)}}
 const errCopy={not_granted:'Accès refusé : autorise le coach à utiliser Claude pour continuer.',rate_limited:'Trop de demandes pour le moment. Réessaie dans un instant.',session_expired:'Reconnecte-toi à Claude puis réessaie.',refused:'Le coach n’a pas pu répondre à ce message. Reformule-le.',prompt_too_large:'La conversation est trop longue. Démarre une nouvelle conversation.',sampling_disabled:'Claude n’est pas disponible pour ce compte.'};
@@ -640,6 +640,17 @@ const PROF={
  finances:{label:'Profil finances',f:[['income','Revenus nets par mois','text','2 400 € (salaire), variable…'],['situation','Situation','text','Seul, en couple, enfants…'],['home','Logement','text','Locataire, propriétaire, chez les parents…'],['safety','Épargne de précaution visée','text','3 mois de dépenses…'],['horizon','Horizon de placement','text','5 ans, 10 ans, retraite…'],['risk','Rapport au risque','text','Prudent, équilibré, dynamique'],['debts','Crédits ou dettes','text','Prêt étudiant 150 €/mois…'],['fgoals','Projets financiers','area','Achat immobilier, voyage, voiture…']]},
  taches:{label:'Profil organisation',f:[['hours','Horaires habituels','text','9 h–18 h en semaine…'],['energy','Moments où tu es le plus efficace','text','Le matin, après le sport…'],['constraints','Contraintes','area','Trajets, engagements fixes…'],['focus','Ce qui compte en ce moment','area','Trouver un emploi, finir un projet…']]},
  savoir:{label:'Profil apprentissage',f:[['topics','Sujets qui t’intéressent','area','Langues, histoire, cuisine, développement personnel…'],['lgoals','Objectifs d’apprentissage','area','Certification, langue, lectures…'],['time','Temps disponible par semaine','text','3 h, 30 min par jour…'],['how','Comment tu apprends le mieux','text','Lire, écouter, pratiquer, expliquer…']]}};
+const ACT_TAIL='JSON valide uniquement, seulement les clés utiles ; pour une mise à jour, donne l’id du contexte et seulement les champs qui changent. N’invente aucune donnée (entreprise, date, montant, contact) que l’utilisateur n’a pas fournie. L’utilisateur verra le détail et appliquera d’un bouton.';
+const ACT_NOTE={
+ carriere:`\n\nAgir dans l’app : si l’utilisateur te demande d’ajouter ou de mettre à jour ses candidatures, relances, contacts, événements ou son objectif hebdomadaire, explique en une phrase puis termine ton message par UN SEUL bloc :
+<actions>{"jobs":[{"id":"…","company":"…","role":"…","date":"AAAA-MM-JJ","status":"envoyee|entretien|offre|refus|silence","stage":"…","contract":"CDI|CDD|VIE|Stage|Alternance|Freelance|Autre","location":"…","link":"…","note":"…"}],"relances":["id de candidature"],"contacts":[{"id":"…","name":"…","company":"…","role":"…","email":"…","phone":"…","linkedin":"…","met":"…","next":"AAAA-MM-JJ","notes":"…"}],"events":[{"id":"…","title":"…","kind":"salon|masterclass|conf|reseau|webinaire|autre","date":"AAAA-MM-JJ","time":"HH:MM","place":"…","notes":"…"}],"goal":5}</actions>
+« relances » note une relance faite aujourd’hui. `+ACT_TAIL,
+ get finances(){return `\n\nAgir dans l’app : si l’utilisateur te demande de fixer son budget, créer ou modifier des échéances (récurrentes ou en plusieurs fois), des objectifs d’épargne, ou de recatégoriser des opérations, explique en une phrase puis termine ton message par UN SEUL bloc :
+<actions>{"budget":1500,"plans":[{"id":"…","title":"…","amount":0,"date":"AAAA-MM-JJ","rep":"|month|quarter|year","kind":"out|in","cat":"…","sub":"…","count":0}],"goals":[{"id":"…","name":"…","target":0,"due":"AAAA-MM-JJ"}],"recat":[{"id":"id d’opération","cat":"…","sub":"…"}]}</actions>
+« amount » d’une échéance = montant de chaque échéance ; « count » = nombre de fois (0 = sans fin). Catégories de dépenses et sous-catégories : ${Object.entries(FSUB).map(([c,l])=>c+' ('+l.join(', ')+')').join(' ; ')} ; et Épargne, Placement, Virement entre mes comptes, Pour un proche, Autre. Revenus : ${FCATS_IN.join(', ')}. `+ACT_TAIL},
+ forme:`\n\nAgir dans l’app : si l’utilisateur te demande de régler ses cibles, son objectif, ses jours ou son heure d’entraînement, ou de modifier un programme existant, explique en une phrase puis termine ton message par UN SEUL bloc :
+<actions>{"targets":{"kcal":2200,"prot":150},"goal":"…","trainingDays":[0,2,4],"trainTime":"HH:MM","templates":[{"id":"id d’un programme existant","name":"…","exercises":[{"name":"…","sets":3,"reps":"8-10","rest":90}]}]}</actions>
+trainingDays : 0 = lundi … 6 = dimanche. Pour un nouveau programme, utilise plutôt le bloc <programme>. `+ACT_TAIL};
 const NOTES_NOTE=`
 
 Modifier les notes : si l’utilisateur te demande de corriger, réécrire, compléter, résumer, réorganiser, relier, renommer ou créer des notes, propose les changements, explique-les en une ou deux phrases, puis termine ton message par UN SEUL bloc :
@@ -660,11 +671,11 @@ const CTX={
   const by=f=>{const m={};J.forEach(j=>{const k=f(j);if(k)m[k]=(m[k]||0)+1});return Object.entries(m).map(([k,v])=>k+' '+v).join(', ')||'-'};
   return `Objectif : ${c.goal} candidatures par semaine (cette semaine : ${weekApps()}). Relance après ${c.relance} jours.
 Candidatures : ${J.length} au total. Par statut : ${by(j=>j.status)}. Étape atteinte : ${by(j=>j.stage)}. Raisons : ${by(j=>j.reason)}.
-En cours : ${open.map(j=>`${j.company} – ${j.role||'?'} (${j.contract||'?'}, ${j.location||'?'}), envoyée le ${j.date}, statut ${j.status}${(j.relances||[]).length?', relancée '+j.relances.length+'x':''}${relanceDue(j)?', À RELANCER':''}${(j.interviews||[]).map(i=>`, entretien ${i.date} ${i.time||''} ${i.kind||''} ${i.note||''}`).join('')}${j.note?', note : '+cut(j.note,120):''}`).join(' ; ')||'aucune'}
-Closes récentes : ${closed.slice(-15).map(j=>`${j.company} – ${cut(j.role,50)} : ${j.status}${j.stage?' ('+j.stage+')':''}`).join(' ; ')||'aucune'}
-Événements à venir : ${events().filter(e=>e.date>=t).map(e=>`${e.date} ${e.time||''} ${e.title} (${e.kind}, ${e.place||'?'}) questions : ${cut(e.questions,200)||'-'} notes : ${cut(e.notes,200)||'-'}`).join(' ; ')||'aucun'}
+En cours : ${open.map(j=>`[id ${j.id}] ${j.company} – ${j.role||'?'} (${j.contract||'?'}, ${j.location||'?'}), envoyée le ${j.date}, statut ${j.status}${(j.relances||[]).length?', relancée '+j.relances.length+'x':''}${relanceDue(j)?', À RELANCER':''}${(j.interviews||[]).map(i=>`, entretien ${i.date} ${i.time||''} ${i.kind||''} ${i.note||''}`).join('')}${j.note?', note : '+cut(j.note,120):''}`).join(' ; ')||'aucune'}
+Closes récentes : ${closed.slice(-15).map(j=>`[id ${j.id}] ${j.company} – ${cut(j.role,50)} : ${j.status}${j.stage?' ('+j.stage+')':''}`).join(' ; ')||'aucune'}
+Événements à venir : ${events().filter(e=>e.date>=t).map(e=>`[id ${e.id}] ${e.date} ${e.time||''} ${e.title} (${e.kind}, ${e.place||'?'}) questions : ${cut(e.questions,200)||'-'} notes : ${cut(e.notes,200)||'-'}`).join(' ; ')||'aucun'}
 Événements passés : ${events().filter(e=>e.date<t).slice(-5).map(e=>`${e.date} ${e.title} notes : ${cut(e.notes,200)||'-'}`).join(' ; ')||'aucun'}
-Contacts : ${contacts().slice(0,40).map(x=>`${x.name} (${[x.role,x.company].filter(Boolean).join(', ')||'?'}, rencontré : ${x.met||'?'}${x.next?', à recontacter le '+x.next:''}${x.last?', dernier contact '+x.last:''}${x.notes?', notes : '+cut(x.notes,100):''})`).join(' ; ')||'aucun'}`},
+Contacts : ${contacts().slice(0,40).map(x=>`[id ${x.id}] ${x.name} (${[x.role,x.company].filter(Boolean).join(', ')||'?'}, rencontré : ${x.met||'?'}${x.next?', à recontacter le '+x.next:''}${x.last?', dernier contact '+x.last:''}${x.notes?', notes : '+cut(x.notes,100):''})`).join(' ; ')||'aucun'}`},
  taches(){const t=TODAY(),o=todos().filter(x=>!x.done);
   return `Tâches à faire (${o.length}) : ${o.map(x=>`${x.title} [id ${x.id}, ${x.prio}${x.due?', échéance '+x.due+(x.time?' '+x.time:''):', sans échéance'}${x.dueEnd?' au '+x.dueEnd:''}${x.due&&dueLast(x)<t?', EN RETARD':''}${x.cat?', '+x.cat:''}${x.rep?', répétée '+REP_SHORT[x.rep]:''}]${x.note?' : '+cut(x.note,100):''}`).join(' ; ')||'aucune'}
 ${areaOn('forme')?'Séances de sport prévues (14 jours, créneaux fixes) : '+sessTxt(t,addDays(t,14))+'.\n':''}Événements à venir (salons, masterclass…) : ${events().filter(e=>e.date>=t).map(e=>`${e.date} ${e.time||''} ${e.title}${e.place?' ('+e.place+')':''}`).join(' ; ')||'aucun'}.\nRendez-vous fixes de l’agenda (14 jours) : ${gcalItems(t,addDays(t,14)).map(x=>`${x.d} ${x.allDay?'journée':x.time+(x.end?'-'+x.end:'')} ${x.title}`).join(' ; ')||'aucun ou non connecté'}.
@@ -674,11 +685,11 @@ Faites ces 14 derniers jours : ${todos().filter(x=>x.done&&(x.doneAt||0)>Date.no
   const prev=addMonths(m+'-15',-1).slice(0,7),pout=sum(F.tx.filter(x=>monthKey(x.date)===prev&&spend(x)).map(x=>x.amount));
   return `Mois en cours (${m}) : revenus ${eur(inn)}, dépenses ${eur(out)}, épargne nette (versements − retraits) ${eur(sv)} (virements entre ses comptes et argent « pour un proche » exclus)${accounts().length?'. Comptes : '+accounts().map(a=>a.name).join(', '):''}${F.budget?' sur un budget de '+eur(F.budget):''}. Mois précédent : dépenses ${eur(pout)}.
 Par catégorie ce mois : ${Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>k+' '+eur(v)).join(', ')||'-'}.
-Dernières opérations : ${F.tx.slice(-25).map(x=>`${x.date} ${x.kind==='out'?'-':'+'}${eur(x.amount)} ${catLabel(x)}${x.note?' ('+cut(x.note,40)+')':''}`).join(' ; ')||'aucune'}
-Récurrent : revenus ${eur(sum(F.plans.filter(p=>p.rep&&pIn(p)).map(monthlyEq)))} / mois, charges ${eur(sum(F.plans.filter(p=>p.rep&&!pIn(p)).map(monthlyEq)))} / mois (lissées) : ${F.plans.filter(p=>p.rep).map(p=>`${p.title} ${pIn(p)?'+':'-'}${eur(p.amount)} ${repTxt(p)}`).join(' ; ')||'rien'}.
+Dernières opérations : ${F.tx.slice(-40).map(x=>`[id ${x.id}] ${x.date} ${x.kind==='out'?'-':'+'}${eur(x.amount)} ${catLabel(x)}${x.note?' ('+cut(x.note,40)+')':''}`).join(' ; ')||'aucune'}
+Récurrent : revenus ${eur(sum(F.plans.filter(p=>p.rep&&pIn(p)).map(monthlyEq)))} / mois, charges ${eur(sum(F.plans.filter(p=>p.rep&&!pIn(p)).map(monthlyEq)))} / mois (lissées) : ${F.plans.filter(p=>p.rep).map(p=>`[id ${p.id}] ${p.title} ${pIn(p)?'+':'-'}${eur(p.amount)} ${repTxt(p)}`).join(' ; ')||'rien'}.
 À anticiper (mettre de côté par mois) : ${anticip().map(a=>`${a.p.title} ${eur(a.p.amount)} le ${a.d} → ${eur(Math.ceil(a.per))}/mois${a.g?' (déjà '+eur(a.have)+')':''}`).join(' ; ')||'rien'}.
 Échéances (30 j passés non payées et 60 j à venir) : ${upcoming(addDays(t,-30),addDays(t,60)).map(({p,d})=>`${d} ${pIn(p)?'revenu ':''}${p.title} ${eur(p.amount)}${d<t?' EN RETARD':''}${p.rep?' ('+FREP.find(r=>r[0]===p.rep)[1]+')':''}`).join(' ; ')||'aucune'}
-Épargne : ${F.goals.map(g=>`${g.name} ${eur(g.saved||0)} sur ${eur(g.target)}${g.due?' pour le '+g.due:''}`).join(' ; ')||'aucun objectif'}
+Épargne : ${F.goals.map(g=>`[id ${g.id}] ${g.name} ${eur(g.saved||0)} sur ${eur(g.target)}${g.due?' pour le '+g.due:''}`).join(' ; ')||'aucun objectif'}
 Placements : ${F.inv.map(a=>`${a.name} (${a.type}) valeur ${eur(invVal(a))}, versé ${eur(invIn(a))}`).join(' ; ')||'aucun'}`},
  savoir(){const rd=st().reading;const N=notes().slice().sort((a,b)=>(b.updated||0)-(a.updated||0)),tags=[...new Set(N.flatMap(n=>n.tags||[]))];
   return `${rd?.on?`Lecture chronométrée « ${rd.label} » (${rd.min} min) : faite ${Array.from({length:7},(_,k)=>addDays(TODAY(),-k)).filter(readDone).length} jours sur 7.\n`:''}${N.length} notes. Étiquettes : ${tags.join(', ')||'aucune'}.
@@ -701,7 +712,7 @@ Savoir : ${notes().length} notes, dernières : ${notes().slice().sort((a,b)=>(b.
 function systemFor(d,forBoss){if(d==='forme')return rules()+(forBoss?'\n\nTu réponds au coach principal, pas directement à l’utilisateur : sois factuel et dense, chiffres à l’appui, sans bloc <programme>.':'');
   const wd=new Date().toLocaleDateString(LOC,{weekday:'long'});
   const allProf=d==='central'?Object.keys(PROF).filter(k=>k!=='central'&&profFilled(k)).map(k=>`${PROF[k].label} :\n${profText(k)}`).join('\n'):'';
-  return `${ROLE[d].replace('${name}',st().name)}${d==='taches'||d==='central'?PLAN_NOTE:''}${d==='savoir'?NOTES_NOTE:''}
+  return `${ROLE[d].replace('${name}',st().name)}${d==='taches'||d==='central'?PLAN_NOTE:''}${d==='savoir'?NOTES_NOTE:''}${ACT_NOTE[d]||''}
 
 ${PROF[d].label} de l’utilisateur :
 ${profText(d)}${allProf?'\n\nProfils des autres domaines :\n'+allProf:''}
@@ -776,8 +787,8 @@ async function coachSend(d,text){text=String(text||'').trim();if(!text||CC.busy|
 function coachPage(d,o={}){const k=COACH[d],c=chatOf(d),b=backend();
   const head=`<div class="a-head">${o.back?`<button type="button" class="link br-back" data-act="${o.back}">‹ ${o.backLabel}</button>`:`<p class="l2">${d==='central'?'Vue d’ensemble · '+AREA_PICK.filter(a=>areaOn(a[0])).length+' coach'+(AREA_PICK.filter(a=>areaOn(a[0])).length>1?'s spécialisés':' spécialisé'):'Spécialiste '+COACH_DOMS[d]}</p>`}<h1>${k.name}</h1></div>`;
   if(!b)return head+sec('',`<div class="cell"><span class="body"><span>Active ton coach</span><span class="fn">Le coach utilise Claude avec ta clé API Anthropic (Réglages › Coach IA), stockée uniquement sur ce téléphone.</span></span></div><button class="cell tap link" data-act="goKey">Saisir ma clé API</button>`,'','notile');
-  const items=c.map((m,k)=>{if(m.role==='user')return `<div class="msg u">${esc(m.content)}</div>`;if(m.err)return `<div class="msg a err">${esc(m.content)}</div>`;const sp0=splitPlan(m.content),sn=splitNotes(sp0.text),sp={...sp0,text:sn.text};
-    return `${sp.text||m.via?`<div class="msg a">${md(sp.text)}${m.via?`<p class="cc-via">A consulté : ${m.via.map(esc).join(', ')}</p>`:''}</div>`:''}${sp.plan?planCard(sp.plan,d,k,m.applied):''}${sn.notes?notesCard(sn.notes,d,k,m.applied):''}`}).join('');
+  const items=c.map((m,k)=>{if(m.role==='user')return `<div class="msg u">${esc(m.content)}</div>`;if(m.err)return `<div class="msg a err">${esc(m.content)}</div>`;const sp0=splitPlan(m.content),sn0=splitNotes(sp0.text),sa=splitActs(sn0.text),sn={...sn0,text:sa.text},sp={...sp0,text:sa.text};
+    return `${sp.text||m.via?`<div class="msg a">${md(sp.text)}${m.via?`<p class="cc-via">A consulté : ${m.via.map(esc).join(', ')}</p>`:''}</div>`:''}${sp.plan?planCard(sp.plan,d,k,m.applied):''}${sn.notes?notesCard(sn.notes,d,k,m.applied):''}${sa.acts?actsCard(sa.acts,d,k,m.applied):''}`}).join('');
   const nf=profFilled(d),nt=PROF[d].f.length;
   const profCell=`<button type="button" class="cc-prof" data-act="ccProfile" data-dom="${d}"><span><b>${PROF[d].label}</b> · ${nf?nf+'/'+nt+' renseigné'+(nf>1?'s':''):'à remplir pour des conseils vraiment personnalisés'}</span><span class="cc-prof-go">${nf?'Modifier':'Remplir'}</span></button>`;
   return `${head}${profCell}<div class="cc-msgs">${c.length?'':`<div class="msg a">${md(k.hello(st().name))}</div><div class="chips">${k.starters.map(x=>`<button class="chip-s" data-act="ccStarter" data-dom="${d}">${esc(x)}</button>`).join('')}</div>`}
@@ -939,6 +950,68 @@ function calAct(act,el,ev){switch(act){
   haptic(6);calRepaint();return true}
 {let sx=0,sy=0,on=false;document.addEventListener('touchstart',e=>{on=!!e.target.closest?.('.cal-grid,.cal-head,.cal-adrow');if(on){sx=e.touches[0].clientX;sy=e.touches[0].clientY}},{passive:true});
  document.addEventListener('touchend',e=>{if(!on)return;on=false;const dx=e.changedTouches[0].clientX-sx,dy=e.changedTouches[0].clientY-sy;if(Math.abs(dx)>60&&Math.abs(dy)<45){CAL.start=addDays(CAL.start||TODAY(),(dx<0?1:-1)*CAL.n);haptic(6);calRepaint()}},{passive:true})}
+/* ---------- actions des coachs Carrière, Finances et Forme : bloc <actions>{…}</actions>, contrôlé, détaillé, appliqué d'un bouton ---------- */
+function splitActs(t){const i=t.indexOf('<actions>');if(i<0)return {text:t,acts:null,pending:false};const j=t.indexOf('</actions>',i);
+  if(j<0)return {text:t.slice(0,i).trim(),acts:null,pending:true};let acts=null;
+  try{acts=JSON.parse(t.slice(i+9,j).trim().replace(/^```(json)?/,'').replace(/```$/,'').trim())}catch(e){acts='bad'}
+  return {text:(t.slice(0,i)+t.slice(j+10)).trim(),acts,pending:false}}
+const aStr=(v,n=200)=>typeof v==='string'||typeof v==='number'?String(v).trim().slice(0,n):'';
+const aNum=v=>{const n=typeof v==='number'?v:amtNum(v);return Number.isFinite(n)?n:null};
+/* renvoie [{t: texte de la ligne, f: fonction qui applique}] — rien n'est modifié tant que l'utilisateur n'a pas appliqué */
+function actsOps(d,A){const ops=[],add=(t,f)=>ops.push({t,f});if(!A||A==='bad'||typeof A!=='object')return ops;
+  const set=(o,k,v,lab,list)=>{if(v===undefined||v===null||v==='')return;if(o[k]===v)return;list.push(lab);return true};
+  if(d==='carriere'){
+    (A.jobs||[]).forEach(j=>{if(!j||typeof j!=='object')return;const x=j.id&&jobs().find(y=>y.id===j.id),c={};
+      ['company','role','stage','location','note'].forEach(k=>{const v=aStr(j[k],k==='note'?600:120);if(v&&(!x||x[k]!==v))c[k]=v});
+      if(PDATE.test(j.date||'')&&(!x||x.date!==j.date))c.date=j.date;if(JOBST.some(s=>s[0]===j.status)&&(!x||x.status!==j.status))c.status=j.status;
+      if(CONTRACTS.includes(j.contract)&&(!x||x.contract!==j.contract))c.contract=j.contract;{const l=aStr(j.link,400);if(/^https?:\/\//.test(l)&&(!x||x.link!==l))c.link=l}
+      const ks=Object.keys(c);if(!ks.length)return;
+      if(x)add(`<b>${esc(x.company)}</b> : ${ks.map(k=>k==='status'?'statut → '+JOBST.find(s=>s[0]===c.status)[1]:k+' → '+esc(String(c[k]).slice(0,60))).join(', ')}`,()=>Object.assign(x,c));
+      else if(c.company)add(`<b>+ Candidature ${esc(c.company)}</b>${c.role?' – '+esc(c.role):''}`,()=>jobs().push(Object.assign({id:uid(),date:TODAY(),status:'envoyee',relances:[],interviews:[]},c)))});
+    (A.relances||[]).forEach(id=>{const x=jobs().find(y=>y.id===id);if(!x||(x.relances||[]).includes(TODAY()))return;add(`<b>Relance notée</b> : ${esc(x.company)}`,()=>(x.relances||(x.relances=[])).push(TODAY()))});
+    (A.contacts||[]).forEach(o=>{if(!o||typeof o!=='object')return;const x=o.id&&contacts().find(y=>y.id===o.id),c={};
+      ['name','company','role','email','phone','linkedin','met','notes'].forEach(k=>{const v=aStr(o[k],k==='notes'?600:160);if(v&&(!x||x[k]!==v))c[k]=v});if(PDATE.test(o.next||'')&&(!x||x.next!==o.next))c.next=o.next;
+      const ks=Object.keys(c);if(!ks.length)return;
+      if(x)add(`<b>${esc(x.name)}</b> : ${ks.map(k=>k==='next'?'à recontacter le '+fdate(c.next):k+' → '+esc(String(c[k]).slice(0,60))).join(', ')}`,()=>Object.assign(x,c));
+      else if(c.name)add(`<b>+ Contact ${esc(c.name)}</b>${c.company?' ('+esc(c.company)+')':''}`,()=>contacts().push(Object.assign({id:uid()},c)))});
+    (A.events||[]).forEach(o=>{if(!o||typeof o!=='object')return;const x=o.id&&events().find(y=>y.id===o.id),c={};
+      ['title','place','notes'].forEach(k=>{const v=aStr(o[k],k==='notes'?600:160);if(v&&(!x||x[k]!==v))c[k]=v});if(PDATE.test(o.date||'')&&(!x||x.date!==o.date))c.date=o.date;
+      if(PTIME.test(o.time||'')&&(!x||x.time!==o.time))c.time=o.time;if(EVKIND.some(k=>k[0]===o.kind)&&(!x||x.kind!==o.kind))c.kind=o.kind;
+      const ks=Object.keys(c);if(!ks.length)return;
+      if(x)add(`<b>${esc(x.title)}</b> : ${ks.map(k=>k==='date'?'le '+fdate(c.date):k+' → '+esc(String(c[k]).slice(0,60))).join(', ')}`,()=>Object.assign(x,c));
+      else if(c.title&&c.date)add(`<b>+ Événement ${esc(c.title)}</b> · ${fdate(c.date)}${c.time?' à '+c.time:''}`,()=>events().push(Object.assign({id:uid(),kind:'autre',time:'',place:'',questions:'',notes:''},c)))});
+    {const g=Math.round(aNum(A.goal)||0);if(g>=1&&g<=50&&g!==car().goal)add(`<b>Objectif</b> : ${g} candidature${g>1?'s':''} par semaine`,()=>{car().goal=g})}}
+  if(d==='finances'){const F=fin(),catOk=(cat,kind)=>(kind==='in'?FCATS_IN:FCATS_OUT).includes(cat),subOk=(cat,sub)=>!sub||(FSUB[cat]||[]).includes(sub);
+    {const b=aNum(A.budget);if(b&&b>0&&b<1e6&&b!==F.budget)add(`<b>Budget mensuel</b> : ${eur(b)}`,()=>{fin().budget=Math.round(b*100)/100})}
+    (A.plans||[]).forEach(o=>{if(!o||typeof o!=='object')return;const x=o.id&&F.plans.find(y=>y.id===o.id),c={},kind=o.kind==='in'?'in':o.kind==='out'?'out':(x?.kind||'out');
+      {const v=aStr(o.title,80);if(v&&(!x||x.title!==v))c.title=v}{const a=aNum(o.amount);if(a&&a>0&&(!x||x.amount!==a))c.amount=Math.round(a*100)/100}
+      if(PDATE.test(o.date||'')&&(!x||x.date!==o.date))c.date=o.date;if(['','month','quarter','year'].includes(o.rep)&&(!x||(x.rep||'')!==o.rep))c.rep=o.rep;
+      if(catOk(o.cat,kind)&&subOk(o.cat,o.sub)&&(!x||x.cat!==o.cat||(x.sub||'')!==(o.sub||''))){c.cat=o.cat;c.sub=o.sub||''}
+      {const n=Math.round(aNum(o.count)||0);if(n>1&&n<=120&&(!x||x.count!==n)){c.count=n;if(!c.rep&&!(x?.rep))c.rep='month'}}
+      const ks=Object.keys(c);if(!ks.length)return;
+      if(x)add(`<b>${esc(x.title)}</b> : ${[c.title&&'nom → '+esc(c.title),c.amount&&eur(c.amount),c.date&&'le '+fdate(c.date),c.rep!=null&&(FREP.find(r=>r[0]===c.rep)||[])[1],c.cat&&catLabel(c),c.count&&c.count+' fois'].filter(Boolean).join(', ')}`,()=>Object.assign(x,c));
+      else if(c.title&&c.amount)add(`<b>+ ${kind==='in'?'Revenu':'Échéance'} ${esc(c.title)}</b> · ${eur(c.amount)}${c.count?' × '+c.count:''} · ${(FREP.find(r=>r[0]===(c.rep||''))||[])[1]||'une fois'}${c.date?' · dès le '+fdate(c.date):''}`,()=>F.plans.push(Object.assign({id:uid(),paid:[],kind,date:TODAY(),rep:'',cat:kind==='in'?'Autre revenu':'Autre',sub:''},c)))});
+    (A.goals||[]).forEach(o=>{if(!o||typeof o!=='object')return;const x=o.id&&F.goals.find(y=>y.id===o.id),c={};
+      {const v=aStr(o.name,80);if(v&&(!x||x.name!==v))c.name=v}{const a=aNum(o.target);if(a&&a>0&&(!x||x.target!==a))c.target=Math.round(a*100)/100}if(PDATE.test(o.due||'')&&(!x||x.due!==o.due))c.due=o.due;
+      const ks=Object.keys(c);if(!ks.length)return;
+      if(x)add(`<b>${esc(x.name)}</b> : ${[c.name&&'nom → '+esc(c.name),c.target&&'objectif '+eur(c.target),c.due&&'pour le '+fdate(c.due)].filter(Boolean).join(', ')}`,()=>Object.assign(x,c));
+      else if(c.name&&c.target)add(`<b>+ Objectif d’épargne ${esc(c.name)}</b> · ${eur(c.target)}${c.due?' pour le '+fdate(c.due):''}`,()=>F.goals.push(Object.assign({id:uid(),saved:0,hist:[],due:''},c)))});
+    (A.recat||[]).forEach(o=>{const x=o&&F.tx.find(y=>y.id===o.id);if(!x||!catOk(o.cat,x.kind)||!subOk(o.cat,o.sub)||(x.cat===o.cat&&(x.sub||'')===(o.sub||'')))return;
+      add(`<b>${esc(x.note||x.cat)}</b> (${x.kind==='out'?'−':'+'}${eur(x.amount)}, ${fdate(x.date)}) : ${esc(catLabel(x))} → <b>${esc(catLabel({cat:o.cat,sub:o.sub}))}</b>`,()=>{txLink(x,true);x.cat=o.cat;x.sub=o.sub||'';if(!isSaveCat(x.cat))x.to='';txLink(x)})})}
+  if(d==='forme'){const s=st();
+    {const k=Math.round(aNum(A.targets?.kcal)||0),pr=Math.round(aNum(A.targets?.prot)||0);
+      if(k>=800&&k<=6000&&k!==s.kcalTarget)add(`<b>Calories</b> : ${k} kcal / jour`,()=>{st().kcalTarget=k});if(pr>=20&&pr<=400&&pr!==s.protTarget)add(`<b>Protéines</b> : ${pr} g / jour`,()=>{st().protTarget=pr})}
+    {const g=aStr(A.goal,300);if(g&&g!==s.formeGoal)add(`<b>Objectif</b> : ${esc(g)}`,()=>{st().formeGoal=g})}
+    if(Array.isArray(A.trainingDays)){const td=[...new Set(A.trainingDays.map(Number).filter(n=>Number.isInteger(n)&&n>=0&&n<=6))].sort();if(td.length&&td.join()!==(s.trainingDays||[]).join())add(`<b>Jours d’entraînement</b> : ${td.map(n=>['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'][n]).join(', ')}`,()=>{st().trainingDays=td})}
+    if(PTIME.test(A.trainTime||'')&&A.trainTime!==s.trainTime)add(`<b>Heure de séance</b> : ${A.trainTime}`,()=>{st().trainTime=A.trainTime});
+    (A.templates||[]).forEach(o=>{const x=o&&db.templates.find(y=>y.id===o.id);if(!x)return;const ex=Array.isArray(o.exercises)?o.exercises.filter(e=>e&&e.name).map(e=>({name:aStr(e.name,80),sets:clamp(+e.sets||3,1,10),reps:aStr(e.reps,12)||'8-10',rest:clamp(+e.rest||90,15,600)})):null,nm=aStr(o.name,60);
+      if(!ex?.length&&!nm)return;add(`<b>Programme ${esc(x.name)}</b>${nm&&nm!==x.name?' → '+esc(nm):''}${ex?.length?' : '+ex.map(e=>esc(e.name)+' '+e.sets+'×'+esc(e.reps)).join(', '):''}`,()=>{if(nm)x.name=nm;if(ex?.length)x.exercises=ex;delete x.example})})}
+  return ops}
+function actsCard(raw,d,idx,applied,act){if(raw==='bad')return `<div class="note">Les modifications proposées sont illisibles. Demande au coach de les renvoyer.</div>`;
+  const ops=actsOps(d,raw);if(!ops.length)return applied?'':`<div class="note">Rien à appliquer (déjà à jour ou informations incomplètes).</div>`;
+  return `<div class="plan pl"><div class="ph"><b>Modifications proposées</b><span class="l2">${ops.length} changement${ops.length>1?'s':''}</span></div><ul>${ops.map(o=>`<li>${o.t}</li>`).join('')}</ul>
+   <div class="pa">${applied?`<button class="btn-fill" disabled>Appliqué</button>`:`<button class="btn-fill" data-act="${act||'ccApplyActs'}" data-dom="${d}" data-i="${idx}">Appliquer</button>`}</div></div>`}
+function applyActs(d,raw){const ops=actsOps(d,raw);ops.forEach(o=>{try{o.f()}catch(e){}});if(ops.length)save();return ops.length}
 /* modifications de notes proposées par le coach Savoir */
 function cleanNotes(raw){if(!raw||raw==='bad')return null;const byId=new Map(notes().map(n=>[n.id,n])),byT=new Map(notes().map(n=>[brNorm(n.title),n]));
   const tg=a=>Array.isArray(a)?[...new Set(a.map(x=>String(x).replace(/^#/,'').trim().toLowerCase()).filter(Boolean))].slice(0,12):null;
@@ -982,7 +1055,7 @@ function applyPlan(raw){const p=cleanPlan(raw);if(!p)return 0;const T=new Map(to
   p.add.forEach(n=>todos().push(Object.assign({id:uid(),created:Date.now(),done:false,note:'Ajoutée par le coach'},n)));tdCatsFix();
   if(p.remove.length)db.todos=todos().filter(x=>!p.remove.includes(x.id));
   save();return p.changes.length+p.add.length+p.remove.length}
-function ccLiveHTML(){if(CC.live){const sp=splitPlan(CC.live),sn=splitNotes(sp.text);return `${sn.text?`<div class="msg a">${md(sn.text)}</div>`:''}${sp.pending?'<div class="note">Préparation du planning…</div>':''}${sn.pending?'<div class="note">Préparation des modifications de notes…</div>':''}`}return CC.live?`<div class="msg a">${md(CC.live)}</div>`:`<div class="msg a">${CC.status?`<p class="cc-via">${esc(CC.status)}</p>`:''}<span class="typing"><i></i><i></i><i></i></span></div>`}
+function ccLiveHTML(){if(CC.live){const sp=splitPlan(CC.live),sn0=splitNotes(sp.text),sa=splitActs(sn0.text),sn={...sn0,text:sa.text};return `${sa.pending?'<div class="note">Préparation des modifications…</div>':''}${sn.text?`<div class="msg a">${md(sn.text)}</div>`:''}${sp.pending?'<div class="note">Préparation du planning…</div>':''}${sn.pending?'<div class="note">Préparation des modifications de notes…</div>':''}`}return CC.live?`<div class="msg a">${md(CC.live)}</div>`:`<div class="msg a">${CC.status?`<p class="cc-via">${esc(CC.status)}</p>`:''}<span class="typing"><i></i><i></i><i></i></span></div>`}
 function ccLive(){const el=$('#cclive');if(el){el.hidden=false;el.innerHTML=ccLiveHTML();const a=$('#area');a.scrollTop=a.scrollHeight}}
 function coachRepaint(){const d=CC.dom;if($('#area').hidden)return;
   if(H.cur==='coach'&&d==='central')paintCentral();else if(H.cur==='carriere')paintCareer();else if(H.cur==='finances')paintFinance();else if(H.cur==='taches')paintTodos();else if(H.cur==='savoir')paintBrain();
@@ -999,6 +1072,7 @@ function coachAct(act,id,el){const d=el.dataset.dom;
    case 'ccStop':CC.ctl?.abort();break;
    case 'ccProfile':profSheet(d);break;
    case 'ccApplyPlan':{const c=chatOf(d),m=c[+el.dataset.i];if(!m||m.applied)break;const n=applyPlan(splitPlan(m.content).plan);if(!n){hud('Rien à appliquer');break}m.applied=true;saveChatOf(d);CC.dom=d;coachRepaint();haptic(12);hud(n+' changement'+(n>1?'s':'')+' appliqué'+(n>1?'s':'')+' à tes tâches');break}
+   case 'ccApplyActs':{const c=chatOf(d),m=c[+el.dataset.i];if(!m||m.applied)break;const n=applyActs(d,splitActs(splitNotes(splitPlan(m.content).text).text).acts);if(!n){hud('Rien à appliquer');break}m.applied=true;saveChatOf(d);CC.dom=d;coachRepaint();haptic(12);hud(n+' changement'+(n>1?'s':'')+' appliqué'+(n>1?'s':''));break}
    case 'ccApplyNotes':{const c=chatOf(d),m=c[+el.dataset.i];if(!m||m.applied)break;const n=applyNotes(splitNotes(splitPlan(m.content).text).notes);if(!n){hud('Rien à appliquer');break}m.applied=true;saveChatOf(d);CC.dom=d;coachRepaint();haptic(12);hud(n+' note'+(n>1?'s':'')+' mise'+(n>1?'s':'')+' à jour');break}
    case 'ccNew':asheet('Effacer cette conversation ?',[{label:'Nouvelle conversation',act:'ccNewGo',data:{dom:d},danger:true}]);break;
    case 'ccNewGo':chats[d]=[];saveChatOf(d);CC.dom=d;coachRepaint();break;
@@ -1342,6 +1416,7 @@ document.addEventListener('click',ev=>{
    case 'stop':C.ctl?.abort();break;
    case 'askNewChat':asheet('Effacer la conversation ?',[{label:'Nouvelle conversation',act:'newChat',danger:true}]);break;
    case 'newChat':chat=[];saveChat();render();break;
+   case 'applyActsForme':{const m=chat[+el.dataset.i];if(!m||m.appliedActs)break;const n=applyActs('forme',splitActs(splitProg(m.content).text).acts);if(!n){hud('Rien à appliquer');break}m.appliedActs=true;saveChat();render();haptic(12);hud(n+' réglage'+(n>1?'s':'')+' appliqué'+(n>1?'s':''));break}
    case 'applyProg':{const m=chat[+el.dataset.i];const p=splitProg(m.content).prog;if(!p||p==='bad'||m.applied)break;
      p.templates.forEach(t=>{if(!t||!t.name)return;db.templates.push({id:uid(),name:String(t.name),exercises:(t.exercises||[]).filter(e=>e&&e.name).map(e=>({name:String(e.name),sets:clamp(+e.sets||3,1,10),reps:String(e.reps||'8-10'),rest:clamp(+e.rest||90,15,600)}))})});
      m.applied=true;saveChat();save();render();hud('Programme ajouté dans Séance');break}
